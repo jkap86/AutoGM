@@ -3,6 +3,7 @@ import { app, ipcMain } from 'electron'
 import serve from 'electron-serve'
 import { createWindow } from './helpers/create-window'
 import { launchPersistent } from './helpers/launch-persistent'
+import { fetchLeagues } from './helpers/fetch-leagues'
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -55,3 +56,10 @@ ipcMain.handle('login', async () => {
     await page.context().close()
   }
 })
+
+ipcMain.handle(
+  'leagues:fetch',
+  async (_event, args: { user_id: string; season: string }) => {
+    return fetchLeagues(args)
+  }
+)
