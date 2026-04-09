@@ -38,7 +38,7 @@ export type Draft = {
 
 export type SleeperRoster = {
   roster_id: number;
-  players: string[];
+  players: string[] | null;
   reserve?: string[];
   settings: {
     wins: number;
@@ -49,7 +49,7 @@ export type SleeperRoster = {
     fpts_against?: number;
     fpts_against_decimal?: number;
   };
-  starters: string[];
+  starters: string[] | null;
   taxi?: string[];
   owner_id: string;
 };
@@ -109,4 +109,27 @@ export type LeaguesPayload = {
   user: User;
   leagues: { [league_id: string]: LeagueDetailed };
   updated_at: number;
+};
+
+export type Leaguemates = {
+  [user_id: string]: {
+    display_name: string;
+    avatar: string | null;
+    leagues: string[];
+  };
+};
+
+export type PlayerShares = {
+  [player_id: string]: {
+    owned: string[];
+    taken: { user_id: string; league_id: string }[];
+  };
+};
+
+export type PickShares = {
+  [pick_id: string]: {
+    pick: DraftpickDetailed;
+    owned: string[];
+    taken: { user_id: string; league_id: string }[];
+  };
 };

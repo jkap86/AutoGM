@@ -6,84 +6,141 @@ import {
   DraftpickDetailed,
   SleeperRoster,
   Roster,
-} from './types'
+} from "./types";
 
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url)
+  const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`GET ${url} failed: ${res.status}`)
+    throw new Error(`GET ${url} failed: ${res.status}`);
   }
-  return (await res.json()) as T
+  return (await res.json()) as T;
+}
+
+export type LeagueWithRosters = League & {
+  rosters: Roster[];
+  user_roster: Roster;
+};
+
+async function getOneLeagueDetails(
+  league: League,
+  user_id: string,
+): Promise<LeagueWithRosters | null> {
+  try {
+    // Fetch all independent endpoints for this league in parallel.
+    // Type-2 leagues (dynasty) need drafts + traded_picks too.
+    const isDynasty = league.settings.type === 2;
+
+    const [rosters, users, drafts, tradedPicks] = await Promise.all([
+      getJson<SleeperRoster[]>(
+        `https://api.sleeper.app/v1/league/${league.league_id}/rosters`,
+      ),
+      getJson<User[]>(
+        `https://api.sleeper.app/v1/league/${league.league_id}/users`,
+      ),
+      isDynasty
+        ? getJson<Draft[]>(
+            `https://api.sleeper.app/v1/league/${league.league_id}/drafts`,
+          )
+        : Promise.resolve<Draft[]>([]),
+      isDynasty
+        ? getJson<Draftpick[]>(
+            `https://api.sleeper.app/v1/league/${league.league_id}/traded_picks`,
+          )
+        : Promise.resolve<Draftpick[]>([]),
+    ]);
+
+    let leagueDraftPicksObj: { [key: number]: DraftpickDetailed[] } = {};
+
+    if (isDynasty) {
+      const upcomingDraft = drafts.find(
+        (x) =>
+          x.season === league.season &&
+          x.settings.rounds === league.settings.draft_rounds,
+      );
+
+      leagueDraftPicksObj = getLeagueDraftPicksObj(
+        league,
+        rosters,
+        users,
+        upcomingDraft?.status === "complete" ? undefined : upcomingDraft,
+        tradedPicks,
+      );
+    }
+
+    const rostersUserInfo = getRostersUserInfo(
+      rosters,
+      users,
+      leagueDraftPicksObj,
+    );
+
+    const user_roster = rostersUserInfo.find((r) => r.user_id === user_id);
+
+    if (!user_roster?.players || user_roster.players.length === 0) {
+      return null;
+    }
+
+    return {
+      ...league,
+      rosters: rostersUserInfo,
+      user_roster,
+    };
+  } catch (err) {
+    console.warn(
+      `[get-league-details] failed to load league ${league.league_id} (${league.name}):`,
+      err instanceof Error ? err.message : err,
+    );
+    return null;
+  }
+}
+
+// Bounded parallelism — Sleeper appears to drop/throttle bursts above ~10
+// concurrent requests from the same IP. With 4 endpoints per league, a
+// concurrency of 6 keeps us under ~24 in-flight requests.
+const MAX_CONCURRENT_LEAGUES = 6;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (true) {
+        const i = next++;
+        if (i >= items.length) return;
+        results[i] = await fn(items[i]);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
 }
 
 export async function getLeagueDetails({
   leagues,
   user_id,
 }: {
-  leagues: League[]
-  user_id: string
-}) {
-  const leaguesDetailed: Array<
-    League & { rosters: Roster[]; user_roster: Roster }
-  > = []
+  leagues: League[];
+  user_id: string;
+}): Promise<LeagueWithRosters[]> {
+  console.log(
+    `[get-league-details] fetching ${leagues.length} leagues with concurrency=${MAX_CONCURRENT_LEAGUES}`,
+  );
 
-  for (const league of leagues) {
-    try {
-      const rosters = await getJson<SleeperRoster[]>(
-        `https://api.sleeper.app/v1/league/${league.league_id}/rosters`
-      )
+  const results = await mapWithConcurrency(
+    leagues,
+    MAX_CONCURRENT_LEAGUES,
+    (league) => getOneLeagueDetails(league, user_id),
+  );
 
-      const users = await getJson<User[]>(
-        `https://api.sleeper.app/v1/league/${league.league_id}/users`
-      )
-
-      let leagueDraftPicksObj: { [key: number]: DraftpickDetailed[] } = {}
-      let upcomingDraft: Draft | undefined
-
-      if (league.settings.type === 2) {
-        const drafts = await getJson<Draft[]>(
-          `https://api.sleeper.app/v1/league/${league.league_id}/drafts`
-        )
-        const tradedPicks = await getJson<Draftpick[]>(
-          `https://api.sleeper.app/v1/league/${league.league_id}/traded_picks`
-        )
-
-        upcomingDraft = drafts.find(
-          (x) =>
-            x.season === league.season &&
-            x.settings.rounds === league.settings.draft_rounds
-        )
-
-        leagueDraftPicksObj = getLeagueDraftPicksObj(
-          league,
-          rosters,
-          users,
-          upcomingDraft?.status === 'complete' ? undefined : upcomingDraft,
-          tradedPicks
-        )
-      }
-
-      const rostersUserInfo = getRostersUserInfo(
-        rosters,
-        users,
-        leagueDraftPicksObj
-      )
-
-      const user_roster = rostersUserInfo.find((r) => r.user_id === user_id)
-
-      if (user_roster?.players && user_roster.players.length > 0) {
-        leaguesDetailed.push({
-          ...league,
-          rosters: rostersUserInfo,
-          user_roster,
-        })
-      }
-    } catch {
-      // skip leagues that fail to load
-    }
-  }
-
-  return leaguesDetailed
+  const kept = results.filter((l): l is LeagueWithRosters => l !== null);
+  console.log(
+    `[get-league-details] kept ${kept.length}/${leagues.length} leagues`,
+  );
+  return kept;
 }
 
 export function getLeagueDraftPicksObj(
@@ -91,20 +148,20 @@ export function getLeagueDraftPicksObj(
   rosters: SleeperRoster[],
   users: User[],
   upcomingDraft: Draft | undefined,
-  tradedPicks: Draftpick[]
+  tradedPicks: Draftpick[],
 ) {
   const draftSeason = upcomingDraft
     ? parseInt(league.season)
-    : parseInt(league.season) + 1
+    : parseInt(league.season) + 1;
 
-  const draft_order = upcomingDraft?.draft_order
+  const draft_order = upcomingDraft?.draft_order;
 
-  const leagueDraftPicksObj: { [key: number]: DraftpickDetailed[] } = {}
+  const leagueDraftPicksObj: { [key: number]: DraftpickDetailed[] } = {};
 
   rosters.forEach((roster) => {
-    const draftPicksTeam: DraftpickDetailed[] = []
+    const draftPicksTeam: DraftpickDetailed[] = [];
 
-    const user = users.find((u) => u.user_id === roster.owner_id)
+    const user = users.find((u) => u.user_id === roster.owner_id);
 
     for (let j = draftSeason; j <= draftSeason + 2; j++) {
       for (let k = 1; k <= league.settings.draft_rounds; k++) {
@@ -112,8 +169,8 @@ export function getLeagueDraftPicksObj(
           (pick) =>
             parseInt(pick.season) === j &&
             pick.round === k &&
-            pick.roster_id === roster.roster_id
-        )
+            pick.roster_id === roster.roster_id,
+        );
 
         if (!isTraded) {
           draftPicksTeam.push({
@@ -121,9 +178,9 @@ export function getLeagueDraftPicksObj(
             round: k,
             roster_id: roster.roster_id,
             original_user: {
-              avatar: user?.avatar || '',
+              avatar: user?.avatar || "",
               user_id: roster.owner_id,
-              username: user?.display_name || 'Orphan',
+              username: user?.display_name || "Orphan",
             },
             order:
               (draft_order &&
@@ -131,7 +188,7 @@ export function getLeagueDraftPicksObj(
                 j === parseInt(upcomingDraft.season) &&
                 draft_order[roster?.owner_id]) ||
               null,
-          })
+          });
         }
       }
     }
@@ -139,16 +196,16 @@ export function getLeagueDraftPicksObj(
     tradedPicks
       .filter(
         (x) =>
-          x.owner_id === roster.roster_id && parseInt(x.season) >= draftSeason
+          x.owner_id === roster.roster_id && parseInt(x.season) >= draftSeason,
       )
       .forEach((pick) => {
         const original_roster = rosters.find(
-          (t) => t.roster_id === pick.roster_id
-        )
+          (t) => t.roster_id === pick.roster_id,
+        );
 
         const original_user = users.find(
-          (u) => u.user_id === original_roster?.owner_id
-        )
+          (u) => u.user_id === original_roster?.owner_id,
+        );
 
         if (original_roster) {
           draftPicksTeam.push({
@@ -156,9 +213,9 @@ export function getLeagueDraftPicksObj(
             round: pick.round,
             roster_id: pick.roster_id,
             original_user: {
-              avatar: original_user?.avatar || '',
-              user_id: original_user?.user_id || '',
-              username: original_user?.display_name || 'Orphan',
+              avatar: original_user?.avatar || "",
+              user_id: original_user?.user_id || "",
+              username: original_user?.display_name || "Orphan",
             },
             order:
               (original_user &&
@@ -167,15 +224,15 @@ export function getLeagueDraftPicksObj(
                 parseInt(pick.season) === parseInt(upcomingDraft.season) &&
                 draft_order[original_user?.user_id]) ||
               null,
-          })
+          });
         }
-      })
+      });
 
     tradedPicks
       .filter(
         (x) =>
           x.previous_owner_id === roster.roster_id &&
-          parseInt(x.season) >= draftSeason
+          parseInt(x.season) >= draftSeason,
       )
       .forEach((pick) => {
         const index = draftPicksTeam.findIndex((obj) => {
@@ -183,34 +240,34 @@ export function getLeagueDraftPicksObj(
             obj.season === pick.season &&
             obj.round === pick.round &&
             obj.roster_id === pick.roster_id
-          )
-        })
+          );
+        });
 
         if (index !== -1) {
-          draftPicksTeam.splice(index, 1)
+          draftPicksTeam.splice(index, 1);
         }
-      })
+      });
 
-    leagueDraftPicksObj[roster.roster_id] = draftPicksTeam
-  })
+    leagueDraftPicksObj[roster.roster_id] = draftPicksTeam;
+  });
 
-  return leagueDraftPicksObj
+  return leagueDraftPicksObj;
 }
 
 export function getRostersUserInfo(
   rosters: SleeperRoster[],
   users: User[],
-  league_draftpicks_obj: { [key: number]: DraftpickDetailed[] }
+  league_draftpicks_obj: { [key: number]: DraftpickDetailed[] },
 ): Roster[] {
   return rosters.map((roster) => {
-    const user = users.find((u) => u.user_id === roster.owner_id)
+    const user = users.find((u) => u.user_id === roster.owner_id);
 
     return {
       roster_id: roster.roster_id,
-      username: user?.display_name || 'Orphan',
+      username: user?.display_name || "Orphan",
       user_id: roster.owner_id,
       avatar: user?.avatar || null,
-      players: roster.players,
+      players: roster.players || [],
       draftpicks: league_draftpicks_obj[roster.roster_id] || [],
       starters: roster.starters || [],
       starters_optimal_dynasty: [],
@@ -221,13 +278,13 @@ export function getRostersUserInfo(
       losses: roster.settings.losses,
       ties: roster.settings.ties,
       fp: parseFloat(
-        `${roster.settings.fpts}.${roster.settings.fpts_decimal || 0}`
+        `${roster.settings.fpts}.${roster.settings.fpts_decimal || 0}`,
       ),
       fpa: parseFloat(
         `${roster.settings.fpts_against || 0}.${
           roster.settings.fpts_against_decimal || 0
-        }`
+        }`,
       ),
-    }
-  })
+    };
+  });
 }

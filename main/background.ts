@@ -4,6 +4,9 @@ import serve from 'electron-serve'
 import { createWindow } from './helpers/create-window'
 import { launchPersistent } from './helpers/launch-persistent'
 import { fetchLeagues } from './helpers/fetch-leagues'
+import { setSession } from './lib/auth'
+import { runQuery } from './graphql/queries'
+import type { QueryMap, QueryName } from './graphql/queries/types'
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -51,6 +54,9 @@ ipcMain.handle('login', async () => {
     )
     const token = await page.evaluate(() => localStorage.getItem('token'))
     const user_id = await page.evaluate(() => localStorage.getItem('user_id'))
+    if (token && user_id) {
+      setSession({ token, user_id })
+    }
     return { token, user_id }
   } finally {
     await page.context().close()
@@ -61,5 +67,15 @@ ipcMain.handle(
   'leagues:fetch',
   async (_event, args: { user_id: string; season: string }) => {
     return fetchLeagues(args)
+  }
+)
+
+ipcMain.handle(
+  'graphql',
+  async (
+    _event,
+    args: { name: QueryName; vars: QueryMap[QueryName]['vars'] }
+  ) => {
+    return runQuery(args.name, args.vars as never)
   }
 )
