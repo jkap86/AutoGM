@@ -144,6 +144,18 @@ export type ListPollVotesResult = {
   list_poll_votes: PollVote[];
 };
 
+export type LeagueTransactionsVars = {
+  league_id: string;
+  status?: string;
+  type?: string;
+  limit?: number;
+  roster_id?: number;
+};
+
+export type LeagueTransactionsResult = {
+  league_transactions: Transaction[];
+};
+
 export type QueryMap = {
   proposeTrade: { vars: ProposeTradeVars; result: ProposeTradeResult };
   createMessage: { vars: CreateMessageVars; result: CreateMessageResult };
@@ -154,6 +166,10 @@ export type QueryMap = {
     result: CreatePollMessageResult;
   };
   listPollVotes: { vars: ListPollVotesVars; result: ListPollVotesResult };
+  leagueTransactions: {
+    vars: LeagueTransactionsVars;
+    result: LeagueTransactionsResult;
+  };
 };
 
 export type QueryName = keyof QueryMap;
