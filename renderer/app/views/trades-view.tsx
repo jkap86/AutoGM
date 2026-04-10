@@ -308,180 +308,188 @@ export default function TradesView({
   );
 
   return (
-    <div className="flex flex-col flex-1 items-center w-full">
-      <div className="flex gap-8">
-        <div className="flex flex-col">
-          <div className="flex flex-col items-center">
-            <label htmlFor="players-to-give">Players to give:</label>
-            <PlayerCombobox
-              id="players-to-give"
-              playerIds={ownedPlayers}
-              allplayers={allplayers}
-              selected={[...playersToGive, ...playersToReceive]}
-              onSelect={(player_id) =>
-                setPlayerstoGive((prev) =>
-                  prev.includes(player_id) ? prev : [...prev, player_id],
-                )
-              }
-            />
-          </div>
-          <div className="flex flex-col items-center mt-4">
-            <label htmlFor="picks-to-give">Picks to give:</label>
-            <PlayerCombobox
-              id="picks-to-give"
-              playerIds={ownedPicks}
-              allplayers={allplayers}
-              selected={[...picksToGive, ...picksToReceive]}
-              onSelect={(pick_id) =>
-                setPicksToGive((prev) =>
-                  prev.includes(pick_id) ? prev : [...prev, pick_id],
-                )
-              }
-            />
-          </div>
-          <ul className="mt-4">
-            {playersToGive.map((player_id) => (
-              <li
-                key={player_id}
-                className="text-sm text-gray-300 flex items-center gap-2 text-[2rem]"
-              >
-                <span>{allplayers[player_id]?.full_name || player_id}</span>
-                <button
-                  onClick={() =>
-                    setPlayerstoGive((prev) =>
-                      prev.filter((p) => p !== player_id),
-                    )
-                  }
-                  className="text-red-400 hover:text-red-500"
-                >
-                  &times;
-                </button>
-              </li>
-            ))}
-            {picksToGive.map((pick_id) => (
-              <li
-                key={pick_id}
-                className="text-sm text-gray-300 flex items-center gap-2 text-[2rem]"
-              >
-                <span>{pick_id}</span>
-                <button
-                  onClick={() =>
-                    setPicksToGive((prev) => prev.filter((p) => p !== pick_id))
-                  }
-                  className="text-red-400 hover:text-red-500"
-                >
-                  &times;
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="flex flex-col">
-          <div className="flex flex-col items-center">
-            <label htmlFor="players-to-receive">Players to receive:</label>
-            <PlayerCombobox
-              id="players-to-receive"
-              playerIds={takenPlayers}
-              allplayers={allplayers}
-              selected={[...playersToReceive, ...playersToGive]}
-              onSelect={(player_id) =>
-                setPlayersToReceive((prev) =>
-                  prev.includes(player_id) ? prev : [...prev, player_id],
-                )
-              }
-            />
-          </div>
-          <div className="flex flex-col items-center mt-4">
-            <label htmlFor="picks-to-receive">Picks to receive:</label>
-            <PlayerCombobox
-              id="picks-to-receive"
-              playerIds={takenPicks}
-              allplayers={allplayers}
-              selected={[...picksToReceive, ...picksToGive]}
-              onSelect={(pick_id) =>
-                setPicksToReceive((prev) =>
-                  prev.includes(pick_id) ? prev : [...prev, pick_id],
-                )
-              }
-            />
-            <ul className="mt-4">
-              {playersToReceive.map((player_id) => (
-                <li
+    <div className="flex flex-col flex-1 items-center w-full gap-6 p-6">
+      {/* Trade builder */}
+      <div className="flex gap-4 w-full max-w-3xl">
+        {/* Give side */}
+        <div className="flex-1 flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-red-400">
+            You give
+          </h3>
+          <PlayerCombobox
+            id="players-to-give"
+            playerIds={ownedPlayers}
+            allplayers={allplayers}
+            selected={[...playersToGive, ...playersToReceive]}
+            onSelect={(player_id) =>
+              setPlayerstoGive((prev) =>
+                prev.includes(player_id) ? prev : [...prev, player_id],
+              )
+            }
+            placeholder="Search players..."
+          />
+          <PlayerCombobox
+            id="picks-to-give"
+            playerIds={ownedPicks}
+            allplayers={allplayers}
+            selected={[...picksToGive, ...picksToReceive]}
+            onSelect={(pick_id) =>
+              setPicksToGive((prev) =>
+                prev.includes(pick_id) ? prev : [...prev, pick_id],
+              )
+            }
+            placeholder="Search picks..."
+          />
+          {(playersToGive.length > 0 || picksToGive.length > 0) && (
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {playersToGive.map((player_id) => (
+                <span
                   key={player_id}
-                  className="text-sm text-gray-300 flex items-center gap-2 text-[2rem]"
+                  className="inline-flex items-center gap-1 rounded-full bg-red-900/30 border border-red-800/50 px-2.5 py-0.5 text-xs text-red-300"
                 >
-                  <span>{allplayers[player_id]?.full_name || player_id}</span>
+                  {allplayers[player_id]?.full_name || player_id}
+                  <button
+                    onClick={() =>
+                      setPlayerstoGive((prev) =>
+                        prev.filter((p) => p !== player_id),
+                      )
+                    }
+                    className="text-red-400 hover:text-red-300 ml-0.5"
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+              {picksToGive.map((pick_id) => (
+                <span
+                  key={pick_id}
+                  className="inline-flex items-center gap-1 rounded-full bg-red-900/30 border border-red-800/50 px-2.5 py-0.5 text-xs text-red-300"
+                >
+                  {pick_id}
+                  <button
+                    onClick={() =>
+                      setPicksToGive((prev) =>
+                        prev.filter((p) => p !== pick_id),
+                      )
+                    }
+                    className="text-red-400 hover:text-red-300 ml-0.5"
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Receive side */}
+        <div className="flex-1 flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-green-400">
+            You receive
+          </h3>
+          <PlayerCombobox
+            id="players-to-receive"
+            playerIds={takenPlayers}
+            allplayers={allplayers}
+            selected={[...playersToReceive, ...playersToGive]}
+            onSelect={(player_id) =>
+              setPlayersToReceive((prev) =>
+                prev.includes(player_id) ? prev : [...prev, player_id],
+              )
+            }
+            placeholder="Search players..."
+          />
+          <PlayerCombobox
+            id="picks-to-receive"
+            playerIds={takenPicks}
+            allplayers={allplayers}
+            selected={[...picksToReceive, ...picksToGive]}
+            onSelect={(pick_id) =>
+              setPicksToReceive((prev) =>
+                prev.includes(pick_id) ? prev : [...prev, pick_id],
+              )
+            }
+            placeholder="Search picks..."
+          />
+          {(playersToReceive.length > 0 || picksToReceive.length > 0) && (
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {playersToReceive.map((player_id) => (
+                <span
+                  key={player_id}
+                  className="inline-flex items-center gap-1 rounded-full bg-green-900/30 border border-green-800/50 px-2.5 py-0.5 text-xs text-green-300"
+                >
+                  {allplayers[player_id]?.full_name || player_id}
                   <button
                     onClick={() =>
                       setPlayersToReceive((prev) =>
                         prev.filter((p) => p !== player_id),
                       )
                     }
-                    className="text-red-400 hover:text-red-500"
+                    className="text-green-400 hover:text-green-300 ml-0.5"
                   >
                     &times;
                   </button>
-                </li>
+                </span>
               ))}
               {picksToReceive.map((pick_id) => (
-                <li
+                <span
                   key={pick_id}
-                  className="text-sm text-gray-300 flex items-center gap-2 text-[2rem]"
+                  className="inline-flex items-center gap-1 rounded-full bg-green-900/30 border border-green-800/50 px-2.5 py-0.5 text-xs text-green-300"
                 >
-                  <span>{pick_id}</span>
+                  {pick_id}
                   <button
                     onClick={() =>
                       setPicksToReceive((prev) =>
                         prev.filter((p) => p !== pick_id),
                       )
                     }
-                    className="text-red-400 hover:text-red-500"
+                    className="text-green-400 hover:text-green-300 ml-0.5"
                   >
                     &times;
                   </button>
-                </li>
+                </span>
               ))}
-            </ul>
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="mt-8 w-full max-w-6xl">
+      {/* Potential trades */}
+      <div className="w-full max-w-6xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">Potential Trades</h2>
-          <div className="flex items-center gap-3">
+          <div className="flex items-baseline gap-3">
+            <h2 className="text-lg font-semibold text-gray-100">
+              Potential Trades
+            </h2>
             {filteredLeagues.length > 0 && (
-              <span className="text-sm text-gray-400">
-                {tradeCount} {tradeCount === 1 ? "trade" : "trades"} ·{" "}
+              <span className="text-sm text-gray-500">
+                {tradeCount} {tradeCount === 1 ? "trade" : "trades"} in{" "}
                 {filteredLeagues.length}{" "}
                 {filteredLeagues.length === 1 ? "league" : "leagues"}
-                {selectedProposals.length > 0 && (
-                  <span className="ml-2">
-                    · {selectedProposals.length} selected
-                  </span>
-                )}
+                {selectedProposals.length > 0 &&
+                  ` · ${selectedProposals.length} selected`}
               </span>
             )}
-            {selectedProposals.length > 0 && (
-              <button
-                onClick={submitProposals}
-                disabled={submitting}
-                className="rounded bg-yellow-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-yellow-500 disabled:opacity-50"
-              >
-                {submitting
-                  ? `Sending ${submitProgress}/${selectedProposals.length}…`
-                  : `Send ${selectedProposals.length} ${selectedProposals.length === 1 ? "proposal" : "proposals"}`}
-              </button>
-            )}
           </div>
+          {selectedProposals.length > 0 && (
+            <button
+              onClick={submitProposals}
+              disabled={submitting}
+              className="rounded-lg bg-yellow-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-yellow-500 disabled:opacity-50"
+            >
+              {submitting
+                ? `Sending ${submitProgress}/${selectedProposals.length}...`
+                : `Send ${selectedProposals.length} ${selectedProposals.length === 1 ? "proposal" : "proposals"}`}
+            </button>
+          )}
         </div>
 
         {playersToGive.length === 0 &&
         playersToReceive.length === 0 &&
         picksToGive.length === 0 &&
         picksToReceive.length === 0 ? (
-          <p className="text-gray-400">
-            Select players or picks to give/receive to see potential trades.
+          <p className="text-gray-500 text-sm">
+            Select players or picks above to see potential trades.
           </p>
         ) : (
           <PotentialTrades
@@ -505,12 +513,14 @@ function PlayerCombobox({
   allplayers,
   selected,
   onSelect,
+  placeholder = "Search...",
 }: {
   id: string;
   playerIds: string[];
   allplayers: { [player_id: string]: Allplayer };
   selected: string[];
   onSelect: (player_id: string) => void;
+  placeholder?: string;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -584,7 +594,7 @@ function PlayerCombobox({
   };
 
   return (
-    <div ref={wrapperRef} className="relative w-64 text-[2rem]">
+    <div ref={wrapperRef} className="relative w-full">
       <input
         id={id}
         type="text"
@@ -596,8 +606,8 @@ function PlayerCombobox({
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        placeholder="Search players…"
-        className="w-full rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xl text-gray-100"
+        placeholder={placeholder}
+        className="w-full rounded border border-gray-700 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100"
       />
       {open && matches.length > 0 && (
         <ul
@@ -620,7 +630,7 @@ function PlayerCombobox({
                   choose(player_id);
                 }}
                 onMouseEnter={() => setActiveIndex(i)}
-                className={`flex cursor-pointer items-center justify-between px-2 py-1 text-xl ${
+                className={`flex cursor-pointer items-center justify-between px-2.5 py-1.5 text-sm ${
                   isActive ? "bg-blue-600 text-white" : "text-gray-100"
                 } ${isSelected ? "opacity-50" : ""}`}
               >
@@ -722,16 +732,15 @@ function PotentialTrades({
         return (
           <div
             key={`${league.league_id}-${partner.roster_id}`}
-            className={
-              "flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-md transition hover:border-yellow-500 hover:shadow-yellow-500/10 " +
-              (selectedProposals.some(
+            className={`flex flex-col gap-2.5 rounded-lg border p-3.5 cursor-pointer transition ${
+              selectedProposals.some(
                 (p) =>
                   p.league_id === league.league_id &&
                   p.user_id === partner.user_id,
               )
-                ? "border-yellow-500 shadow-yellow-500/20"
-                : "border-gray-700 hover:border-yellow-500")
-            }
+                ? "border-yellow-500 bg-yellow-500/5 shadow-md shadow-yellow-500/10"
+                : "border-gray-700 bg-gray-800 hover:border-gray-600"
+            }`}
             onClick={() =>
               setSelectedProposals((prev) => {
                 const exists = prev.some(
@@ -795,43 +804,34 @@ function PotentialTrades({
             }
           >
             {/* League header */}
-            <div className="flex items-center gap-3 border-b border-gray-700 pb-3">
-              <Avatar hash={league.avatar} alt={league.name} size={40} />
+            <div className="flex items-center gap-2.5 border-b border-gray-700/50 pb-2.5">
+              <Avatar hash={league.avatar} alt={league.name} size={32} />
               <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-base font-semibold text-gray-100">
+                <span className="truncate text-sm font-semibold text-gray-100">
                   {league.name}
                 </span>
-                <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <span>{league.season}</span>
-                  <span>·</span>
-                  <span>{typeLabel}</span>
-                  <span>·</span>
-                  <span>{league.rosters.length} teams</span>
-                </div>
+                <span className="text-xs text-gray-500">
+                  {league.season} · {typeLabel} · {league.rosters.length} teams
+                </span>
               </div>
-              <span className="rounded bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-200">
+              <span className="rounded bg-gray-700/60 px-1.5 py-0.5 text-xs text-gray-300">
                 {formatRecord(league.user_roster)}
               </span>
             </div>
 
             {/* Trading partner */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs uppercase tracking-wide text-gray-500">
-                Trading with
+            <div className="flex items-center gap-2 rounded bg-gray-900/40 px-2 py-1.5">
+              <Avatar
+                hash={partner.avatar}
+                alt={partner.username}
+                size={24}
+              />
+              <span className="flex-1 truncate text-sm text-gray-100">
+                {partner.username}
               </span>
-              <div className="flex items-center gap-2 rounded bg-gray-900/60 px-2 py-1.5">
-                <Avatar
-                  hash={partner.avatar}
-                  alt={partner.username}
-                  size={28}
-                />
-                <span className="flex-1 truncate text-sm text-gray-100">
-                  {partner.username}
-                </span>
-                <span className="text-xs text-gray-400">
-                  {formatRecord(partner)}
-                </span>
-              </div>
+              <span className="text-xs text-gray-500">
+                {formatRecord(partner)}
+              </span>
             </div>
           </div>
         );

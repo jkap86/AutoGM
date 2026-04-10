@@ -8,7 +8,7 @@ import { setSession } from "./lib/auth";
 import { runQuery } from "./graphql/queries";
 import type { QueryMap, QueryName } from "./graphql/queries/types";
 import { fetchAllPlayers } from "./helpers/fetch-allplayers";
-import { getPolls, addPoll, removePoll } from "./lib/poll-store";
+import { getPolls, addPoll, removePoll, removePollGroup } from "./lib/poll-store";
 import type { StoredPoll } from "./lib/poll-store";
 
 const isProd = process.env.NODE_ENV === "production";
@@ -98,4 +98,8 @@ ipcMain.handle("polls:add", async (_event, poll: StoredPoll) => {
 
 ipcMain.handle("polls:remove", async (_event, pollId: string) => {
   removePoll(pollId);
+});
+
+ipcMain.handle("polls:remove-group", async (_event, groupId: string) => {
+  removePollGroup(groupId);
 });

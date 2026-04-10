@@ -14,6 +14,7 @@ type State = {
 }
 
 type CreatePollParams = CreatePollVars & {
+  group_id: string
   league_id: string
   text?: string
 }
@@ -55,6 +56,7 @@ export function useCreatePoll() {
 
         await window.ipc.invoke('polls:add', {
           poll_id,
+          group_id: params.group_id,
           league_id: params.league_id,
           prompt: params.prompt,
           choices: params.choices,

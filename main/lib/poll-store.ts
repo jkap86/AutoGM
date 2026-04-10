@@ -2,6 +2,7 @@ import Store from "electron-store";
 
 export type StoredPoll = {
   poll_id: string;
+  group_id: string;
   league_id: string;
   prompt: string;
   choices: string[];
@@ -32,5 +33,10 @@ export function addPoll(poll: StoredPoll): void {
 
 export function removePoll(pollId: string): void {
   const polls = store.get("polls").filter((p) => p.poll_id !== pollId);
+  store.set("polls", polls);
+}
+
+export function removePollGroup(groupId: string): void {
+  const polls = store.get("polls").filter((p) => p.group_id !== groupId);
   store.set("polls", polls);
 }
