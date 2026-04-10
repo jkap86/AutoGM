@@ -247,7 +247,11 @@ function PollsList({
             key={group.group_id}
             group={group}
             leagues={leagues}
-            onRemove={() => removeGroup(group.group_id)}
+            onRemove={() => {
+              if (window.confirm("Remove this poll from all leagues?")) {
+                removeGroup(group.group_id);
+              }
+            }}
           />
         ))}
       </div>

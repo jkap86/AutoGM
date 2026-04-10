@@ -28,7 +28,7 @@ type State = {
 function groupPolls(polls: PollWithVotes[]): PollGroup[] {
   const map = new Map<string, PollWithVotes[]>()
   for (const poll of polls) {
-    const key = poll.group_id
+    const key = poll.group_id ?? poll.poll_id
     const list = map.get(key)
     if (list) list.push(poll)
     else map.set(key, [poll])
