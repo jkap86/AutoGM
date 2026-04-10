@@ -86,7 +86,20 @@ export default function TradesView({
           ),
         );
 
-      return hasPlayersToGive && hasPicksToGive && hasPlayerToReceive;
+      const hasPicksToReceive = league.rosters
+        .filter((roster) => roster.roster_id !== league.user_roster.roster_id)
+        .some((roster) =>
+          picksToReceive.every((pick_id) =>
+            roster.draftpicks.some((p) => getPickId(p) === pick_id),
+          ),
+        );
+
+      return (
+        hasPlayersToGive &&
+        hasPicksToGive &&
+        hasPlayerToReceive &&
+        hasPicksToReceive
+      );
     });
   };
 
@@ -102,11 +115,19 @@ export default function TradesView({
         const tradingWith = league.rosters.filter(
           (roster) =>
             roster.roster_id !== league.user_roster.roster_id &&
-            playersToReceive.every((p) => roster.players.includes(p)),
+            playersToReceive.every((p) => roster.players.includes(p)) &&
+            picksToReceive.every((p) =>
+              roster.draftpicks.some((d) => getPickId(d) === p),
+            ),
         );
         return { ...league, tradingWith };
       }),
     [leagues, playersToGive, playersToReceive, picksToGive, picksToReceive],
+  );
+
+  const tradeCount = useMemo(
+    () => filteredLeagues.reduce((sum, l) => sum + l.tradingWith.length, 0),
+    [filteredLeagues],
   );
 
   return (
@@ -253,6 +274,7 @@ export default function TradesView({
           <h2 className="text-2xl font-semibold">Potential Trades</h2>
           {filteredLeagues.length > 0 && (
             <span className="text-sm text-gray-400">
+              {tradeCount} {tradeCount === 1 ? "trade" : "trades"} ·{" "}
               {filteredLeagues.length}{" "}
               {filteredLeagues.length === 1 ? "league" : "leagues"}
             </span>
@@ -458,7 +480,11 @@ function PotentialTrades({
 }: {
   filteredLeagues: (LeagueDetailed & { tradingWith: Roster[] })[];
 }) {
-  if (filteredLeagues.length === 0) {
+  const cards = filteredLeagues.flatMap((league) =>
+    league.tradingWith.map((partner) => ({ league, partner })),
+  );
+
+  if (cards.length === 0) {
     return (
       <p className="text-gray-400">
         No leagues match the selected players and picks.
@@ -468,7 +494,7 @@ function PotentialTrades({
 
   return (
     <div className="grid w-full gap-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-      {filteredLeagues.map((league) => {
+      {cards.map(({ league, partner }) => {
         const typeLabel =
           league.settings.type === 2
             ? "Dynasty"
@@ -478,7 +504,7 @@ function PotentialTrades({
 
         return (
           <div
-            key={league.league_id}
+            key={`${league.league_id}-${partner.roster_id}`}
             className="flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-md transition hover:border-blue-500 hover:shadow-blue-500/10"
           >
             {/* League header */}
@@ -501,25 +527,24 @@ function PotentialTrades({
               </span>
             </div>
 
-            {/* Trading partners */}
+            {/* Trading partner */}
             <div className="flex flex-col gap-2">
               <span className="text-xs uppercase tracking-wide text-gray-500">
                 Trading with
               </span>
-              {league.tradingWith.map((r) => (
-                <div
-                  key={r.roster_id}
-                  className="flex items-center gap-2 rounded bg-gray-900/60 px-2 py-1.5"
-                >
-                  <Avatar hash={r.avatar} alt={r.username} size={28} />
-                  <span className="flex-1 truncate text-sm text-gray-100">
-                    {r.username}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {formatRecord(r)}
-                  </span>
-                </div>
-              ))}
+              <div className="flex items-center gap-2 rounded bg-gray-900/60 px-2 py-1.5">
+                <Avatar
+                  hash={partner.avatar}
+                  alt={partner.username}
+                  size={28}
+                />
+                <span className="flex-1 truncate text-sm text-gray-100">
+                  {partner.username}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {formatRecord(partner)}
+                </span>
+              </div>
             </div>
           </div>
         );
