@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Allplayer,
   LeagueDetailed,
@@ -7,7 +7,36 @@ import {
   PlayerShares,
   Roster,
 } from "../../../main/lib/types";
+
+function buildPlayerAttachment(p: Allplayer | undefined) {
+  if (!p) return { player_id: "0" };
+  return {
+    position: p.position,
+    first_name: p.first_name,
+    last_name: p.last_name,
+    sport: "nfl",
+    team: p.team,
+    player_id: p.player_id,
+    fantasy_positions: p.fantasy_positions,
+    years_exp: p.years_exp,
+  };
+}
+
+function buildUserAttachment(roster: Roster, league_id: string) {
+  return {
+    avatar: roster.avatar,
+    display_name: roster.username,
+    is_bot: false,
+    is_owner: null,
+    league_id,
+    metadata: {},
+    settings: null,
+    user_id: roster.user_id,
+  };
+}
 import { getPickId } from "../../lib/leagues";
+import { ProposeTradeVars } from "../../../main/graphql/queries/types";
+import { useIpcMutation } from "../../hooks/use-ipc-mutation";
 
 export default function TradesView({
   leagues,
@@ -30,6 +59,154 @@ export default function TradesView({
   const [playersToReceive, setPlayersToReceive] = useState<string[]>([]);
   const [picksToGive, setPicksToGive] = useState<string[]>([]);
   const [picksToReceive, setPicksToReceive] = useState<string[]>([]);
+  const [selectedProposals, setSelectedProposals] = useState<
+    (ProposeTradeVars & { user_id: string })[]
+  >([]);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState(0);
+
+  useEffect(() => {
+    setSelectedProposals([]);
+  }, [playersToGive, playersToReceive, picksToGive, picksToReceive]);
+
+  const { mutate: proposeTrade } = useIpcMutation("proposeTrade");
+  const { mutate: getDm } = useIpcMutation("getDmByMembers");
+  const { mutate: sendMessage } = useIpcMutation("createMessage");
+
+  const submitProposals = useCallback(async () => {
+    if (selectedProposals.length === 0) return;
+    setSubmitting(true);
+    setSubmitProgress(0);
+    for (let i = 0; i < selectedProposals.length; i++) {
+      const { user_id, ...vars } = selectedProposals[i];
+      try {
+        const result = await proposeTrade(vars);
+        const transaction = result.propose_trade;
+
+        const league = leagues[vars.league_id];
+        const partnerRoster = league?.rosters.find(
+          (r) => r.user_id === user_id,
+        );
+
+        if (league && partnerRoster) {
+          const userRoster = league.user_roster;
+
+          // Build transactions_by_roster — keyed by roster_id
+          const transactionsByRoster: Record<string, unknown> = {
+            [userRoster.roster_id]: {
+              adds: playersToGive.map((pid) =>
+                buildPlayerAttachment(allplayers[pid]),
+              ),
+              drops: [],
+              added_picks: picksToGive.flatMap((pickId) => {
+                const pick = userRoster.draftpicks.find(
+                  (d) => getPickId(d) === pickId,
+                );
+                if (!pick) return [];
+                return [
+                  {
+                    roster_id: String(pick.roster_id),
+                    season: pick.season,
+                    round: String(pick.round),
+                    owner_id: userRoster.user_id,
+                    previous_owner_id: partnerRoster.user_id,
+                    original_owner_id: pick.original_user.user_id,
+                  },
+                ];
+              }),
+              dropped_picks: [],
+              added_budget: [],
+              dropped_budget: [],
+              status: "proposed",
+              user: buildUserAttachment(userRoster, league.league_id),
+            },
+            [partnerRoster.roster_id]: {
+              adds: playersToReceive.map((pid) =>
+                buildPlayerAttachment(allplayers[pid]),
+              ),
+              drops: [],
+              added_picks: picksToReceive.flatMap((pickId) => {
+                const pick = partnerRoster.draftpicks.find(
+                  (d) => getPickId(d) === pickId,
+                );
+                if (!pick) return [];
+                return [
+                  {
+                    roster_id: String(pick.roster_id),
+                    season: pick.season,
+                    round: String(pick.round),
+                    owner_id: partnerRoster.user_id,
+                    previous_owner_id: userRoster.user_id,
+                    original_owner_id: pick.original_user.user_id,
+                  },
+                ];
+              }),
+              dropped_picks: [],
+              added_budget: [],
+              dropped_budget: [],
+              status: "proposed",
+              user: buildUserAttachment(partnerRoster, league.league_id),
+            },
+          };
+
+          // Build users_in_league_map — all users in this league
+          const usersMap: Record<string, unknown> = {};
+          league.rosters.forEach((roster) => {
+            usersMap[roster.user_id] = buildUserAttachment(
+              roster,
+              league.league_id,
+            );
+          });
+
+          try {
+            const dmResult = await getDm({ members: [user_id] });
+            const dmId = dmResult.get_dm_by_members.dm_id;
+
+            await sendMessage({
+              parent_id: dmId,
+              text: `@${userRoster.username} has proposed a perfectly balanced trade in ${league.name}. Countering is discouraged.`,
+              k_attachment_data: [
+                "status",
+                "transactions_by_roster",
+                "transaction_id",
+                "league_id",
+                "users_in_league_map",
+              ],
+              v_attachment_data: [
+                "proposed",
+                JSON.stringify(transactionsByRoster),
+                transaction.transaction_id,
+                vars.league_id,
+                JSON.stringify(usersMap),
+              ],
+            });
+          } catch (e) {
+            console.error(`DM for proposal ${i + 1} failed:`, e);
+          }
+        }
+      } catch (e) {
+        console.error(`Trade proposal ${i + 1} failed:`, e);
+      }
+      setSubmitProgress(i + 1);
+      if (i < selectedProposals.length - 1) {
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
+    setSubmitting(false);
+    setSelectedProposals([]);
+  }, [
+    selectedProposals,
+    proposeTrade,
+    getDm,
+    sendMessage,
+    leagues,
+    allplayers,
+    playersToGive,
+    playersToReceive,
+    picksToGive,
+    picksToReceive,
+  ]);
 
   const ownedPlayers = useMemo(
     () =>
@@ -270,15 +447,33 @@ export default function TradesView({
       </div>
 
       <div className="mt-8 w-full max-w-6xl">
-        <div className="mb-4 flex items-baseline justify-between">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Potential Trades</h2>
-          {filteredLeagues.length > 0 && (
-            <span className="text-sm text-gray-400">
-              {tradeCount} {tradeCount === 1 ? "trade" : "trades"} ·{" "}
-              {filteredLeagues.length}{" "}
-              {filteredLeagues.length === 1 ? "league" : "leagues"}
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {filteredLeagues.length > 0 && (
+              <span className="text-sm text-gray-400">
+                {tradeCount} {tradeCount === 1 ? "trade" : "trades"} ·{" "}
+                {filteredLeagues.length}{" "}
+                {filteredLeagues.length === 1 ? "league" : "leagues"}
+                {selectedProposals.length > 0 && (
+                  <span className="ml-2">
+                    · {selectedProposals.length} selected
+                  </span>
+                )}
+              </span>
+            )}
+            {selectedProposals.length > 0 && (
+              <button
+                onClick={submitProposals}
+                disabled={submitting}
+                className="rounded bg-yellow-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-yellow-500 disabled:opacity-50"
+              >
+                {submitting
+                  ? `Sending ${submitProgress}/${selectedProposals.length}…`
+                  : `Send ${selectedProposals.length} ${selectedProposals.length === 1 ? "proposal" : "proposals"}`}
+              </button>
+            )}
+          </div>
         </div>
 
         {playersToGive.length === 0 &&
@@ -289,7 +484,15 @@ export default function TradesView({
             Select players or picks to give/receive to see potential trades.
           </p>
         ) : (
-          <PotentialTrades filteredLeagues={filteredLeagues} />
+          <PotentialTrades
+            playersToGive={playersToGive}
+            playersToReceive={playersToReceive}
+            picksToGive={picksToGive}
+            picksToReceive={picksToReceive}
+            filteredLeagues={filteredLeagues}
+            selectedProposals={selectedProposals}
+            setSelectedProposals={setSelectedProposals}
+          />
         )}
       </div>
     </div>
@@ -476,9 +679,23 @@ function formatRecord(r: { wins: number; losses: number; ties: number }) {
 }
 
 function PotentialTrades({
+  playersToGive,
+  playersToReceive,
+  picksToGive,
+  picksToReceive,
   filteredLeagues,
+  selectedProposals,
+  setSelectedProposals,
 }: {
+  playersToGive: string[];
+  playersToReceive: string[];
+  picksToGive: string[];
+  picksToReceive: string[];
   filteredLeagues: (LeagueDetailed & { tradingWith: Roster[] })[];
+  selectedProposals: (ProposeTradeVars & { user_id: string })[];
+  setSelectedProposals: React.Dispatch<
+    React.SetStateAction<(ProposeTradeVars & { user_id: string })[]>
+  >;
 }) {
   const cards = filteredLeagues.flatMap((league) =>
     league.tradingWith.map((partner) => ({ league, partner })),
@@ -505,7 +722,77 @@ function PotentialTrades({
         return (
           <div
             key={`${league.league_id}-${partner.roster_id}`}
-            className="flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-md transition hover:border-blue-500 hover:shadow-blue-500/10"
+            className={
+              "flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-md transition hover:border-yellow-500 hover:shadow-yellow-500/10 " +
+              (selectedProposals.some(
+                (p) =>
+                  p.league_id === league.league_id &&
+                  p.user_id === partner.user_id,
+              )
+                ? "border-yellow-500 shadow-yellow-500/20"
+                : "border-gray-700 hover:border-yellow-500")
+            }
+            onClick={() =>
+              setSelectedProposals((prev) => {
+                const exists = prev.some(
+                  (p) =>
+                    p.league_id === league.league_id &&
+                    p.user_id === partner.user_id,
+                );
+                if (exists) {
+                  return prev.filter(
+                    (p) =>
+                      !(
+                        p.league_id === league.league_id &&
+                        p.user_id === partner.user_id
+                      ),
+                  );
+                } else {
+                  return [
+                    ...prev,
+                    {
+                      league_id: league.league_id,
+                      user_id: partner.user_id,
+                      k_adds: [...playersToGive, ...playersToReceive],
+                      v_adds: [
+                        ...playersToGive.map(() => partner.roster_id),
+                        ...playersToReceive.map(
+                          () => league.user_roster.roster_id,
+                        ),
+                      ],
+                      k_drops: [...playersToGive, ...playersToReceive],
+                      v_drops: [
+                        ...playersToGive.map(
+                          () => league.user_roster.roster_id,
+                        ),
+                        ...playersToReceive.map(() => partner.roster_id),
+                      ],
+                      draft_picks: [
+                        ...picksToGive.flatMap((pickId) => {
+                          const pick = league.user_roster.draftpicks.find(
+                            (d) => getPickId(d) === pickId,
+                          );
+                          if (!pick) return [];
+                          return [
+                            `${pick.roster_id},${pick.season},${pick.round},${partner.roster_id},${league.user_roster.roster_id}`,
+                          ];
+                        }),
+                        ...picksToReceive.flatMap((pickId) => {
+                          const pick = partner.draftpicks.find(
+                            (d) => getPickId(d) === pickId,
+                          );
+                          if (!pick) return [];
+                          return [
+                            `${pick.roster_id},${pick.season},${pick.round},${league.user_roster.roster_id},${partner.roster_id}`,
+                          ];
+                        }),
+                      ],
+                      waiver_budget: [],
+                    },
+                  ];
+                }
+              })
+            }
           >
             {/* League header */}
             <div className="flex items-center gap-3 border-b border-gray-700 pb-3">

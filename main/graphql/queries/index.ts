@@ -1,3 +1,5 @@
+import { createMessage } from "./create-message";
+import { getDmByMembers } from "./get-dm-by-members";
 import { proposeTrade } from "./propose-trade";
 import type { QueryMap, QueryName } from "./types";
 
@@ -9,6 +11,8 @@ type QueryRegistry = {
 
 const queries: QueryRegistry = {
   proposeTrade,
+  createMessage,
+  getDmByMembers,
 };
 
 export async function runQuery<N extends QueryName>(
