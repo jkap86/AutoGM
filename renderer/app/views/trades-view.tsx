@@ -47,6 +47,7 @@ export default function TradesView({
   leaguemates,
   pickShares,
   allplayers,
+  userId,
 }: {
   leagues: {
     [league_id: string]: LeagueDetailed;
@@ -57,6 +58,7 @@ export default function TradesView({
   allplayers: {
     [player_id: string]: Allplayer;
   };
+  userId: string;
 }) {
   const [playersToGive, setPlayerstoGive] = useState<string[]>([]);
   const [playersToReceive, setPlayersToReceive] = useState<string[]>([]);
@@ -353,6 +355,7 @@ export default function TradesView({
           refetch={refetchPending}
           leagues={leagues}
           allplayers={allplayers}
+          userId={userId}
         />
       ) : (
       <>
@@ -563,6 +566,7 @@ function PendingTradesPanel({
   refetch,
   leagues,
   allplayers,
+  userId,
 }: {
   trades: PendingTrade[];
   loading: boolean;
@@ -570,6 +574,7 @@ function PendingTradesPanel({
   refetch: () => void;
   leagues: { [league_id: string]: LeagueDetailed };
   allplayers: { [player_id: string]: Allplayer };
+  userId: string;
 }) {
   const resolveRoster = (league_id: string, roster_id: number) => {
     const league = leagues[league_id];
@@ -710,9 +715,18 @@ function PendingTradesPanel({
                     {trade.league_name}
                   </span>
                 </div>
-                <span className="text-[11px] text-gray-500">
-                  {formatTime(trade.created)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                    trade.creator === userId
+                      ? "bg-blue-500/15 text-blue-400"
+                      : "bg-orange-500/15 text-orange-400"
+                  }`}>
+                    {trade.creator === userId ? "Outgoing" : "Received"}
+                  </span>
+                  <span className="text-[11px] text-gray-500">
+                    {formatTime(trade.created)}
+                  </span>
+                </div>
               </div>
 
               {/* Trade body */}

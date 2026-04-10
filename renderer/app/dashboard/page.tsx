@@ -82,6 +82,7 @@ export default function DashboardPage() {
           playerShares={playerShares}
           leaguemates={leaguemates}
           pickShares={pickShares}
+          userId={session.user_id}
         />
       ) : view === "polls" ? (
         <PollsView leagues={leagues ?? {}} />
