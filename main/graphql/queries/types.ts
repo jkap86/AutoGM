@@ -2,6 +2,14 @@
 // Do NOT import any runtime modules here (electron-store, fetch wrappers, etc.)
 // or they will get pulled into the renderer bundle.
 
+export type TransactionDraftPick = {
+  round: number;
+  season: string;
+  roster_id: number;
+  owner_id: number;
+  previous_owner_id: number;
+};
+
 // Returned by trade-related mutations.
 export type Transaction = {
   transaction_id: string;
@@ -12,7 +20,7 @@ export type Transaction = {
   roster_ids: number[];
   adds: Record<string, number> | null;
   drops: Record<string, number> | null;
-  draft_picks: unknown[];
+  draft_picks: string[] | null;
   waiver_budget: unknown[];
   player_map: Record<string, unknown> | null;
   metadata: Record<string, unknown> | null;
