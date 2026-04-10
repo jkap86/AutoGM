@@ -3,7 +3,7 @@ import { getLeagueDetails } from "../lib/get-league-details";
 import { League, LeagueDetailed, LeaguesPayload, User } from "../lib/types";
 import { getJson } from "./get-json";
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 0.05 * 60 * 1000;
 
 export async function fetchLeagues({
   user_id,

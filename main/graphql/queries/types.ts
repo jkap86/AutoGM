@@ -98,10 +98,62 @@ export type GetDmByMembersResult = {
   get_dm_by_members: DmConversation;
 };
 
+export type CreatePollVars = {
+  prompt: string;
+  choices: string[];
+  k_metadata: string[];
+  v_metadata: string[];
+};
+
+export type Poll = {
+  metadata: unknown;
+  poll_id: string;
+  prompt: string;
+  choices: string[];
+  choices_order: unknown;
+  votes: unknown;
+};
+
+export type CreatePollResult = {
+  create_poll: Poll;
+};
+
+export type CreatePollMessageVars = {
+  parent_id: string;
+  attachment_id: string;
+  text: string;
+};
+
+export type CreatePollMessageResult = {
+  create_message: Message;
+};
+
+export type ListPollVotesVars = {
+  poll_id: string;
+  limit?: number;
+};
+
+export type PollVote = {
+  avatar: string | null;
+  user_id: string;
+  choice_id: string;
+  name: string;
+};
+
+export type ListPollVotesResult = {
+  list_poll_votes: PollVote[];
+};
+
 export type QueryMap = {
   proposeTrade: { vars: ProposeTradeVars; result: ProposeTradeResult };
   createMessage: { vars: CreateMessageVars; result: CreateMessageResult };
   getDmByMembers: { vars: GetDmByMembersVars; result: GetDmByMembersResult };
+  createPoll: { vars: CreatePollVars; result: CreatePollResult };
+  createPollMessage: {
+    vars: CreatePollMessageVars;
+    result: CreatePollMessageResult;
+  };
+  listPollVotes: { vars: ListPollVotesVars; result: ListPollVotesResult };
 };
 
 export type QueryName = keyof QueryMap;

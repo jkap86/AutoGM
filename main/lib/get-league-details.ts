@@ -75,7 +75,7 @@ async function getOneLeagueDetails(
 
     const user_roster = rostersUserInfo.find((r) => r.user_id === user_id);
 
-    if (!user_roster?.players || user_roster.players.length === 0) {
+    if (!user_roster) {
       return null;
     }
 

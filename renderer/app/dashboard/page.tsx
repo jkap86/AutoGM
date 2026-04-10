@@ -6,6 +6,7 @@ import { useAuth } from "../../contexts/auth-context";
 import { useLeagues } from "../../hooks/use-leagues";
 import TradesView from "../views/trades-view";
 import { useAllPlayers } from "../../hooks/use-allplayers";
+import PollsView from "../views/polls-view";
 
 const SEASON = "2026";
 
@@ -33,7 +34,7 @@ export default function DashboardPage() {
   });
   const [view, setView] = useState<View>(null);
 
-  const views = ["trades", "players", "lineups"];
+  const views = ["trades", "polls", "lineups"];
 
   useEffect(() => {
     if (!session?.token || !session?.user_id) {
@@ -42,8 +43,6 @@ export default function DashboardPage() {
   }, [session?.token, session?.user_id, router]);
 
   if (!session?.user_id) return null;
-
-  console.log({ allplayers });
 
   return (
     <main className="flex min-h-screen flex-col items-center gap-4 p-8">
@@ -78,12 +77,14 @@ export default function DashboardPage() {
 
       {view === "trades" ? (
         <TradesView
-          allplayers={allplayers || {}}
-          leagues={leagues || {}}
+          allplayers={allplayers ?? {}}
+          leagues={leagues ?? {}}
           playerShares={playerShares}
           leaguemates={leaguemates}
           pickShares={pickShares}
         />
+      ) : view === "polls" ? (
+        <PollsView leagues={leagues ?? {}} />
       ) : (
         <p className="text-gray-400">Select a view above.</p>
       )}

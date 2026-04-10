@@ -8,6 +8,8 @@ import { setSession } from "./lib/auth";
 import { runQuery } from "./graphql/queries";
 import type { QueryMap, QueryName } from "./graphql/queries/types";
 import { fetchAllPlayers } from "./helpers/fetch-allplayers";
+import { getPolls, addPoll, removePoll } from "./lib/poll-store";
+import type { StoredPoll } from "./lib/poll-store";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -85,3 +87,15 @@ ipcMain.handle(
     return runQuery(args.name, args.vars as never);
   },
 );
+
+ipcMain.handle("polls:list", async () => {
+  return getPolls();
+});
+
+ipcMain.handle("polls:add", async (_event, poll: StoredPoll) => {
+  addPoll(poll);
+});
+
+ipcMain.handle("polls:remove", async (_event, pollId: string) => {
+  removePoll(pollId);
+});

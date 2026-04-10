@@ -165,7 +165,7 @@ export default function TradesView({
 
             await sendMessage({
               parent_id: dmId,
-              text: `@${userRoster.username} has proposed a perfectly balanced trade in ${league.name}. Countering is discouraged.`,
+              text: `@${userRoster.username} has proposed a trade in ${league.name}`,
               k_attachment_data: [
                 "status",
                 "transactions_by_roster",
@@ -774,7 +774,7 @@ function PotentialTrades({
                           );
                           if (!pick) return [];
                           return [
-                            `${pick.roster_id},${pick.season},${pick.round},${partner.roster_id},${league.user_roster.roster_id}`,
+                            `${pick.roster_id},${pick.season},${pick.round},${league.user_roster.roster_id},${partner.roster_id}`,
                           ];
                         }),
                         ...picksToReceive.flatMap((pickId) => {
@@ -783,7 +783,7 @@ function PotentialTrades({
                           );
                           if (!pick) return [];
                           return [
-                            `${pick.roster_id},${pick.season},${pick.round},${league.user_roster.roster_id},${partner.roster_id}`,
+                            `${pick.roster_id},${pick.season},${pick.round},${partner.roster_id},${league.user_roster.roster_id}`,
                           ];
                         }),
                       ],
