@@ -7,6 +7,9 @@ import {
   PlayerShares,
   Roster,
 } from "../../../main/lib/types";
+import { usePendingTrades, type PendingTrade } from "../../hooks/use-pending-trades";
+
+type TradesTab = "create" | "pending";
 
 function buildPlayerAttachment(p: Allplayer | undefined) {
   if (!p) return { player_id: "0" };
@@ -307,8 +310,56 @@ export default function TradesView({
     [filteredLeagues],
   );
 
+  const [tab, setTab] = useState<TradesTab>("create");
+  const {
+    trades: pendingTrades,
+    loading: pendingLoading,
+    error: pendingError,
+    refetch: refetchPending,
+  } = usePendingTrades(leagues);
+
   return (
     <div className="flex flex-col flex-1 items-center w-full gap-6 p-6">
+      {/* Tabs */}
+      <div className="flex gap-2 w-full max-w-3xl">
+        <button
+          onClick={() => setTab("create")}
+          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${
+            tab === "create"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-800 text-gray-400 hover:text-gray-200"
+          }`}
+        >
+          Create Trade
+        </button>
+        <button
+          onClick={() => setTab("pending")}
+          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${
+            tab === "pending"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-800 text-gray-400 hover:text-gray-200"
+          }`}
+        >
+          Pending
+          {pendingTrades.length > 0 && (
+            <span className="ml-1.5 rounded-full bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 text-xs">
+              {pendingTrades.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {tab === "pending" ? (
+        <PendingTradesPanel
+          trades={pendingTrades}
+          loading={pendingLoading}
+          error={pendingError}
+          refetch={refetchPending}
+          leagues={leagues}
+          allplayers={allplayers}
+        />
+      ) : (
+      <>
       {/* Trade builder */}
       <div className="flex gap-4 w-full max-w-3xl">
         {/* Give side */}
@@ -502,6 +553,184 @@ export default function TradesView({
             setSelectedProposals={setSelectedProposals}
           />
         )}
+      </div>
+      </>
+      )}
+    </div>
+  );
+}
+
+function PendingTradesPanel({
+  trades,
+  loading,
+  error,
+  refetch,
+  leagues,
+  allplayers,
+}: {
+  trades: PendingTrade[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+  leagues: { [league_id: string]: LeagueDetailed };
+  allplayers: { [player_id: string]: Allplayer };
+}) {
+  const resolveRoster = (league_id: string, roster_id: number) => {
+    const league = leagues[league_id];
+    return league?.rosters.find((r) => r.roster_id === roster_id);
+  };
+
+  const formatTime = (epoch: number) => {
+    const d = new Date(epoch * 1000);
+    const now = Date.now();
+    const diff = now - d.getTime();
+    if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}h ago`;
+    return d.toLocaleDateString();
+  };
+
+  if (loading) {
+    return <p className="text-gray-400 text-sm">Loading pending trades...</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="text-center">
+        <p className="text-sm text-red-400 mb-2">{error}</p>
+        <button
+          onClick={refetch}
+          className="text-sm text-blue-400 hover:text-blue-300"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (trades.length === 0) {
+    return (
+      <div className="text-center">
+        <p className="text-gray-500 text-sm">No pending trades across your leagues.</p>
+        <button
+          onClick={refetch}
+          className="mt-2 text-sm text-blue-400 hover:text-blue-300"
+        >
+          Refresh
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-4xl">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-100">
+          Pending Trades
+          <span className="ml-2 text-sm font-normal text-gray-500">
+            {trades.length} {trades.length === 1 ? "trade" : "trades"}
+          </span>
+        </h2>
+        <button
+          onClick={refetch}
+          className="text-sm text-blue-400 hover:text-blue-300"
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        {trades.map((trade) => {
+          const rosterIds = trade.roster_ids;
+          const sides = rosterIds.map((rid) => {
+            const roster = resolveRoster(trade.league_id, rid);
+            const adding = Object.entries(trade.adds ?? {})
+              .filter(([, rId]) => rId === rid)
+              .map(([pid]) => pid);
+            const dropping = Object.entries(trade.drops ?? {})
+              .filter(([, rId]) => rId === rid)
+              .map(([pid]) => pid);
+            return { roster, roster_id: rid, adding, dropping };
+          });
+
+          return (
+            <div
+              key={trade.transaction_id}
+              className="rounded-lg border border-gray-700 bg-gray-800 overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-2.5 bg-gray-800/80 border-b border-gray-700/50">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-100">
+                    {trade.league_name}
+                  </span>
+                  <span className="rounded bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 text-xs">
+                    Proposed
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500">
+                  {formatTime(trade.created)}
+                </span>
+              </div>
+
+              {/* Trade sides */}
+              <div className="flex divide-x divide-gray-700">
+                {sides.map((side) => (
+                  <div
+                    key={side.roster_id}
+                    className="flex-1 p-3"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Avatar
+                        hash={side.roster?.avatar}
+                        alt={side.roster?.username ?? `Roster ${side.roster_id}`}
+                        size={24}
+                      />
+                      <span className="text-sm font-medium text-gray-200 truncate">
+                        {side.roster?.username ?? `Roster ${side.roster_id}`}
+                      </span>
+                    </div>
+
+                    {side.adding.length > 0 && (
+                      <div className="mb-1.5">
+                        <span className="text-xs text-green-500 font-medium">Receives</span>
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {side.adding.map((pid) => (
+                            <span
+                              key={pid}
+                              className="rounded-full bg-green-900/30 border border-green-800/50 px-2 py-0.5 text-xs text-green-300"
+                            >
+                              {allplayers[pid]?.full_name ?? pid}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {side.dropping.length > 0 && (
+                      <div>
+                        <span className="text-xs text-red-500 font-medium">Gives up</span>
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {side.dropping.map((pid) => (
+                            <span
+                              key={pid}
+                              className="rounded-full bg-red-900/30 border border-red-800/50 px-2 py-0.5 text-xs text-red-300"
+                            >
+                              {allplayers[pid]?.full_name ?? pid}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {side.adding.length === 0 && side.dropping.length === 0 && (
+                      <span className="text-xs text-gray-500">Draft picks only</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -34,7 +34,7 @@ export default function DashboardPage() {
   });
   const [view, setView] = useState<View>(null);
 
-  const views = ["trades", "polls", "lineups"];
+  const views = ["trades", "polls"];
 
   useEffect(() => {
     if (!session?.token || !session?.user_id) {
