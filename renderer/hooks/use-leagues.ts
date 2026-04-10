@@ -26,7 +26,6 @@ export function useLeagues({
       .invoke<LeaguesPayload>("leagues:fetch", { user_id, season })
       .then(
         (payload) => {
-          console.log({ payload });
           if (cancelled) return;
           setData(payload);
           setLoading(false);

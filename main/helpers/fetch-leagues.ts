@@ -1,16 +1,9 @@
 import { cached } from "../lib/cache";
 import { getLeagueDetails } from "../lib/get-league-details";
 import { League, LeagueDetailed, LeaguesPayload, User } from "../lib/types";
+import { getJson } from "./get-json";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
-
-async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`GET ${url} failed: ${res.status}`);
-  }
-  return (await res.json()) as T;
-}
 
 export async function fetchLeagues({
   user_id,

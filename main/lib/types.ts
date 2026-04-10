@@ -133,3 +133,16 @@ export type PickShares = {
     taken: { user_id: string; league_id: string }[];
   };
 };
+
+export type Allplayer = {
+  player_id: string;
+  position: string;
+  team: string;
+  full_name: string;
+  first_name: string;
+  last_name: string;
+  age: string;
+  fantasy_positions: string[];
+  years_exp: number;
+  active: boolean;
+};

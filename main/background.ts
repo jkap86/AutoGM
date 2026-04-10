@@ -1,81 +1,87 @@
-import path from 'path'
-import { app, ipcMain } from 'electron'
-import serve from 'electron-serve'
-import { createWindow } from './helpers/create-window'
-import { launchPersistent } from './helpers/launch-persistent'
-import { fetchLeagues } from './helpers/fetch-leagues'
-import { setSession } from './lib/auth'
-import { runQuery } from './graphql/queries'
-import type { QueryMap, QueryName } from './graphql/queries/types'
+import path from "path";
+import { app, ipcMain } from "electron";
+import serve from "electron-serve";
+import { createWindow } from "./helpers/create-window";
+import { launchPersistent } from "./helpers/launch-persistent";
+import { fetchLeagues } from "./helpers/fetch-leagues";
+import { setSession } from "./lib/auth";
+import { runQuery } from "./graphql/queries";
+import type { QueryMap, QueryName } from "./graphql/queries/types";
+import { fetchAllPlayers } from "./helpers/fetch-allplayers";
 
-const isProd = process.env.NODE_ENV === 'production'
+const isProd = process.env.NODE_ENV === "production";
 
 if (isProd) {
-  serve({ directory: 'app' })
+  serve({ directory: "app" });
 } else {
-  app.setPath('userData', `${app.getPath('userData')} (development)`)
+  app.setPath("userData", `${app.getPath("userData")} (development)`);
 }
 
-;(async () => {
-  await app.whenReady()
+(async () => {
+  await app.whenReady();
 
-  const mainWindow = createWindow('main', {
+  const mainWindow = createWindow("main", {
     width: 1000,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
     },
-  })
+  });
 
   if (isProd) {
-    await mainWindow.loadURL('app://./')
+    await mainWindow.loadURL("app://./");
   } else {
-    const port = process.argv[2]
-    await mainWindow.loadURL(`http://localhost:${port}/`)
-    mainWindow.webContents.openDevTools()
+    const port = process.argv[2];
+    await mainWindow.loadURL(`http://localhost:${port}/`);
+    mainWindow.webContents.openDevTools();
   }
-})()
+})();
 
-app.on('window-all-closed', () => {
-  app.quit()
-})
+app.on("window-all-closed", () => {
+  app.quit();
+});
 
-ipcMain.on('message', async (event, arg) => {
-  event.reply('message', `${arg} World!`)
-})
+ipcMain.on("message", async (event, arg) => {
+  event.reply("message", `${arg} World!`);
+});
 
-ipcMain.handle('login', async () => {
-  const page = await launchPersistent()
+ipcMain.handle("login", async () => {
+  const page = await launchPersistent();
   try {
     await page.waitForFunction(
-      () => !!localStorage.getItem('token') && !!localStorage.getItem('user_id'),
+      () =>
+        !!localStorage.getItem("token") && !!localStorage.getItem("user_id"),
       null,
-      { timeout: 0, polling: 500 }
-    )
-    const token = await page.evaluate(() => localStorage.getItem('token'))
-    const user_id = await page.evaluate(() => localStorage.getItem('user_id'))
+      { timeout: 0, polling: 500 },
+    );
+    const token = await page.evaluate(() => localStorage.getItem("token"));
+    const user_id = await page.evaluate(() => localStorage.getItem("user_id"));
     if (token && user_id) {
-      setSession({ token, user_id })
+      setSession({ token, user_id });
     }
-    return { token, user_id }
+    return { token, user_id };
   } finally {
-    await page.context().close()
+    await page.context().close();
   }
-})
+});
 
 ipcMain.handle(
-  'leagues:fetch',
+  "leagues:fetch",
   async (_event, args: { user_id: string; season: string }) => {
-    return fetchLeagues(args)
-  }
-)
+    return fetchLeagues(args);
+  },
+);
+
+ipcMain.handle("allplayers:fetch", async () => {
+  return fetchAllPlayers();
+});
 
 ipcMain.handle(
-  'graphql',
+  "graphql",
   async (
     _event,
-    args: { name: QueryName; vars: QueryMap[QueryName]['vars'] }
+    args: { name: QueryName; vars: QueryMap[QueryName]["vars"] },
   ) => {
-    return runQuery(args.name, args.vars as never)
-  }
-)
+    return runQuery(args.name, args.vars as never);
+  },
+);

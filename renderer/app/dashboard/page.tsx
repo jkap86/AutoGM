@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/auth-context";
 import { useLeagues } from "../../hooks/use-leagues";
-import TradesView from "../../views/trades-view";
+import TradesView from "../views/trades-view";
+import { useAllPlayers } from "../../hooks/use-allplayers";
 
 const SEASON = "2026";
 
@@ -13,6 +14,11 @@ type View = "trades" | null;
 export default function DashboardPage() {
   const router = useRouter();
   const { session } = useAuth();
+  const {
+    allplayers,
+    loading: allPlayersLoading,
+    error: allPlayersError,
+  } = useAllPlayers();
   const {
     user,
     leagues,
@@ -37,11 +43,17 @@ export default function DashboardPage() {
 
   if (!session?.user_id) return null;
 
+  console.log({ allplayers });
+
   return (
     <main className="flex min-h-screen flex-col items-center gap-4 p-8">
       <h1 className="text-3xl font-bold">{user?.display_name}</h1>
 
+      {allPlayersLoading && <p className="text-gray-400">Loading players…</p>}
       {loading && <p className="text-gray-400">Loading leagues…</p>}
+      {allPlayersError && (
+        <p className="text-sm text-red-400">{allPlayersError}</p>
+      )}
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       {!loading && !error && (
@@ -66,6 +78,7 @@ export default function DashboardPage() {
 
       {view === "trades" ? (
         <TradesView
+          allplayers={allplayers || {}}
           leagues={leagues || {}}
           playerShares={playerShares}
           leaguemates={leaguemates}
