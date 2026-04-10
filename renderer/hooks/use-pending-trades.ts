@@ -52,7 +52,7 @@ export function usePendingTrades(leagues: { [league_id: string]: LeagueDetailed 
           const expires = (tx.settings as Record<string, unknown>)?.expires_at
           return typeof expires !== 'number' || expires > now
         })
-        .sort((a, b) => b.created - a.created)
+        .sort((a, b) => b.status_updated - a.status_updated)
       setState({ trades, loading: false, error: null })
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e)

@@ -680,7 +680,7 @@ function PendingTradesPanel({
           const parsedPicks = (trade.draft_picks ?? []).map((s) => {
             const [roster_id, season, round, owner_id, previous_owner_id] = s.split(',');
             return { roster_id: +roster_id, season, round: +round, owner_id: +owner_id, previous_owner_id: +previous_owner_id };
-          });
+          }).sort((a, b) => a.season.localeCompare(b.season) || a.round - b.round);
           const sides = rosterIds.map((rid) => {
             const roster = resolveRoster(trade.league_id, rid);
             const receiving = [
@@ -1076,7 +1076,7 @@ function PotentialTrades({
                           );
                           if (!pick) return [];
                           return [
-                            `${pick.roster_id},${pick.season},${pick.round},${league.user_roster.roster_id},${partner.roster_id}`,
+                            `${pick.roster_id},${pick.season},${pick.round},${partner.roster_id},${league.user_roster.roster_id}`,
                           ];
                         }),
                         ...picksToReceive.flatMap((pickId) => {
@@ -1085,7 +1085,7 @@ function PotentialTrades({
                           );
                           if (!pick) return [];
                           return [
-                            `${pick.roster_id},${pick.season},${pick.round},${partner.roster_id},${league.user_roster.roster_id}`,
+                            `${pick.roster_id},${pick.season},${pick.round},${league.user_roster.roster_id},${partner.roster_id}`,
                           ];
                         }),
                       ],
