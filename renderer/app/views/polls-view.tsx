@@ -66,15 +66,18 @@ function CreatePolls({
     if (!canSubmit) return;
     const validChoices = choices.filter((c) => c.trim() !== "");
     const groupId = crypto.randomUUID();
-    for (const leagueId of selectedLeagues) {
+    for (let i = 0; i < selectedLeagues.length; i++) {
       await createPoll({
         group_id: groupId,
-        league_id: leagueId,
+        league_id: selectedLeagues[i],
         prompt,
         choices: validChoices,
         k_metadata: ["poll_type", "privacy"],
         v_metadata: [pollType, privacy],
       });
+      if (i < selectedLeagues.length - 1) {
+        await new Promise((r) => setTimeout(r, 2000 + Math.random() * 2000));
+      }
     }
     setShowCreate(false);
   };

@@ -1,4 +1,5 @@
 import { getToken } from '../lib/auth'
+import { BROWSER_HEADERS } from '../lib/browser-headers'
 
 const ENDPOINT = 'https://sleeper.com/graphql'
 
@@ -30,11 +31,9 @@ export async function gqlRequest<TResult, TVars = Record<string, unknown>>(
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: {
+      ...BROWSER_HEADERS,
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      // Pretend like a browser request so any origin/referer checks pass.
-      Origin: 'https://sleeper.com',
-      Referer: 'https://sleeper.com/',
       ...(token ? { Authorization: token } : {}),
       ...options?.headers,
     },

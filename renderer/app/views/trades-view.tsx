@@ -190,7 +190,7 @@ export default function TradesView({
       }
       setSubmitProgress(i + 1);
       if (i < selectedProposals.length - 1) {
-        await new Promise((r) => setTimeout(r, 3000));
+        await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
       }
     }
     setSubmitting(false);

@@ -8,8 +8,10 @@ import {
   Roster,
 } from "./types";
 
+import { BROWSER_HEADERS } from './browser-headers'
+
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: BROWSER_HEADERS });
   if (!res.ok) {
     throw new Error(`GET ${url} failed: ${res.status}`);
   }
