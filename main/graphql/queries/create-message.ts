@@ -2,52 +2,54 @@ import { randomUUID } from "node:crypto";
 import { gqlRequest } from "../client";
 import type { CreateMessageVars, CreateMessageResult } from "./types";
 
-function buildMutation(parentId: string, clientId: string): string {
-  return `
-    mutation create_message(
-      $text: String,
-      $k_attachment_data: [String],
-      $v_attachment_data: [String]
+const MUTATION = `
+  mutation create_message(
+    $parent_id: String!,
+    $client_id: String!,
+    $text: String,
+    $k_attachment_data: [String],
+    $v_attachment_data: [String]
+  ) {
+    create_message(
+      parent_id: $parent_id,
+      client_id: $client_id,
+      parent_type: "dm",
+      text: $text,
+      shard_min: null,
+      shard_max: null,
+      attachment_type: "trade_dm",
+      k_attachment_data: $k_attachment_data,
+      v_attachment_data: $v_attachment_data
     ) {
-      create_message(
-        parent_id: "${parentId}",
-        client_id: "${clientId}",
-        parent_type: "dm",
-        text: $text,
-        shard_min: null,
-        shard_max: null,
-        attachment_type: "trade_dm",
-        k_attachment_data: $k_attachment_data,
-        v_attachment_data: $v_attachment_data
-      ) {
-        attachment
-        author_avatar
-        author_display_name
-        author_real_name
-        author_id
-        author_is_bot
-        author_role_id
-        client_id
-        created
-        message_id
-        parent_id
-        parent_type
-        pinned
-        reactions
-        user_reactions
-        text
-        text_map
-      }
+      attachment
+      author_avatar
+      author_display_name
+      author_real_name
+      author_id
+      author_is_bot
+      author_role_id
+      client_id
+      created
+      message_id
+      parent_id
+      parent_type
+      pinned
+      reactions
+      user_reactions
+      text
+      text_map
     }
-  `;
-}
+  }
+`;
 
 export async function createMessage(
   vars: CreateMessageVars,
 ): Promise<CreateMessageResult> {
   return gqlRequest<CreateMessageResult>(
-    buildMutation(vars.parent_id, randomUUID()),
+    MUTATION,
     {
+      parent_id: vars.parent_id,
+      client_id: randomUUID(),
       text: vars.text,
       k_attachment_data: vars.k_attachment_data,
       v_attachment_data: vars.v_attachment_data,

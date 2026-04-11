@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/auth-context";
 import { useLeagues } from "../../hooks/use-leagues";
-import TradesView from "../views/trades-view";
+import TradesView from "../views/trades";
 import { useAllPlayers } from "../../hooks/use-allplayers";
 import PollsView from "../views/polls-view";
 

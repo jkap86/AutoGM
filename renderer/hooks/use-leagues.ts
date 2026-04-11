@@ -49,8 +49,6 @@ export function useLeagues({
     [data],
   );
 
-  console.log({ data, player_shares, leaguemates, pick_shares });
-
   return {
     user: data?.user ?? null,
     leagues: data?.leagues ?? null,

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { LeagueDetailed } from "../../../main/lib/types";
 import { useCreatePoll } from "../../hooks/use-create-poll";
 import { usePolls, PollGroup } from "../../hooks/use-polls";
+import { Avatar } from "../components/avatar";
 
 export default function PollsView({
   leagues,
@@ -296,13 +297,7 @@ function VoteBar({
               key={v.user_id}
               className="inline-flex items-center gap-1 rounded-full bg-gray-800 px-1.5 py-0.5 text-xs text-gray-400"
             >
-              {v.avatar && (
-                <img
-                  src={`https://sleepercdn.com/avatars/thumbs/${v.avatar}`}
-                  alt=""
-                  className="w-3.5 h-3.5 rounded-full"
-                />
-              )}
+              <Avatar hash={v.avatar} alt={v.name} size={14} />
               {v.name}
               {v.count && v.count > 1 && (
                 <span className="text-gray-500">{v.count}x</span>
