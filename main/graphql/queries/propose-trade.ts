@@ -49,7 +49,6 @@ const MUTATION = `
 export async function proposeTrade(
   vars: ProposeTradeVars
 ): Promise<ProposeTradeResult> {
-  console.log('draft_picks sent:', vars.draft_picks)
   return gqlRequest<ProposeTradeResult>(
     MUTATION,
     {
