@@ -7,9 +7,9 @@ import {
   PlayerShares,
   Roster,
 } from "../../../main/lib/types";
-import { usePendingTrades, type PendingTrade } from "../../hooks/use-pending-trades";
+import { useTradesByStatus, type TradeWithLeague } from "../../hooks/use-trades-by-status";
 
-type TradesTab = "create" | "pending";
+type TradesTab = "create" | "pending" | "completed" | "rejected";
 
 function buildPlayerAttachment(p: Allplayer | undefined) {
   if (!p) return { player_id: "0" };
@@ -318,37 +318,62 @@ export default function TradesView({
     loading: pendingLoading,
     error: pendingError,
     refetch: refetchPending,
-  } = usePendingTrades(leagues);
+  } = useTradesByStatus(leagues, "proposed");
+  const {
+    trades: completedTrades,
+    loading: completedLoading,
+    error: completedError,
+    refetch: refetchCompleted,
+  } = useTradesByStatus(leagues, "complete");
+  const {
+    trades: rejectedTrades,
+    loading: rejectedLoading,
+    error: rejectedError,
+    refetch: refetchRejected,
+  } = useTradesByStatus(leagues, "rejected");
 
   return (
     <div className="flex flex-col flex-1 items-center w-full gap-6 p-6">
       {/* Tabs */}
       <div className="flex w-full max-w-3xl border-b border-gray-700">
-        {(["create", "pending"] as TradesTab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`relative px-5 py-2.5 text-sm font-medium transition ${
-              tab === t
-                ? "text-gray-100"
-                : "text-gray-500 hover:text-gray-300"
-            }`}
-          >
-            {t === "create" ? "Create Trade" : "Pending"}
-            {t === "pending" && pendingTrades.length > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-yellow-500/20 text-yellow-400 px-1 text-[10px] font-semibold">
-                {pendingTrades.length}
-              </span>
-            )}
-            {tab === t && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-t" />
-            )}
-          </button>
-        ))}
+        {(["create", "pending", "completed", "rejected"] as TradesTab[]).map((t) => {
+          const count = t === "pending" ? pendingTrades.length
+            : t === "completed" ? completedTrades.length
+            : t === "rejected" ? rejectedTrades.length
+            : 0;
+          const label = t === "create" ? "Create Trade"
+            : t === "pending" ? "Pending"
+            : t === "completed" ? "Completed"
+            : "Rejected";
+          const badgeColor = t === "pending" ? "bg-yellow-500/20 text-yellow-400"
+            : t === "completed" ? "bg-green-500/20 text-green-400"
+            : "bg-red-500/20 text-red-400";
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`relative px-5 py-2.5 text-sm font-medium transition ${
+                tab === t
+                  ? "text-gray-100"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {label}
+              {t !== "create" && count > 0 && (
+                <span className={`ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full px-1 text-[10px] font-semibold ${badgeColor}`}>
+                  {count}
+                </span>
+              )}
+              {tab === t && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-t" />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {tab === "pending" ? (
-        <PendingTradesPanel
+        <TradesPanel
           trades={pendingTrades}
           loading={pendingLoading}
           error={pendingError}
@@ -356,6 +381,32 @@ export default function TradesView({
           leagues={leagues}
           allplayers={allplayers}
           userId={userId}
+          statusLabel="Pending"
+          emptyMessage="No pending trades across your leagues."
+        />
+      ) : tab === "completed" ? (
+        <TradesPanel
+          trades={completedTrades}
+          loading={completedLoading}
+          error={completedError}
+          refetch={refetchCompleted}
+          leagues={leagues}
+          allplayers={allplayers}
+          userId={userId}
+          statusLabel="Completed"
+          emptyMessage="No completed trades across your leagues."
+        />
+      ) : tab === "rejected" ? (
+        <TradesPanel
+          trades={rejectedTrades}
+          loading={rejectedLoading}
+          error={rejectedError}
+          refetch={refetchRejected}
+          leagues={leagues}
+          allplayers={allplayers}
+          userId={userId}
+          statusLabel="Rejected"
+          emptyMessage="No rejected trades across your leagues."
         />
       ) : (
       <>
@@ -559,7 +610,7 @@ export default function TradesView({
   );
 }
 
-function PendingTradesPanel({
+function TradesPanel({
   trades,
   loading,
   error,
@@ -567,14 +618,18 @@ function PendingTradesPanel({
   leagues,
   allplayers,
   userId,
+  statusLabel,
+  emptyMessage,
 }: {
-  trades: PendingTrade[];
+  trades: TradeWithLeague[];
   loading: boolean;
   error: string | null;
   refetch: () => void;
   leagues: { [league_id: string]: LeagueDetailed };
   allplayers: { [player_id: string]: Allplayer };
   userId: string;
+  statusLabel: string;
+  emptyMessage: string;
 }) {
   const resolveRoster = (league_id: string, roster_id: number) => {
     const league = leagues[league_id];
@@ -643,7 +698,7 @@ function PendingTradesPanel({
   if (trades.length === 0) {
     return (
       <div className="w-full max-w-4xl flex flex-col items-center py-12 gap-3">
-        <p className="text-gray-500 text-sm">No pending trades across your leagues.</p>
+        <p className="text-gray-500 text-sm">{emptyMessage}</p>
         <button
           onClick={refetch}
           className="rounded-lg bg-gray-800 border border-gray-700 px-4 py-1.5 text-sm text-gray-300 hover:bg-gray-700 transition"
@@ -659,7 +714,7 @@ function PendingTradesPanel({
       <div className="mb-5 flex items-center justify-between">
         <div className="flex items-baseline gap-2">
           <h2 className="text-lg font-semibold text-gray-100">
-            Pending Trades
+            {statusLabel} Trades
           </h2>
           <span className="text-sm text-gray-500">
             {trades.length} {trades.length === 1 ? "trade" : "trades"}

@@ -7,17 +7,21 @@ import type {
 } from '../../main/graphql/queries/types'
 import type { LeagueDetailed } from '../../main/lib/types'
 
-export type PendingTrade = Transaction & {
+export type TradeWithLeague = Transaction & {
   league_name: string;
 }
 
 type State = {
-  trades: PendingTrade[]
+  trades: TradeWithLeague[]
   loading: boolean
   error: string | null
 }
 
-export function usePendingTrades(leagues: { [league_id: string]: LeagueDetailed }) {
+export function useTradesByStatus(
+  leagues: { [league_id: string]: LeagueDetailed },
+  status: string,
+  limit?: number,
+) {
   const [state, setState] = useState<State>({
     trades: [],
     loading: false,
@@ -36,7 +40,7 @@ export function usePendingTrades(leagues: { [league_id: string]: LeagueDetailed 
             'graphql',
             {
               name: 'leagueTransactions',
-              vars: { league_id, status: 'proposed', type: 'trade' },
+              vars: { league_id, status, type: 'trade', ...(limit != null ? { limit } : {}) },
             },
           )
           return result.league_transactions.map((tx) => ({
@@ -49,6 +53,7 @@ export function usePendingTrades(leagues: { [league_id: string]: LeagueDetailed 
       const now = Date.now()
       const trades = results.flat()
         .filter((tx) => {
+          if (status !== 'proposed') return true
           const expires = (tx.settings as Record<string, unknown>)?.expires_at
           return typeof expires !== 'number' || expires > now
         })
@@ -58,7 +63,7 @@ export function usePendingTrades(leagues: { [league_id: string]: LeagueDetailed 
       const error = e instanceof Error ? e.message : String(e)
       setState({ trades: [], loading: false, error })
     }
-  }, [leagues])
+  }, [leagues, status, limit])
 
   useEffect(() => {
     fetch()
