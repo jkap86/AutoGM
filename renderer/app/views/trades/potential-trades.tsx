@@ -1,4 +1,9 @@
-import type { LeagueDetailed, Roster } from "../../../../main/lib/types";
+import { useState } from "react";
+import type {
+  Allplayer,
+  LeagueDetailed,
+  Roster,
+} from "../../../../main/lib/types";
 import type { ProposeTradeVars } from "../../../../main/graphql/queries/types";
 import { getPickId } from "../../../lib/leagues";
 import { Avatar } from "../../components/avatar";
@@ -9,6 +14,106 @@ function formatRecord(r: { wins: number; losses: number; ties: number }) {
     : `${r.wins}-${r.losses}`;
 }
 
+function RosterColumn({
+  roster,
+  allplayers,
+  label,
+  highlightIds,
+  highlightColor,
+}: {
+  roster: Roster;
+  allplayers: { [id: string]: Allplayer };
+  label: string;
+  highlightIds: string[];
+  highlightColor: "red" | "green";
+}) {
+  const starters = roster.starters.filter((id) => id !== "0");
+  const taxi = roster.taxi ?? [];
+  const reserve = roster.reserve ?? [];
+  const bench = roster.players.filter(
+    (id) =>
+      !starters.includes(id) && !taxi.includes(id) && !reserve.includes(id),
+  );
+
+  const hlSet = new Set(highlightIds);
+  const hlBg =
+    highlightColor === "red"
+      ? "bg-red-900/30 border-l-2 border-red-500"
+      : "bg-green-900/30 border-l-2 border-green-500";
+
+  const renderPlayer = (id: string) => {
+    const p = allplayers[id];
+    const name = p?.full_name || id;
+    const pos = p?.position || "?";
+    const team = p?.team || "";
+    const isHighlighted = hlSet.has(id);
+    return (
+      <div
+        key={id}
+        className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs ${isHighlighted ? hlBg : ""}`}
+      >
+        <span className="w-6 shrink-0 text-center font-semibold text-gray-500">
+          {pos}
+        </span>
+        <span className={`flex-1 truncate ${isHighlighted ? "text-gray-100 font-medium" : "text-gray-300"}`}>
+          {name}
+        </span>
+        {team && (
+          <span className="shrink-0 text-gray-600 text-[10px]">{team}</span>
+        )}
+      </div>
+    );
+  };
+
+  const sections: { label: string; ids: string[] }[] = [
+    { label: "Starters", ids: starters },
+    { label: "Bench", ids: bench },
+  ];
+  if (taxi.length > 0) sections.push({ label: "Taxi", ids: taxi });
+  if (reserve.length > 0) sections.push({ label: "IR", ids: reserve });
+
+  const picks = roster.draftpicks;
+
+  return (
+    <div className="flex flex-col min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+        {label}
+      </p>
+      <div className="max-h-72 overflow-y-auto pr-1 flex flex-col gap-1.5">
+        {sections.map(
+          (section) =>
+            section.ids.length > 0 && (
+              <div key={section.label}>
+                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
+                  {section.label}
+                </p>
+                {section.ids.map(renderPlayer)}
+              </div>
+            ),
+        )}
+        {picks.length > 0 && (
+          <div>
+            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
+              Draft Picks
+            </p>
+            {picks.map((pick) => (
+              <div
+                key={`${pick.season}-${pick.round}-${pick.roster_id}`}
+                className="flex items-center gap-1.5 px-1.5 py-0.5 text-xs text-gray-400"
+              >
+                <span className="w-6 shrink-0 text-center font-semibold text-gray-600">
+                  PK
+                </span>
+                <span className="truncate">{getPickId(pick)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function PotentialTrades({
   playersToGive,
   playersToReceive,
@@ -17,6 +122,7 @@ export function PotentialTrades({
   filteredLeagues,
   selectedProposals,
   setSelectedProposals,
+  allplayers,
 }: {
   playersToGive: string[];
   playersToReceive: string[];
@@ -27,7 +133,18 @@ export function PotentialTrades({
   setSelectedProposals: React.Dispatch<
     React.SetStateAction<(ProposeTradeVars & { user_id: string })[]>
   >;
+  allplayers: { [id: string]: Allplayer };
 }) {
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (key: string) =>
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
   const cards = filteredLeagues.flatMap((league) =>
     league.tradingWith.map((partner) => ({ league, partner })),
   );
@@ -43,6 +160,8 @@ export function PotentialTrades({
   return (
     <div className="grid w-full gap-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
       {cards.map(({ league, partner }) => {
+        const cardKey = `${league.league_id}-${partner.roster_id}`;
+        const isExpanded = expandedCards.has(cardKey);
         const typeLabel =
           league.settings.type === 2
             ? "Dynasty"
@@ -52,7 +171,7 @@ export function PotentialTrades({
 
         return (
           <div
-            key={`${league.league_id}-${partner.roster_id}`}
+            key={cardKey}
             className={`flex flex-col gap-2.5 rounded-lg border p-3.5 cursor-pointer transition ${
               selectedProposals.some(
                 (p) =>
@@ -153,7 +272,52 @@ export function PotentialTrades({
               <span className="text-xs text-gray-500">
                 {formatRecord(partner)}
               </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleExpand(cardKey);
+                }}
+                className="ml-1 text-gray-500 hover:text-gray-300 transition"
+                title={isExpanded ? "Collapse rosters" : "Expand rosters"}
+              >
+                <svg
+                  className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
             </div>
+
+            {/* Expanded rosters */}
+            {isExpanded && (
+              <div
+                className="grid grid-cols-2 gap-3 border-t border-gray-700/50 pt-2.5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <RosterColumn
+                  roster={league.user_roster}
+                  allplayers={allplayers}
+                  label="Your Roster"
+                  highlightIds={playersToGive}
+                  highlightColor="red"
+                />
+                <RosterColumn
+                  roster={partner}
+                  allplayers={allplayers}
+                  label={partner.username}
+                  highlightIds={playersToReceive}
+                  highlightColor="green"
+                />
+              </div>
+            )}
           </div>
         );
       })}

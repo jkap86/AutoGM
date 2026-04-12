@@ -573,6 +573,7 @@ export default function TradesView({
             filteredLeagues={filteredLeagues}
             selectedProposals={selectedProposals}
             setSelectedProposals={setSelectedProposals}
+            allplayers={allplayers}
           />
         )}
       </div>
