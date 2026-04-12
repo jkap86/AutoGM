@@ -302,7 +302,9 @@ function TradeCards({
           const [roster_id, season, round, owner_id, previous_owner_id] = s.split(',');
           return { roster_id: +roster_id, season, round: +round, owner_id: +owner_id, previous_owner_id: +previous_owner_id };
         }).sort((a, b) => a.season.localeCompare(b.season) || a.round - b.round);
-        const sides = rosterIds.map((rid) => {
+        const userRid = league?.user_roster?.roster_id;
+        const sortedRosterIds = [...rosterIds].sort((a, b) => (a === userRid ? -1 : b === userRid ? 1 : 0));
+        const sides = sortedRosterIds.map((rid) => {
           const roster = resolveRoster(trade.league_id, rid);
           const receiving = [
             ...Object.entries(trade.adds ?? {})
@@ -330,7 +332,7 @@ function TradeCards({
         const isCounter = counterTradeId === trade.transaction_id;
 
         // Collect player IDs involved in the trade for highlighting
-        const userRosterId = league?.user_roster?.roster_id;
+        const userRosterId = userRid;
         const userAdds = Object.entries(trade.adds ?? {}).filter(([, rId]) => rId === userRosterId).map(([pid]) => pid);
         const userDrops = Object.entries(trade.drops ?? {}).filter(([, rId]) => rId === userRosterId).map(([pid]) => pid);
 
