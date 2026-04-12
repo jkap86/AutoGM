@@ -42,10 +42,33 @@ export type ProposeTradeVars = {
   // Optional — sleeper expects these as string[] entries.
   waiver_budget?: string[];
   draft_picks?: string[];
+  // Counter-offer: reject an existing trade while proposing a new one.
+  reject_transaction_id?: string;
+  reject_transaction_leg?: number;
 };
 
 export type ProposeTradeResult = {
   propose_trade: Transaction;
+};
+
+export type AcceptTradeVars = {
+  league_id: string;
+  transaction_id: string;
+  leg: number;
+};
+
+export type AcceptTradeResult = {
+  accept_trade: Transaction;
+};
+
+export type RejectTradeVars = {
+  league_id: string;
+  transaction_id: string;
+  leg: number;
+};
+
+export type RejectTradeResult = {
+  reject_trade: Transaction;
 };
 
 export type CreateMessageVars = {
@@ -166,6 +189,8 @@ export type LeagueTransactionsResult = {
 
 export type QueryMap = {
   proposeTrade: { vars: ProposeTradeVars; result: ProposeTradeResult };
+  acceptTrade: { vars: AcceptTradeVars; result: AcceptTradeResult };
+  rejectTrade: { vars: RejectTradeVars; result: RejectTradeResult };
   createMessage: { vars: CreateMessageVars; result: CreateMessageResult };
   getDmByMembers: { vars: GetDmByMembersVars; result: GetDmByMembersResult };
   createPoll: { vars: CreatePollVars; result: CreatePollResult };

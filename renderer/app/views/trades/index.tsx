@@ -48,8 +48,17 @@ export default function TradesView({
   }, [playersToGive, playersToReceive, picksToGive, picksToReceive]);
 
   const { mutate: proposeTrade } = useIpcMutation("proposeTrade");
+  const { mutate: acceptTradeMut } = useIpcMutation("acceptTrade");
+  const { mutate: rejectTradeMut } = useIpcMutation("rejectTrade");
   const { mutate: getDm } = useIpcMutation("getDmByMembers");
   const { mutate: sendMessage } = useIpcMutation("createMessage");
+
+  // Counter-offer state: tracks the trade being countered
+  const [counterTrade, setCounterTrade] = useState<{
+    transaction_id: string;
+    leg: number;
+    league_id: string;
+  } | null>(null);
 
   const submitProposals = useCallback(async () => {
     if (selectedProposals.length === 0) return;
@@ -57,6 +66,11 @@ export default function TradesView({
     setSubmitProgress(0);
     for (let i = 0; i < selectedProposals.length; i++) {
       const { user_id, ...vars } = selectedProposals[i];
+      // If countering, attach reject fields to the proposal for the matching league
+      if (counterTrade && vars.league_id === counterTrade.league_id) {
+        vars.reject_transaction_id = counterTrade.transaction_id;
+        vars.reject_transaction_leg = counterTrade.leg;
+      }
       try {
         const result = await proposeTrade(vars);
         const transaction = result.propose_trade;
@@ -172,8 +186,10 @@ export default function TradesView({
     }
     setSubmitting(false);
     setSelectedProposals([]);
+    setCounterTrade(null);
   }, [
     selectedProposals,
+    counterTrade,
     proposeTrade,
     getDm,
     sendMessage,
@@ -355,6 +371,30 @@ export default function TradesView({
           userId={userId}
           statusLabel="Pending"
           emptyMessage="No pending trades across your leagues."
+          onAccept={async (trade) => {
+            await acceptTradeMut({
+              league_id: trade.league_id,
+              transaction_id: trade.transaction_id,
+              leg: trade.leg,
+            });
+            refetchPending();
+          }}
+          onReject={async (trade) => {
+            await rejectTradeMut({
+              league_id: trade.league_id,
+              transaction_id: trade.transaction_id,
+              leg: trade.leg,
+            });
+            refetchPending();
+          }}
+          onCounter={(trade) => {
+            setCounterTrade({
+              transaction_id: trade.transaction_id,
+              leg: trade.leg,
+              league_id: trade.league_id,
+            });
+            setTab("create");
+          }}
         />
       ) : tab === "completed" ? (
         <TradesPanel
@@ -382,6 +422,21 @@ export default function TradesView({
         />
       ) : (
       <>
+      {/* Counter-offer banner */}
+      {counterTrade && (
+        <div className="w-full max-w-3xl flex items-center gap-3 rounded-lg border border-yellow-600/50 bg-yellow-500/10 px-4 py-2.5">
+          <span className="text-sm text-yellow-300">
+            Counter-offer mode — your proposal will reject the original trade in{" "}
+            <span className="font-medium">{leagues[counterTrade.league_id]?.name ?? counterTrade.league_id}</span>
+          </span>
+          <button
+            onClick={() => setCounterTrade(null)}
+            className="ml-auto text-xs text-yellow-400 hover:text-yellow-200 transition"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
       {/* Trade builder */}
       <div className="flex gap-4 w-full max-w-3xl">
         {/* Give side */}

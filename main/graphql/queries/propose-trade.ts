@@ -59,6 +59,8 @@ export async function proposeTrade(
       k_drops: vars.k_drops,
       v_drops: vars.v_drops,
       waiver_budget: vars.waiver_budget ?? [],
+      reject_transaction_id: vars.reject_transaction_id,
+      reject_transaction_leg: vars.reject_transaction_leg,
     },
     {
       operationName: 'propose_trade',
