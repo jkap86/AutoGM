@@ -3,8 +3,17 @@ import type { LeagueDetailed, Allplayer } from "../../../../main/lib/types";
 import type { TradeWithLeague } from "../../../hooks/use-trades-by-status";
 import { Avatar } from "../../components/avatar";
 import { RosterColumn } from "../../components/roster-column";
+import { getPickId } from "../../../lib/leagues";
 
 export type TradeAction = (trade: TradeWithLeague) => Promise<void>;
+
+export type CounterOffer = {
+  trade: TradeWithLeague;
+  playerIdsToGive: string[];
+  playerIdsToReceive: string[];
+  pickIdsToGive: string[];
+  pickIdsToReceive: string[];
+};
 
 export function TradesPanel({
   trades,
@@ -31,7 +40,7 @@ export function TradesPanel({
   emptyMessage: string;
   onAccept?: TradeAction;
   onReject?: TradeAction;
-  onCounter?: (trade: TradeWithLeague) => void;
+  onCounter?: (data: CounterOffer) => Promise<void>;
 }) {
   const resolveRoster = (league_id: string, roster_id: number) => {
     const league = leagues[league_id];
@@ -60,13 +69,14 @@ export function TradesPanel({
     return `${dp.season} Round ${dp.round}${showOwner ? ` (${orig.username})` : ''}`;
   };
 
-  const formatTime = (epoch: number) => {
-    const d = new Date(epoch * 1000);
-    const now = Date.now();
-    const diff = now - d.getTime();
-    if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
-    if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}h ago`;
-    return d.toLocaleDateString();
+  const formatTime = (ms: number) => {
+    const d = new Date(ms);
+    return d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
   };
 
   if (loading) {
@@ -167,11 +177,16 @@ function TradeCards({
   formatTime: (epoch: number) => string;
   onAccept?: TradeAction;
   onReject?: TradeAction;
-  onCounter?: (trade: TradeWithLeague) => void;
+  onCounter?: (data: CounterOffer) => Promise<void>;
 }) {
   const [actionLoading, setActionLoading] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState<Record<string, string>>({});
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [counterTradeId, setCounterTradeId] = useState<string | null>(null);
+  const [counterGive, setCounterGive] = useState<Set<string>>(new Set());
+  const [counterReceive, setCounterReceive] = useState<Set<string>>(new Set());
+  const [counterPicksGive, setCounterPicksGive] = useState<Set<string>>(new Set());
+  const [counterPicksReceive, setCounterPicksReceive] = useState<Set<string>>(new Set());
 
   const toggleExpand = (key: string) =>
     setExpandedCards((prev) => {
@@ -188,6 +203,86 @@ function TradeCards({
     setActionError((prev) => { const next = { ...prev }; delete next[trade.transaction_id]; return next; });
     try {
       await fn(trade);
+    } catch (e) {
+      setActionError((prev) => ({
+        ...prev,
+        [trade.transaction_id]: e instanceof Error ? e.message : String(e),
+      }));
+    } finally {
+      setActionLoading((prev) => { const next = { ...prev }; delete next[trade.transaction_id]; return next; });
+    }
+  };
+
+  const toggleInSet = (setter: React.Dispatch<React.SetStateAction<Set<string>>>) => (id: string) =>
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const enterCounter = (trade: TradeWithLeague) => {
+    const league = leagues[trade.league_id];
+    const userRid = league?.user_roster?.roster_id;
+    const giving = new Set(
+      Object.entries(trade.drops ?? {}).filter(([, rid]) => rid === userRid).map(([pid]) => pid),
+    );
+    const receiving = new Set(
+      Object.entries(trade.adds ?? {}).filter(([, rid]) => rid === userRid).map(([pid]) => pid),
+    );
+    const parsedPicks = (trade.draft_picks ?? []).map((s) => {
+      const [roster_id, season, round, owner_id, previous_owner_id] = s.split(",");
+      return { roster_id: +roster_id, season, round: +round, owner_id: +owner_id, previous_owner_id: +previous_owner_id };
+    });
+    const partnerRid = trade.roster_ids.find((rid) => rid !== userRid);
+    const partnerRoster = league?.rosters.find((r) => r.roster_id === partnerRid);
+    const pGive = new Set(
+      parsedPicks
+        .filter((dp) => dp.previous_owner_id === userRid)
+        .map((dp) => {
+          const rp = league.user_roster.draftpicks.find((p) => p.roster_id === dp.roster_id && p.season === dp.season && p.round === dp.round);
+          return rp ? getPickId(rp) : null;
+        })
+        .filter((x): x is string => x !== null),
+    );
+    const pRecv = new Set(
+      parsedPicks
+        .filter((dp) => dp.owner_id === userRid)
+        .map((dp) => {
+          const rp = partnerRoster?.draftpicks.find((p) => p.roster_id === dp.roster_id && p.season === dp.season && p.round === dp.round);
+          return rp ? getPickId(rp) : null;
+        })
+        .filter((x): x is string => x !== null),
+    );
+    setCounterTradeId(trade.transaction_id);
+    setCounterGive(giving);
+    setCounterReceive(receiving);
+    setCounterPicksGive(pGive);
+    setCounterPicksReceive(pRecv);
+    setExpandedCards((prev) => new Set([...prev, trade.transaction_id]));
+  };
+
+  const cancelCounter = () => {
+    setCounterTradeId(null);
+    setCounterGive(new Set());
+    setCounterReceive(new Set());
+    setCounterPicksGive(new Set());
+    setCounterPicksReceive(new Set());
+  };
+
+  const sendCounter = async (trade: TradeWithLeague) => {
+    if (!onCounter) return;
+    setActionLoading((prev) => ({ ...prev, [trade.transaction_id]: "counter" }));
+    setActionError((prev) => { const next = { ...prev }; delete next[trade.transaction_id]; return next; });
+    try {
+      await onCounter({
+        trade,
+        playerIdsToGive: [...counterGive],
+        playerIdsToReceive: [...counterReceive],
+        pickIdsToGive: [...counterPicksGive],
+        pickIdsToReceive: [...counterPicksReceive],
+      });
+      cancelCounter();
     } catch (e) {
       setActionError((prev) => ({
         ...prev,
@@ -232,6 +327,7 @@ function TradeCards({
         const loadingAction = actionLoading[trade.transaction_id];
         const error = actionError[trade.transaction_id];
         const isExpanded = expandedCards.has(trade.transaction_id);
+        const isCounter = counterTradeId === trade.transaction_id;
 
         // Collect player IDs involved in the trade for highlighting
         const userRosterId = league?.user_roster?.roster_id;
@@ -260,7 +356,7 @@ function TradeCards({
                   {trade.creator === userId ? "Outgoing" : "Received"}
                 </span>
                 <span className="text-[11px] text-gray-500">
-                  {formatTime(trade.created)}
+                  {formatTime(trade.status_updated)}
                 </span>
                 <button
                   onClick={() => toggleExpand(trade.transaction_id)}
@@ -342,27 +438,65 @@ function TradeCards({
             </div>
 
             {/* Expanded rosters */}
-            {isExpanded && sides.length === 2 && sides[0].roster && sides[1].roster && (
-              <div className="grid grid-cols-2 gap-3 px-4 py-3 border-t border-gray-700/40">
-                <RosterColumn
-                  roster={sides[0].roster}
-                  allplayers={allplayers}
-                  label={sides[0].roster.username}
-                  highlightIds={sides[0].roster_id === userRosterId ? userDrops : userAdds}
-                  highlightColor={sides[0].roster_id === userRosterId ? "red" : "green"}
-                />
-                <RosterColumn
-                  roster={sides[1].roster}
-                  allplayers={allplayers}
-                  label={sides[1].roster.username}
-                  highlightIds={sides[1].roster_id === userRosterId ? userDrops : userAdds}
-                  highlightColor={sides[1].roster_id === userRosterId ? "red" : "green"}
-                />
+            {(isExpanded || isCounter) && sides.length === 2 && sides[0].roster && sides[1].roster && (
+              <div className="border-t border-gray-700/40">
+                {isCounter && (
+                  <div className="px-4 py-2 bg-yellow-500/10 border-b border-yellow-600/30">
+                    <span className="text-xs text-yellow-300">Click players or picks to add/remove from counter-offer</span>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3 px-4 py-3">
+                  {sides.map((side) => {
+                    const isUserSide = side.roster_id === userRosterId;
+                    return (
+                      <RosterColumn
+                        key={side.roster_id}
+                        roster={side.roster!}
+                        allplayers={allplayers}
+                        label={isCounter ? (isUserSide ? "Your Roster" : side.roster!.username) : side.roster!.username}
+                        highlightIds={
+                          isCounter
+                            ? [...(isUserSide ? counterGive : counterReceive)]
+                            : (isUserSide ? userDrops : userAdds)
+                        }
+                        highlightColor={isUserSide ? "red" : "green"}
+                        highlightPickIds={
+                          isCounter ? [...(isUserSide ? counterPicksGive : counterPicksReceive)] : undefined
+                        }
+                        onToggle={isCounter ? toggleInSet(isUserSide ? setCounterGive : setCounterReceive) : undefined}
+                        onTogglePick={isCounter ? toggleInSet(isUserSide ? setCounterPicksGive : setCounterPicksReceive) : undefined}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            {/* Action buttons for received pending trades */}
-            {isReceived && (onAccept || onReject || onCounter) && (
+            {/* Action buttons */}
+            {isCounter ? (
+              <div className="flex items-center gap-2 px-4 py-2.5 border-t border-gray-700/40">
+                <span className="text-xs text-gray-400">
+                  Giving {counterGive.size + counterPicksGive.size} · Receiving {counterReceive.size + counterPicksReceive.size}
+                </span>
+                <div className="ml-auto flex items-center gap-2">
+                  {error && <span className="text-xs text-red-400">{error}</span>}
+                  <button
+                    onClick={cancelCounter}
+                    disabled={loadingAction === "counter"}
+                    className="rounded-md bg-gray-700 border border-gray-600 px-3 py-1 text-xs font-medium text-gray-200 transition hover:bg-gray-600 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => sendCounter(trade)}
+                    disabled={loadingAction === "counter" || (counterGive.size + counterPicksGive.size + counterReceive.size + counterPicksReceive.size === 0)}
+                    className="rounded-md bg-yellow-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-yellow-500 disabled:opacity-50"
+                  >
+                    {loadingAction === "counter" ? "Sending..." : "Send Counter"}
+                  </button>
+                </div>
+              </div>
+            ) : isReceived && (onAccept || onReject || onCounter) ? (
               <div className="flex items-center gap-2 px-4 py-2.5 border-t border-gray-700/40">
                 {onAccept && (
                   <button
@@ -384,7 +518,7 @@ function TradeCards({
                 )}
                 {onCounter && (
                   <button
-                    onClick={() => onCounter(trade)}
+                    onClick={() => enterCounter(trade)}
                     disabled={!!loadingAction}
                     className="rounded-md bg-gray-700 border border-gray-600 px-3 py-1 text-xs font-medium text-gray-200 transition hover:bg-gray-600 disabled:opacity-50"
                   >
@@ -395,7 +529,7 @@ function TradeCards({
                   <span className="text-xs text-red-400 ml-auto">{error}</span>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
         );
       })}

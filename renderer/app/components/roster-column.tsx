@@ -7,12 +7,18 @@ export function RosterColumn({
   label,
   highlightIds,
   highlightColor,
+  highlightPickIds,
+  onToggle,
+  onTogglePick,
 }: {
   roster: Roster;
   allplayers: { [id: string]: Allplayer };
   label: string;
   highlightIds?: string[];
   highlightColor?: "red" | "green";
+  highlightPickIds?: string[];
+  onToggle?: (id: string) => void;
+  onTogglePick?: (pickId: string) => void;
 }) {
   const starters = roster.starters.filter((id) => id !== "0");
   const taxi = roster.taxi ?? [];
@@ -23,6 +29,7 @@ export function RosterColumn({
   );
 
   const hlSet = new Set(highlightIds ?? []);
+  const hlPickSet = new Set(highlightPickIds ?? []);
   const hlBg =
     highlightColor === "red"
       ? "bg-red-900/30 border-l-2 border-red-500"
@@ -37,7 +44,8 @@ export function RosterColumn({
     return (
       <div
         key={id}
-        className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs ${isHighlighted ? hlBg : ""}`}
+        className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs ${isHighlighted ? hlBg : ""} ${onToggle ? "cursor-pointer hover:bg-gray-700/40" : ""}`}
+        onClick={onToggle ? () => onToggle(id) : undefined}
       >
         <span className="w-6 shrink-0 text-center font-semibold text-gray-500">
           {pos}
@@ -83,17 +91,22 @@ export function RosterColumn({
             <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
               Draft Picks
             </p>
-            {picks.map((pick) => (
-              <div
-                key={`${pick.season}-${pick.round}-${pick.roster_id}`}
-                className="flex items-center gap-1.5 px-1.5 py-0.5 text-xs text-gray-400"
-              >
-                <span className="w-6 shrink-0 text-center font-semibold text-gray-600">
-                  PK
-                </span>
-                <span className="truncate">{getPickId(pick)}</span>
-              </div>
-            ))}
+            {picks.map((pick) => {
+              const pickId = getPickId(pick);
+              const isPickHl = hlPickSet.has(pickId);
+              return (
+                <div
+                  key={`${pick.season}-${pick.round}-${pick.roster_id}`}
+                  className={`flex items-center gap-1.5 px-1.5 py-0.5 text-xs ${isPickHl ? hlBg : "text-gray-400"} ${onTogglePick ? "cursor-pointer hover:bg-gray-700/40" : ""}`}
+                  onClick={onTogglePick ? () => onTogglePick(pickId) : undefined}
+                >
+                  <span className="w-6 shrink-0 text-center font-semibold text-gray-600">
+                    PK
+                  </span>
+                  <span className={`truncate ${isPickHl ? "text-gray-100 font-medium" : ""}`}>{pickId}</span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

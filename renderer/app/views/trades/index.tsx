@@ -53,24 +53,12 @@ export default function TradesView({
   const { mutate: getDm } = useIpcMutation("getDmByMembers");
   const { mutate: sendMessage } = useIpcMutation("createMessage");
 
-  // Counter-offer state: tracks the trade being countered
-  const [counterTrade, setCounterTrade] = useState<{
-    transaction_id: string;
-    leg: number;
-    league_id: string;
-  } | null>(null);
-
   const submitProposals = useCallback(async () => {
     if (selectedProposals.length === 0) return;
     setSubmitting(true);
     setSubmitProgress(0);
     for (let i = 0; i < selectedProposals.length; i++) {
       const { user_id, ...vars } = selectedProposals[i];
-      // If countering, attach reject fields to the proposal for the matching league
-      if (counterTrade && vars.league_id === counterTrade.league_id) {
-        vars.reject_transaction_id = counterTrade.transaction_id;
-        vars.reject_transaction_leg = counterTrade.leg;
-      }
       try {
         const result = await proposeTrade(vars);
         const transaction = result.propose_trade;
@@ -186,10 +174,8 @@ export default function TradesView({
     }
     setSubmitting(false);
     setSelectedProposals([]);
-    setCounterTrade(null);
   }, [
     selectedProposals,
-    counterTrade,
     proposeTrade,
     getDm,
     sendMessage,
@@ -387,13 +373,40 @@ export default function TradesView({
             });
             refetchPending();
           }}
-          onCounter={(trade) => {
-            setCounterTrade({
-              transaction_id: trade.transaction_id,
-              leg: trade.leg,
+          onCounter={async ({ trade, playerIdsToGive, playerIdsToReceive, pickIdsToGive, pickIdsToReceive }) => {
+            const league = leagues[trade.league_id];
+            const userRosterId = league.user_roster.roster_id;
+            const partnerRosterId = trade.roster_ids.find((rid) => rid !== userRosterId)!;
+            const partnerRoster = league.rosters.find((r) => r.roster_id === partnerRosterId)!;
+            await proposeTrade({
               league_id: trade.league_id,
+              k_adds: [...playerIdsToGive, ...playerIdsToReceive],
+              v_adds: [
+                ...playerIdsToGive.map(() => partnerRosterId),
+                ...playerIdsToReceive.map(() => userRosterId),
+              ],
+              k_drops: [...playerIdsToGive, ...playerIdsToReceive],
+              v_drops: [
+                ...playerIdsToGive.map(() => userRosterId),
+                ...playerIdsToReceive.map(() => partnerRosterId),
+              ],
+              draft_picks: [
+                ...pickIdsToGive.flatMap((pickId) => {
+                  const pick = league.user_roster.draftpicks.find((d) => getPickId(d) === pickId);
+                  if (!pick) return [];
+                  return [`${pick.roster_id},${pick.season},${pick.round},${partnerRosterId},${userRosterId}`];
+                }),
+                ...pickIdsToReceive.flatMap((pickId) => {
+                  const pick = partnerRoster.draftpicks.find((d) => getPickId(d) === pickId);
+                  if (!pick) return [];
+                  return [`${pick.roster_id},${pick.season},${pick.round},${userRosterId},${partnerRosterId}`];
+                }),
+              ],
+              waiver_budget: [],
+              reject_transaction_id: trade.transaction_id,
+              reject_transaction_leg: trade.leg,
             });
-            setTab("create");
+            refetchPending();
           }}
         />
       ) : tab === "completed" ? (
@@ -422,21 +435,6 @@ export default function TradesView({
         />
       ) : (
       <>
-      {/* Counter-offer banner */}
-      {counterTrade && (
-        <div className="w-full max-w-3xl flex items-center gap-3 rounded-lg border border-yellow-600/50 bg-yellow-500/10 px-4 py-2.5">
-          <span className="text-sm text-yellow-300">
-            Counter-offer mode — your proposal will reject the original trade in{" "}
-            <span className="font-medium">{leagues[counterTrade.league_id]?.name ?? counterTrade.league_id}</span>
-          </span>
-          <button
-            onClick={() => setCounterTrade(null)}
-            className="ml-auto text-xs text-yellow-400 hover:text-yellow-200 transition"
-          >
-            Cancel
-          </button>
-        </div>
-      )}
       {/* Trade builder */}
       <div className="flex gap-4 w-full max-w-3xl">
         {/* Give side */}
