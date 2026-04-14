@@ -53,9 +53,15 @@ export function useTradesByStatus(
       const now = Date.now()
       const trades = results.flat()
         .filter((tx) => {
-          if (status !== 'proposed') return true
-          const expires = (tx.settings as Record<string, unknown>)?.expires_at
-          return typeof expires !== 'number' || expires > now
+          if (status === 'proposed') {
+            const expires = (tx.settings as Record<string, unknown>)?.expires_at
+            if (typeof expires === 'number' && expires <= now) return false
+          }
+          if (status === 'complete') {
+            const league = leagues[tx.league_id]
+            if (league && !tx.roster_ids.includes(league.user_roster.roster_id)) return false
+          }
+          return true
         })
         .sort((a, b) => b.status_updated - a.status_updated)
       setState({ trades, loading: false, error: null })
