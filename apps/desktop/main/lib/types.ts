@@ -4,6 +4,9 @@ export type League = {
   avatar: string;
   season: string;
   settings: LeagueSettings;
+  scoring_settings: Record<string, number>;
+  roster_positions: string[];
+  total_rosters: number;
   previous_league_id: string | null;
 };
 
