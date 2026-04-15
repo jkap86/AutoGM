@@ -6,5 +6,8 @@ node_modules
 next-env.d.ts
 
 # build
-/app
-/dist
+app
+dist
+
+# turbo
+.turbo
