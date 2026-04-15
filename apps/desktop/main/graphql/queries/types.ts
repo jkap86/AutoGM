@@ -187,6 +187,16 @@ export type LeagueTransactionsResult = {
   league_transactions: Transaction[];
 };
 
+export type MessagesVars = {
+  parent_id: string;
+  before?: string;
+  order_by?: string;
+};
+
+export type MessagesResult = {
+  messages: Message[];
+};
+
 export type QueryMap = {
   proposeTrade: { vars: ProposeTradeVars; result: ProposeTradeResult };
   acceptTrade: { vars: AcceptTradeVars; result: AcceptTradeResult };
@@ -203,6 +213,7 @@ export type QueryMap = {
     vars: LeagueTransactionsVars;
     result: LeagueTransactionsResult;
   };
+  messages: { vars: MessagesVars; result: MessagesResult };
 };
 
 export type QueryName = keyof QueryMap;

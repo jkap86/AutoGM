@@ -5,6 +5,7 @@ import { createPollMessage } from "./create-poll-message";
 import { getDmByMembers } from "./get-dm-by-members";
 import { leagueTransactions } from "./league-transactions";
 import { listPollVotes } from "./list-poll-votes";
+import { messages } from "./messages";
 import { proposeTrade } from "./propose-trade";
 import { rejectTrade } from "./reject-trade";
 import type { QueryMap, QueryName } from "./types";
@@ -25,6 +26,7 @@ const queries: QueryRegistry = {
   createPollMessage,
   listPollVotes,
   leagueTransactions,
+  messages,
 };
 
 export async function runQuery<N extends QueryName>(
