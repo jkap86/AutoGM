@@ -10,9 +10,11 @@ import type {
 import { getPickId, buildPlayerAttachment, buildUserAttachment } from "@sleepier/shared";
 import { useTradesByStatus } from "../../../hooks/use-trades-by-status";
 import { useIpcMutation } from "../../../hooks/use-ipc-mutation";
+import { useTradeValueFilter } from "../../../hooks/use-trade-value-filter";
 import { TradesPanel } from "./trades-panel";
 import { PotentialTrades } from "./potential-trades";
 import { PlayerCombobox } from "../../components/player-combobox";
+import { TradeFilterBar } from "../../components/trade-filter-bar";
 
 type TradesTab = "create" | "pending" | "completed" | "rejected";
 
@@ -310,6 +312,7 @@ export default function TradesView({
   );
 
   const [tab, setTab] = useState<TradesTab>("create");
+  const valueFilter = useTradeValueFilter({ leagues, allplayers, ktc });
   const {
     trades: pendingTrades,
     loading: pendingLoading,
@@ -369,6 +372,9 @@ export default function TradesView({
         })}
       </div>
 
+      {/* Value / position / threshold filter bar — shared across all tabs */}
+      <TradeFilterBar filter={valueFilter} />
+
       {tab === "pending" ? (
         <TradesPanel
           trades={pendingTrades}
@@ -379,6 +385,7 @@ export default function TradesView({
           allplayers={allplayers}
           userId={userId}
           ktc={ktc}
+          filter={valueFilter}
           statusLabel="Pending"
           emptyMessage="No pending trades across your leagues."
           onAccept={async (trade) => {
@@ -486,6 +493,7 @@ export default function TradesView({
           allplayers={allplayers}
           userId={userId}
           ktc={ktc}
+          filter={valueFilter}
           statusLabel="Completed"
           emptyMessage="No completed trades across your leagues."
         />
@@ -499,6 +507,7 @@ export default function TradesView({
           allplayers={allplayers}
           userId={userId}
           ktc={ktc}
+          filter={valueFilter}
           statusLabel="Rejected"
           emptyMessage="No rejected trades across your leagues."
         />
@@ -736,7 +745,7 @@ export default function TradesView({
             allplayers={allplayers}
             userId={userId}
             leagues={leagues}
-            ktc={ktc}
+            filter={valueFilter}
           />
         )}
       </div>

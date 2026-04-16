@@ -4,14 +4,18 @@ import type { TradeWithLeague } from "../../../hooks/use-trades-by-status";
 import { Avatar } from "../../components/avatar";
 import { RosterColumn } from "../../components/roster-column";
 import { getPickId } from "../../../lib/leagues";
+import {
+  getPickKtcName,
+  passThreshold,
+  type TradeValueFilter,
+} from "../../../hooks/use-trade-value-filter";
 
 export type TradeAction = (trade: TradeWithLeague) => Promise<void>;
 
-function getPickKtcName(season: string, round: number, order: number | null): string {
-  const suffix = round === 1 ? "st" : round === 2 ? "nd" : round === 3 ? "rd" : "th";
-  if (order == null || order === 0) return `${season} Mid ${round}${suffix}`;
-  const type = order <= 4 ? "Early" : order >= 9 ? "Late" : "Mid";
-  return `${season} ${type} ${round}${suffix}`;
+function formatRecord(r: { wins: number; losses: number; ties: number }) {
+  return r.ties > 0
+    ? `${r.wins}-${r.losses}-${r.ties}`
+    : `${r.wins}-${r.losses}`;
 }
 
 export type CounterOffer = {
@@ -38,6 +42,7 @@ export function TradesPanel({
   onWithdraw,
   onModify,
   ktc,
+  filter,
 }: {
   trades: TradeWithLeague[];
   loading: boolean;
@@ -54,6 +59,7 @@ export function TradesPanel({
   onWithdraw?: TradeAction;
   onModify?: (data: CounterOffer) => Promise<void>;
   ktc?: Record<string, number>;
+  filter?: TradeValueFilter;
 }) {
   const resolveRoster = (league_id: string, roster_id: number) => {
     const league = leagues[league_id];
@@ -167,6 +173,7 @@ export function TradesPanel({
         onWithdraw={onWithdraw}
         onModify={onModify}
         ktc={ktc}
+        filter={filter}
       />
     </div>
   );
@@ -186,6 +193,7 @@ function TradeCards({
   onWithdraw,
   onModify,
   ktc,
+  filter,
 }: {
   trades: TradeWithLeague[];
   leagues: { [league_id: string]: LeagueDetailed };
@@ -200,6 +208,7 @@ function TradeCards({
   onWithdraw?: TradeAction;
   onModify?: (data: CounterOffer) => Promise<void>;
   ktc?: Record<string, number>;
+  filter?: TradeValueFilter;
 }) {
   const [actionLoading, setActionLoading] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState<Record<string, string>>({});
@@ -320,9 +329,33 @@ function TradeCards({
     }
   };
 
+  const lookup = filter?.valueLookup ?? ktc ?? undefined;
+  const formatValue = filter?.formatValue ?? ((n: number) => Math.round(n).toLocaleString());
+  const valueLabel = filter?.valueLabel ?? "KTC";
+
+  // Apply threshold filtering when a filter is provided
+  const visibleTrades = filter
+    ? trades.filter((trade) => {
+        const league = leagues[trade.league_id];
+        const userRid = league?.user_roster?.roster_id;
+        const partnerRid = trade.roster_ids.find((rid) => rid !== userRid);
+        if (userRid == null || partnerRid == null) return true;
+        const uv = filter.getValue(trade.league_id, userRid);
+        const pv = filter.getValue(trade.league_id, partnerRid);
+        const ur = filter.getRank(trade.league_id, userRid);
+        const pr = filter.getRank(trade.league_id, partnerRid);
+        return (
+          passThreshold(uv, filter.userValueFilter) &&
+          passThreshold(pv, filter.partnerValueFilter) &&
+          passThreshold(ur, filter.userRankFilter) &&
+          passThreshold(pr, filter.partnerRankFilter)
+        );
+      })
+    : trades;
+
   return (
     <div className="flex flex-col gap-3">
-      {trades.map((trade) => {
+      {visibleTrades.map((trade) => {
         const league = leagues[trade.league_id];
         const rosterIds = trade.roster_ids;
         const parsedPicks = (trade.draft_picks ?? []).map((s) => {
@@ -331,6 +364,7 @@ function TradeCards({
         }).sort((a, b) => a.season.localeCompare(b.season) || a.round - b.round);
         const userRid = league?.user_roster?.roster_id;
         const sortedRosterIds = [...rosterIds].sort((a, b) => (a === userRid ? -1 : b === userRid ? 1 : 0));
+        const totalTeams = league?.rosters.length ?? 0;
         const sides = sortedRosterIds.map((rid) => {
           const roster = resolveRoster(trade.league_id, rid);
           const receivingPids = Object.entries(trade.adds ?? {}).filter(([, rId]) => rId === rid).map(([pid]) => pid);
@@ -364,15 +398,17 @@ function TradeCards({
           const givingPickKtcNames = parsedPicks
             .filter((dp) => dp.previous_owner_id === rid)
             .map((dp) => getPickKtcName(dp.season, dp.round, findPickOrder(trade.league_id, dp.roster_id, dp.season, dp.round)));
-          const ktcReceiving = ktc
-            ? receivingPids.reduce((sum, pid) => sum + (ktc[pid] ?? 0), 0)
-              + receivingPickKtcNames.reduce((sum, name) => sum + (ktc[name] ?? 0), 0)
+          const vReceiving = lookup
+            ? receivingPids.reduce((sum, pid) => sum + (lookup[pid] ?? 0), 0)
+              + receivingPickKtcNames.reduce((sum, name) => sum + (lookup[name] ?? 0), 0)
             : 0;
-          const ktcGiving = ktc
-            ? givingPids.reduce((sum, pid) => sum + (ktc[pid] ?? 0), 0)
-              + givingPickKtcNames.reduce((sum, name) => sum + (ktc[name] ?? 0), 0)
+          const vGiving = lookup
+            ? givingPids.reduce((sum, pid) => sum + (lookup[pid] ?? 0), 0)
+              + givingPickKtcNames.reduce((sum, name) => sum + (lookup[name] ?? 0), 0)
             : 0;
-          return { roster, roster_id: rid, receiving, giving, ktcReceiving, ktcGiving };
+          const teamValue = filter ? filter.getValue(trade.league_id, rid) : null;
+          const teamRank = filter ? filter.getRank(trade.league_id, rid) : null;
+          return { roster, roster_id: rid, receiving, giving, vReceiving, vGiving, teamValue, teamRank };
         });
 
         const isReceived = trade.creator !== userId;
@@ -441,14 +477,32 @@ function TradeCards({
                       alt={side.roster?.username ?? `Roster ${side.roster_id}`}
                       size={28}
                     />
-                    <span className="text-sm font-medium text-gray-100 truncate">
-                      {side.roster?.username ?? `Roster ${side.roster_id}`}
-                    </span>
-                    {ktc && (side.ktcReceiving > 0 || side.ktcGiving > 0) && (
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium text-gray-100 truncate">
+                        {side.roster?.username ?? `Roster ${side.roster_id}`}
+                      </span>
+                      {side.roster && (side.teamValue != null || side.teamRank != null) && (
+                        <span className="text-[10px] text-gray-500 truncate">
+                          {formatRecord(side.roster)}
+                          {side.teamRank != null && (
+                            <>
+                              {" · "}
+                              <span className="text-blue-400 font-semibold">
+                                {formatValue(side.teamValue ?? 0)}
+                              </span>
+                              {" "}
+                              {valueLabel} #{side.teamRank}/{totalTeams}
+                            </>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    {lookup && (side.vReceiving > 0 || side.vGiving > 0) && (
                       <span className={`ml-auto text-xs font-semibold ${
-                        side.ktcReceiving >= side.ktcGiving ? "text-green-400" : "text-red-400"
+                        side.vReceiving >= side.vGiving ? "text-green-400" : "text-red-400"
                       }`}>
-                        {side.ktcReceiving >= side.ktcGiving ? "+" : ""}{side.ktcReceiving - side.ktcGiving} KTC
+                        {side.vReceiving >= side.vGiving ? "+" : ""}
+                        {formatValue(side.vReceiving - side.vGiving)}
                       </span>
                     )}
                   </div>
