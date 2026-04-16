@@ -10,6 +10,7 @@ import type { QueryMap, QueryName } from "./graphql/queries/types";
 import { fetchAllPlayers } from "./helpers/fetch-allplayers";
 import { getPolls, addPoll, removePoll, removePollGroup } from "./lib/poll-store";
 import type { StoredPoll } from "./lib/poll-store";
+import { fetchKtcLatest, fetchKtcHistory } from "./helpers/fetch-ktc";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -102,4 +103,12 @@ ipcMain.handle("polls:remove", async (_event, pollId: string) => {
 
 ipcMain.handle("polls:remove-group", async (_event, groupId: string) => {
   removePollGroup(groupId);
+});
+
+ipcMain.handle("ktc:latest", async () => {
+  return fetchKtcLatest();
+});
+
+ipcMain.handle("ktc:history", async (_event, args: { playerIds: string[]; days?: number }) => {
+  return fetchKtcHistory(args.playerIds, args.days);
 });
