@@ -3,6 +3,7 @@ import { createMessage } from "./create-message";
 import { createPoll } from "./create-poll";
 import { createPollMessage } from "./create-poll-message";
 import { getDmByMembers } from "./get-dm-by-members";
+import { leaguePlayers } from "./league-players";
 import { leagueTransactions } from "./league-transactions";
 import { listPollVotes } from "./list-poll-votes";
 import { messages } from "./messages";
@@ -27,6 +28,7 @@ const queries: QueryRegistry = {
   listPollVotes,
   leagueTransactions,
   messages,
+  leaguePlayers,
 };
 
 export async function runQuery<N extends QueryName>(

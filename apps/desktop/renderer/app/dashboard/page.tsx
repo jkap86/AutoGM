@@ -10,6 +10,7 @@ import PollsView from "../views/polls-view";
 import AdpView from "../views/adp-view";
 import { LeagueFilterBar, useLeagueFilter } from "../components/league-filter";
 import { useKtc } from "../../hooks/use-ktc";
+import { useLeaguePlayers } from "../../hooks/use-league-players";
 
 const SEASON = "2026";
 
@@ -38,6 +39,8 @@ export default function DashboardPage() {
   const [view, setView] = useState<View>(null);
   const { filters, setFilters, filteredLeagues } = useLeagueFilter(leagues);
   const { ktc } = useKtc();
+
+  const { interestByLeague } = useLeaguePlayers(leagues);
 
   const views = ["trades", "polls", "adp"];
 
@@ -92,6 +95,7 @@ export default function DashboardPage() {
           pickShares={pickShares}
           userId={session.user_id}
           ktc={ktc}
+          interestByLeague={interestByLeague}
         />
       ) : view === "polls" ? (
         <PollsView leagues={filteredLeagues} />

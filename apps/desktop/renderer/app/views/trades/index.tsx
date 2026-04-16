@@ -11,6 +11,7 @@ import { getPickId, buildPlayerAttachment, buildUserAttachment } from "@sleepier
 import { useTradesByStatus } from "../../../hooks/use-trades-by-status";
 import { useIpcMutation } from "../../../hooks/use-ipc-mutation";
 import { useTradeValueFilter } from "../../../hooks/use-trade-value-filter";
+import type { InterestByLeague } from "../../../hooks/use-league-players";
 import { TradesPanel } from "./trades-panel";
 import { PotentialTrades } from "./potential-trades";
 import { PlayerCombobox } from "../../components/player-combobox";
@@ -48,6 +49,7 @@ export default function TradesView({
   allplayers,
   userId,
   ktc,
+  interestByLeague,
 }: {
   leagues: { [league_id: string]: LeagueDetailed };
   playerShares: PlayerShares;
@@ -56,6 +58,7 @@ export default function TradesView({
   allplayers: { [player_id: string]: Allplayer };
   userId: string;
   ktc: Record<string, number>;
+  interestByLeague?: InterestByLeague;
 }) {
   const [playersToGive, setPlayerstoGive] = useState<string[]>([]);
   const [playersToReceive, setPlayersToReceive] = useState<string[]>([]);
@@ -746,6 +749,7 @@ export default function TradesView({
             userId={userId}
             leagues={leagues}
             filter={valueFilter}
+            interestByLeague={interestByLeague}
           />
         )}
       </div>

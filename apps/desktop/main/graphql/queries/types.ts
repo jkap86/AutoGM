@@ -197,6 +197,24 @@ export type MessagesResult = {
   messages: Message[];
 };
 
+// Per-(league, player) record. `metadata` is the interesting field — Sleeper stores
+// per-player league state here (likes, trade block, notes, etc.) keyed on the current user.
+// Shape isn't pinned by the schema (it's a generic Map), so we keep it as unknown.
+export type LeaguePlayer = {
+  player_id: string;
+  league_id: string;
+  metadata: Record<string, unknown> | null;
+  settings: Record<string, unknown> | null;
+};
+
+export type LeaguePlayersVars = {
+  league_id: string;
+};
+
+export type LeaguePlayersResult = {
+  league_players: LeaguePlayer[];
+};
+
 export type QueryMap = {
   proposeTrade: { vars: ProposeTradeVars; result: ProposeTradeResult };
   acceptTrade: { vars: AcceptTradeVars; result: AcceptTradeResult };
@@ -214,6 +232,7 @@ export type QueryMap = {
     result: LeagueTransactionsResult;
   };
   messages: { vars: MessagesVars; result: MessagesResult };
+  leaguePlayers: { vars: LeaguePlayersVars; result: LeaguePlayersResult };
 };
 
 export type QueryName = keyof QueryMap;
