@@ -33,6 +33,23 @@ export async function fetchKtcLatest(): Promise<KtcData> {
   return result.rows[0] ?? { latest_date: '', last_updated: '', player_values: {} }
 }
 
+// Returns { latest_date, player_values } for the nearest available date on or before the requested date.
+export async function fetchKtcByDate(date: string): Promise<KtcData> {
+  const query = `
+    WITH target AS (
+      SELECT MAX(date) AS d FROM ktc_dynasty WHERE date <= $1::date
+    )
+    SELECT target.d AS latest_date,
+           MAX(k.updated_at) AS last_updated,
+           jsonb_object_agg(k.player_id, k.value) AS player_values
+    FROM target, ktc_dynasty k
+    WHERE k.date = target.d
+    GROUP BY target.d;`
+
+  const result = await pool.query(query, [date])
+  return result.rows[0] ?? { latest_date: '', last_updated: '', player_values: {} }
+}
+
 export async function fetchKtcHistory(playerIds: string[], days = 90): Promise<KtcHistory> {
   if (playerIds.length === 0) return []
 

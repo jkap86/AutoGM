@@ -5,9 +5,10 @@ node_modules
 .next
 next-env.d.ts
 
-# build
-app
+# build (Nextron output at apps/desktop/app, not source app/ dirs)
+/apps/desktop/app/
 dist
+*.tsbuildinfo
 
 # turbo
 .turbo

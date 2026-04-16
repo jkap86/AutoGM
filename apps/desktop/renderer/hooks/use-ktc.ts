@@ -42,6 +42,33 @@ export function useKtc() {
   return { ktc: data?.player_values ?? {}, latestDate: data?.latest_date, loading, error }
 }
 
+export function useKtcByDate(date: string | null) {
+  const [data, setData] = useState<KtcData | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!date) { setData(null); return }
+    let cancelled = false
+    setLoading(true)
+    window.ipc.invoke<KtcData>('ktc:byDate', { date }).then(
+      (result) => {
+        if (cancelled) return
+        setData(result)
+        setLoading(false)
+      },
+      (e) => {
+        if (cancelled) return
+        setError(e instanceof Error ? e.message : String(e))
+        setLoading(false)
+      },
+    )
+    return () => { cancelled = true }
+  }, [date])
+
+  return { ktc: data?.player_values ?? {}, latestDate: data?.latest_date, loading, error }
+}
+
 export function useKtcHistory(playerIds: string[], days = 90) {
   const [data, setData] = useState<KtcHistory>([])
   const [loading, setLoading] = useState(false)

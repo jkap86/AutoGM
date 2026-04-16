@@ -10,7 +10,8 @@ import type { QueryMap, QueryName } from "./graphql/queries/types";
 import { fetchAllPlayers } from "./helpers/fetch-allplayers";
 import { getPolls, addPoll, removePoll, removePollGroup } from "./lib/poll-store";
 import type { StoredPoll } from "./lib/poll-store";
-import { fetchKtcLatest, fetchKtcHistory } from "./helpers/fetch-ktc";
+import { fetchKtcLatest, fetchKtcHistory, fetchKtcByDate } from "./helpers/fetch-ktc";
+import { fetchAdp, fetchAdpStats, type AdpFilters } from "./helpers/fetch-adp";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -111,4 +112,16 @@ ipcMain.handle("ktc:latest", async () => {
 
 ipcMain.handle("ktc:history", async (_event, args: { playerIds: string[]; days?: number }) => {
   return fetchKtcHistory(args.playerIds, args.days);
+});
+
+ipcMain.handle("ktc:byDate", async (_event, args: { date: string }) => {
+  return fetchKtcByDate(args.date);
+});
+
+ipcMain.handle("adp:fetch", async (_event, filters: AdpFilters = {}) => {
+  return fetchAdp(filters);
+});
+
+ipcMain.handle("adp:stats", async (_event, filters: AdpFilters = {}) => {
+  return fetchAdpStats(filters);
 });
