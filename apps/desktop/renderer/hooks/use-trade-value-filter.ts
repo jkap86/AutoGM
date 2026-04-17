@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import type { Allplayer, LeagueDetailed, Roster } from '@sleepier/shared'
 import { useKtcByDate } from './use-ktc'
-import { useAdp } from './use-adp'
+import { useAdp, type AdpFilters } from './use-adp'
 
 export type ValueType = 'ktc' | 'adp' | 'auction'
 export const VALUE_TYPES: ValueType[] = ['ktc', 'adp', 'auction']
@@ -80,8 +80,17 @@ export function useTradeValueFilter({
 
   const [valueType, setValueType] = useState<ValueType>('ktc')
   const [ktcDate, setKtcDate] = useState<string>(today)
-  const [adpStart, setAdpStart] = useState<string>(defaultAdpStart)
-  const [adpEnd, setAdpEnd] = useState<string>(today)
+  const [adpFilters, setAdpFilters] = useState<AdpFilters>({
+    startDate: defaultAdpStart,
+    endDate: today,
+    draftType: null,
+    leagueTypes: [0, 1, 2],
+    bestBall: [0, 1],
+    scoringFilters: [],
+    settingsFilters: [],
+    rosterSlotFilters: [],
+    minDrafts: 2,
+  })
 
   const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL')
   const [topN, setTopN] = useState<number>(0)
@@ -95,8 +104,8 @@ export function useTradeValueFilter({
     valueType === 'ktc' && ktcDate !== today ? ktcDate : null,
   )
   const adpEnabled = valueType === 'adp' || valueType === 'auction'
-  const { data: adpRows, loading: adpLoading } = useAdp(
-    { startDate: adpStart, endDate: adpEnd, minDrafts: 2 },
+  const { data: adpRows, stats: adpStats, loading: adpLoading } = useAdp(
+    adpFilters,
     adpEnabled,
   )
 
@@ -163,8 +172,7 @@ export function useTradeValueFilter({
     // State
     valueType, setValueType,
     ktcDate, setKtcDate,
-    adpStart, setAdpStart,
-    adpEnd, setAdpEnd,
+    adpFilters, setAdpFilters,
     positionFilter, setPositionFilter,
     topN, setTopN,
     userValueFilter, setUserValueFilter,
@@ -173,6 +181,7 @@ export function useTradeValueFilter({
     partnerRankFilter, setPartnerRankFilter,
     // Meta
     loading: ktcLoading || adpLoading,
+    adpStats,
     today,
     // Derived
     valueLookup,
