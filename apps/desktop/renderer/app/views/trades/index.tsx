@@ -79,7 +79,102 @@ export default function TradesView({
   const { mutate: acceptTradeMut } = useIpcMutation("acceptTrade");
   const { mutate: rejectTradeMut } = useIpcMutation("rejectTrade");
   const { mutate: getDm } = useIpcMutation("getDmByMembers");
+  const { mutate: createDm } = useIpcMutation("createDm");
   const { mutate: sendMessage } = useIpcMutation("createMessage");
+
+  // Helper: get-or-create a DM channel, then send a trade attachment message.
+  const sendTradeDm = useCallback(async (
+    leagueId: string,
+    partnerId: string,
+    transaction: { transaction_id: string },
+    playerIdsGiving: string[],
+    playerIdsReceiving: string[],
+    pickIdsGiving: string[],
+    pickIdsReceiving: string[],
+    status: string,
+    text: string,
+  ) => {
+    const league = leagues[leagueId];
+    const partnerRoster = league?.rosters.find((r) => r.user_id === partnerId);
+    if (!league || !partnerRoster) return;
+    const userRoster = league.user_roster;
+
+    const transactionsByRoster: Record<string, unknown> = {
+      [userRoster.roster_id]: {
+        adds: playerIdsGiving.map((pid) => buildPlayerAttachment(allplayers[pid])),
+        drops: [],
+        added_picks: pickIdsGiving.flatMap((pickId) => {
+          const pick = userRoster.draftpicks.find((d) => getPickId(d) === pickId);
+          if (!pick) return [];
+          return [{
+            roster_id: String(pick.roster_id),
+            season: pick.season,
+            round: String(pick.round),
+            owner_id: userRoster.user_id,
+            previous_owner_id: partnerRoster.user_id,
+            original_owner_id: pick.original_user?.user_id ?? "",
+          }];
+        }),
+        dropped_picks: [],
+        added_budget: [],
+        dropped_budget: [],
+        status,
+        user: buildUserAttachment(userRoster, leagueId),
+      },
+      [partnerRoster.roster_id]: {
+        adds: playerIdsReceiving.map((pid) => buildPlayerAttachment(allplayers[pid])),
+        drops: [],
+        added_picks: pickIdsReceiving.flatMap((pickId) => {
+          const pick = partnerRoster.draftpicks.find((d) => getPickId(d) === pickId);
+          if (!pick) return [];
+          return [{
+            roster_id: String(pick.roster_id),
+            season: pick.season,
+            round: String(pick.round),
+            owner_id: partnerRoster.user_id,
+            previous_owner_id: userRoster.user_id,
+            original_owner_id: pick.original_user?.user_id ?? "",
+          }];
+        }),
+        dropped_picks: [],
+        added_budget: [],
+        dropped_budget: [],
+        status,
+        user: buildUserAttachment(partnerRoster, leagueId),
+      },
+    };
+
+    const usersMap: Record<string, unknown> = {};
+    league.rosters.forEach((roster) => {
+      usersMap[roster.user_id] = buildUserAttachment(roster, leagueId);
+    });
+
+    const dmResult = await getDm({ members: [partnerId] });
+    let dmId = dmResult.get_dm_by_members?.dm_id;
+    if (!dmId) {
+      const newDm = await createDm({ members: [partnerId], dm_type: "direct" });
+      dmId = newDm.create_dm.dm_id;
+    }
+
+    await sendMessage({
+      parent_id: dmId,
+      text,
+      k_attachment_data: [
+        "status",
+        "transactions_by_roster",
+        "transaction_id",
+        "league_id",
+        "users_in_league_map",
+      ],
+      v_attachment_data: [
+        status,
+        JSON.stringify(transactionsByRoster),
+        transaction.transaction_id,
+        leagueId,
+        JSON.stringify(usersMap),
+      ],
+    });
+  }, [leagues, allplayers, getDm, createDm, sendMessage]);
 
   const submitProposals = useCallback(async () => {
     if (selectedProposals.length === 0) return;
@@ -90,107 +185,22 @@ export default function TradesView({
       try {
         const result = await proposeTrade(vars);
         const transaction = result.propose_trade;
-
         const league = leagues[vars.league_id];
-        const partnerRoster = league?.rosters.find(
-          (r) => r.user_id === user_id,
-        );
 
-        if (league && partnerRoster) {
-          const userRoster = league.user_roster;
-
-          // Build transactions_by_roster — keyed by roster_id
-          const transactionsByRoster: Record<string, unknown> = {
-            [userRoster.roster_id]: {
-              adds: playersToGive.map((pid) =>
-                buildPlayerAttachment(allplayers[pid]),
-              ),
-              drops: [],
-              added_picks: picksToGive.flatMap((pickId) => {
-                const pick = userRoster.draftpicks.find(
-                  (d) => getPickId(d) === pickId,
-                );
-                if (!pick) return [];
-                return [
-                  {
-                    roster_id: String(pick.roster_id),
-                    season: pick.season,
-                    round: String(pick.round),
-                    owner_id: userRoster.user_id,
-                    previous_owner_id: partnerRoster.user_id,
-                    original_owner_id: pick.original_user.user_id,
-                  },
-                ];
-              }),
-              dropped_picks: [],
-              added_budget: [],
-              dropped_budget: [],
-              status: "proposed",
-              user: buildUserAttachment(userRoster, league.league_id),
-            },
-            [partnerRoster.roster_id]: {
-              adds: playersToReceive.map((pid) =>
-                buildPlayerAttachment(allplayers[pid]),
-              ),
-              drops: [],
-              added_picks: picksToReceive.flatMap((pickId) => {
-                const pick = partnerRoster.draftpicks.find(
-                  (d) => getPickId(d) === pickId,
-                );
-                if (!pick) return [];
-                return [
-                  {
-                    roster_id: String(pick.roster_id),
-                    season: pick.season,
-                    round: String(pick.round),
-                    owner_id: partnerRoster.user_id,
-                    previous_owner_id: userRoster.user_id,
-                    original_owner_id: pick.original_user.user_id,
-                  },
-                ];
-              }),
-              dropped_picks: [],
-              added_budget: [],
-              dropped_budget: [],
-              status: "proposed",
-              user: buildUserAttachment(partnerRoster, league.league_id),
-            },
-          };
-
-          // Build users_in_league_map — all users in this league
-          const usersMap: Record<string, unknown> = {};
-          league.rosters.forEach((roster) => {
-            usersMap[roster.user_id] = buildUserAttachment(
-              roster,
-              league.league_id,
-            );
-          });
-
-          try {
-            const dmResult = await getDm({ members: [user_id] });
-            const dmId = dmResult.get_dm_by_members.dm_id;
-
-            await sendMessage({
-              parent_id: dmId,
-              text: `@${userRoster.username} has proposed a trade in ${league.name}`,
-              k_attachment_data: [
-                "status",
-                "transactions_by_roster",
-                "transaction_id",
-                "league_id",
-                "users_in_league_map",
-              ],
-              v_attachment_data: [
-                "proposed",
-                JSON.stringify(transactionsByRoster),
-                transaction.transaction_id,
-                vars.league_id,
-                JSON.stringify(usersMap),
-              ],
-            });
-          } catch (e) {
-            console.error(`DM for proposal ${i + 1} failed:`, e);
-          }
+        try {
+          await sendTradeDm(
+            vars.league_id,
+            user_id,
+            transaction,
+            playersToGive,
+            playersToReceive,
+            picksToGive,
+            picksToReceive,
+            "proposed",
+            `@${league?.user_roster.username} has proposed a trade in ${league?.name}`,
+          );
+        } catch (e) {
+          console.error(`DM for proposal ${i + 1} failed:`, e);
         }
       } catch (e) {
         console.error(`Trade proposal ${i + 1} failed:`, e);
@@ -205,10 +215,8 @@ export default function TradesView({
   }, [
     selectedProposals,
     proposeTrade,
-    getDm,
-    sendMessage,
+    sendTradeDm,
     leagues,
-    allplayers,
     playersToGive,
     playersToReceive,
     picksToGive,
@@ -412,7 +420,7 @@ export default function TradesView({
             const userRosterId = league.user_roster.roster_id;
             const partnerRosterId = trade.roster_ids.find((rid) => rid !== userRosterId)!;
             const partnerRoster = league.rosters.find((r) => r.roster_id === partnerRosterId)!;
-            await proposeTrade({
+            const result = await proposeTrade({
               league_id: trade.league_id,
               k_adds: [...playerIdsToGive, ...playerIdsToReceive],
               v_adds: [
@@ -440,6 +448,21 @@ export default function TradesView({
               reject_transaction_id: trade.transaction_id,
               reject_transaction_leg: trade.leg,
             });
+            try {
+              await sendTradeDm(
+                trade.league_id,
+                partnerRoster.user_id,
+                result.propose_trade,
+                playerIdsToGive,
+                playerIdsToReceive,
+                pickIdsToGive,
+                pickIdsToReceive,
+                "proposed",
+                `@${league.user_roster.username} has counter-offered a trade in ${league.name}`,
+              );
+            } catch (e) {
+              console.error("DM for counter-offer failed:", e);
+            }
             refetchPending();
           }}
           onWithdraw={async (trade) => {
@@ -455,7 +478,7 @@ export default function TradesView({
             const userRosterId = league.user_roster.roster_id;
             const partnerRosterId = trade.roster_ids.find((rid) => rid !== userRosterId)!;
             const partnerRoster = league.rosters.find((r) => r.roster_id === partnerRosterId)!;
-            await proposeTrade({
+            const result = await proposeTrade({
               league_id: trade.league_id,
               k_adds: [...playerIdsToGive, ...playerIdsToReceive],
               v_adds: [
@@ -483,6 +506,21 @@ export default function TradesView({
               reject_transaction_id: trade.transaction_id,
               reject_transaction_leg: trade.leg,
             });
+            try {
+              await sendTradeDm(
+                trade.league_id,
+                partnerRoster.user_id,
+                result.propose_trade,
+                playerIdsToGive,
+                playerIdsToReceive,
+                pickIdsToGive,
+                pickIdsToReceive,
+                "proposed",
+                `@${league.user_roster.username} has modified a trade in ${league.name}`,
+              );
+            } catch (e) {
+              console.error("DM for modified trade failed:", e);
+            }
             refetchPending();
           }}
         />

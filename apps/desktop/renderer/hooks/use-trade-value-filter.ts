@@ -11,11 +11,16 @@ export const VALUE_TYPES: ValueType[] = ['ktc', 'adp', 'auction']
 export type PositionFilter = 'ALL' | 'PLAYERS' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
 export const POSITION_FILTERS: PositionFilter[] = ['ALL', 'PLAYERS', 'QB', 'RB', 'WR', 'TE', 'PICKS']
 
-export type ThresholdFilter = { op: '>' | '<'; value: number | null }
+export type ThresholdFilter = { op: '>=' | '<=' | '>' | '<'; value: number | null }
 export const passThreshold = (n: number | null, f: ThresholdFilter): boolean => {
   if (f.value == null) return true
   if (n == null) return false
-  return f.op === '>' ? n > f.value : n < f.value
+  switch (f.op) {
+    case '>=': return n >= f.value
+    case '<=': return n <= f.value
+    case '>': return n > f.value
+    case '<': return n < f.value
+  }
 }
 
 // Exponential decay: pick 1 → 1000, pick 10 → ~835, pick 100 → ~145, pick 200 → ~21.
@@ -81,10 +86,10 @@ export function useTradeValueFilter({
   const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL')
   const [topN, setTopN] = useState<number>(0)
 
-  const [userValueFilter, setUserValueFilter] = useState<ThresholdFilter>({ op: '>', value: null })
-  const [partnerValueFilter, setPartnerValueFilter] = useState<ThresholdFilter>({ op: '>', value: null })
-  const [userRankFilter, setUserRankFilter] = useState<ThresholdFilter>({ op: '<', value: null })
-  const [partnerRankFilter, setPartnerRankFilter] = useState<ThresholdFilter>({ op: '<', value: null })
+  const [userValueFilter, setUserValueFilter] = useState<ThresholdFilter>({ op: '>=', value: null })
+  const [partnerValueFilter, setPartnerValueFilter] = useState<ThresholdFilter>({ op: '>=', value: null })
+  const [userRankFilter, setUserRankFilter] = useState<ThresholdFilter>({ op: '<=', value: null })
+  const [partnerRankFilter, setPartnerRankFilter] = useState<ThresholdFilter>({ op: '<=', value: null })
 
   const { ktc: ktcHistorical, loading: ktcLoading } = useKtcByDate(
     valueType === 'ktc' && ktcDate !== today ? ktcDate : null,

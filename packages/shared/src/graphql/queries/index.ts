@@ -1,8 +1,10 @@
 import { acceptTrade } from "./accept-trade";
+import { createDm } from "./create-dm";
 import { createMessage } from "./create-message";
 import { createPoll } from "./create-poll";
 import { createPollMessage } from "./create-poll-message";
 import { getDmByMembers } from "./get-dm-by-members";
+import { leaguePlayers } from "./league-players";
 import { leagueTransactions } from "./league-transactions";
 import { listPollVotes } from "./list-poll-votes";
 import { messages } from "./messages";
@@ -20,11 +22,13 @@ const queries: QueryRegistry = {
   proposeTrade,
   acceptTrade,
   rejectTrade,
+  createDm,
   createMessage,
   getDmByMembers,
   createPoll,
   createPollMessage,
   listPollVotes,
+  leaguePlayers,
   leagueTransactions,
   messages,
 };

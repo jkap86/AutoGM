@@ -1,4 +1,5 @@
 import { acceptTrade } from "./accept-trade";
+import { createDm } from "./create-dm";
 import { createMessage } from "./create-message";
 import { createPoll } from "./create-poll";
 import { createPollMessage } from "./create-poll-message";
@@ -21,6 +22,7 @@ const queries: QueryRegistry = {
   proposeTrade,
   acceptTrade,
   rejectTrade,
+  createDm,
   createMessage,
   getDmByMembers,
   createPoll,

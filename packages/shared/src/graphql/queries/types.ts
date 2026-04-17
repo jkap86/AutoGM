@@ -190,10 +190,43 @@ export type MessagesResult = {
   messages: Message[];
 };
 
+export type CreateDmVars = {
+  members: string[];
+  dm_type: string;
+  title?: string;
+};
+
+export type CreateDmResult = {
+  create_dm: {
+    dm_id: string;
+    dm_type: string;
+    title: string | null;
+    last_message_id: string | null;
+    last_message_text: string | null;
+    last_message_time: number | null;
+  };
+};
+
+export type LeaguePlayer = {
+  player_id: string;
+  league_id: string;
+  metadata: Record<string, unknown> | null;
+  settings: Record<string, unknown> | null;
+};
+
+export type LeaguePlayersVars = {
+  league_id: string;
+};
+
+export type LeaguePlayersResult = {
+  league_players: LeaguePlayer[];
+};
+
 export type QueryMap = {
   proposeTrade: { vars: ProposeTradeVars; result: ProposeTradeResult };
   acceptTrade: { vars: AcceptTradeVars; result: AcceptTradeResult };
   rejectTrade: { vars: RejectTradeVars; result: RejectTradeResult };
+  createDm: { vars: CreateDmVars; result: CreateDmResult };
   createMessage: { vars: CreateMessageVars; result: CreateMessageResult };
   getDmByMembers: { vars: GetDmByMembersVars; result: GetDmByMembersResult };
   createPoll: { vars: CreatePollVars; result: CreatePollResult };
@@ -207,6 +240,7 @@ export type QueryMap = {
     result: LeagueTransactionsResult;
   };
   messages: { vars: MessagesVars; result: MessagesResult };
+  leaguePlayers: { vars: LeaguePlayersVars; result: LeaguePlayersResult };
 };
 
 export type QueryName = keyof QueryMap;

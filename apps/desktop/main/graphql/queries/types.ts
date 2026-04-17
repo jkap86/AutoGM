@@ -215,6 +215,23 @@ export type LeaguePlayersResult = {
   league_players: LeaguePlayer[];
 };
 
+export type CreateDmVars = {
+  members: string[];
+  dm_type: string;
+  title?: string;
+};
+
+export type CreateDmResult = {
+  create_dm: {
+    dm_id: string;
+    dm_type: string;
+    title: string | null;
+    last_message_id: string | null;
+    last_message_text: string | null;
+    last_message_time: number | null;
+  };
+};
+
 export type QueryMap = {
   proposeTrade: { vars: ProposeTradeVars; result: ProposeTradeResult };
   acceptTrade: { vars: AcceptTradeVars; result: AcceptTradeResult };
@@ -233,6 +250,7 @@ export type QueryMap = {
   };
   messages: { vars: MessagesVars; result: MessagesResult };
   leaguePlayers: { vars: LeaguePlayersVars; result: LeaguePlayersResult };
+  createDm: { vars: CreateDmVars; result: CreateDmResult };
 };
 
 export type QueryName = keyof QueryMap;

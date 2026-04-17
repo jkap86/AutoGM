@@ -154,9 +154,11 @@ function ThresholdInput({
       <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold">{label}</span>
       <select
         value={filter.op}
-        onChange={(e) => setFilter((p) => ({ ...p, op: e.target.value as '>' | '<' }))}
+        onChange={(e) => setFilter((p) => ({ ...p, op: e.target.value as ThresholdFilter['op'] }))}
         className="rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200"
       >
+        <option value=">=">&ge;</option>
+        <option value="<=">&le;</option>
         <option value=">">&gt;</option>
         <option value="<">&lt;</option>
       </select>
