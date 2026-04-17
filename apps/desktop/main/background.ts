@@ -4,14 +4,18 @@ import serve from "electron-serve";
 import { createWindow } from "./helpers/create-window";
 import { launchPersistent } from "./helpers/launch-persistent";
 import { fetchLeagues } from "./helpers/fetch-leagues";
-import { setSession } from "./lib/auth";
-import { runQuery } from "./graphql/queries";
-import type { QueryMap, QueryName } from "./graphql/queries/types";
+import { setSession, getToken } from "./lib/auth";
+import { configureClient, runQuery } from "@sleepier/shared";
+import type { QueryMap, QueryName } from "@sleepier/shared";
 import { fetchAllPlayers } from "./helpers/fetch-allplayers";
 import { getPolls, addPoll, removePoll, removePollGroup } from "./lib/poll-store";
 import type { StoredPoll } from "./lib/poll-store";
 import { fetchKtcLatest, fetchKtcHistory, fetchKtcByDate } from "./helpers/fetch-ktc";
-import { fetchAdp, fetchAdpStats, type AdpFilters } from "./helpers/fetch-adp";
+import { fetchAdp, fetchAdpStats } from "./helpers/fetch-adp";
+import type { AdpFilters } from "./helpers/fetch-adp";
+
+// Wire shared GraphQL client to desktop's auth token
+configureClient({ getToken });
 
 const isProd = process.env.NODE_ENV === "production";
 

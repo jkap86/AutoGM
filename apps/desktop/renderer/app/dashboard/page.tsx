@@ -72,13 +72,16 @@ export default function DashboardPage() {
         />
       )}
 
-      <div className="flex gap-4 justify-center">
+      <div className="flex gap-2 justify-center">
         {views.map((v) => (
           <button
             key={v}
-            className={`py-2 px-4 rounded-[1rem] ${
-              view === v ? "bg-blue-600" : "bg-gray-300 text-black"
+            className={`py-2 px-5 rounded-lg text-sm font-medium transition ${
+              view === v
+                ? "bg-blue-600 text-white"
+                : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
             }`}
+            aria-pressed={view === v}
             onClick={() => setView(v as View)}
           >
             {v.charAt(0).toUpperCase() + v.slice(1)}

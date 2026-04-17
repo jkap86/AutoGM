@@ -1,13 +1,6 @@
 import type { Allplayer, Roster } from "@sleepier/shared";
 import { getPickId } from "@sleepier/shared";
-
-// Keep in sync with potential-trades / trades-panel: KTC-style pick naming.
-function getPickKtcName(season: string, round: number, order: number | null): string {
-  const suffix = round === 1 ? "st" : round === 2 ? "nd" : round === 3 ? "rd" : "th";
-  if (order == null || order === 0) return `${season} Mid ${round}${suffix}`;
-  const type = order <= 4 ? "Early" : order >= 9 ? "Late" : "Mid";
-  return `${season} ${type} ${round}${suffix}`;
-}
+import { getPickKtcName } from "../../lib/trade-utils";
 
 export function RosterColumn({
   roster,
@@ -76,7 +69,7 @@ export function RosterColumn({
         <span className="w-6 shrink-0 text-center font-semibold text-gray-500">
           {pos}
         </span>
-        <span className={`min-w-0 truncate ${isHighlighted ? "text-gray-100 font-medium" : "text-gray-300"}`}>
+        <span title={name} className={`min-w-0 truncate ${isHighlighted ? "text-gray-100 font-medium" : "text-gray-300"}`}>
           {name}
         </span>
         {team && (
@@ -131,7 +124,7 @@ export function RosterColumn({
                   <span className="w-6 shrink-0 text-center font-semibold text-gray-600">
                     PK
                   </span>
-                  <span className={`min-w-0 truncate ${isPickHl ? "text-gray-100 font-medium" : ""}`}>{pickId}</span>
+                  <span title={pickId} className={`min-w-0 truncate ${isPickHl ? "text-gray-100 font-medium" : ""}`}>{pickId}</span>
                   {renderValueCell(ktcName)}
                 </div>
               );

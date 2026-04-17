@@ -15,12 +15,7 @@ import {
   type TradeValueFilter,
 } from "../../../hooks/use-trade-value-filter";
 import type { InterestByLeague } from "../../../hooks/use-league-players";
-
-function formatRecord(r: { wins: number; losses: number; ties: number }) {
-  return r.ties > 0
-    ? `${r.wins}-${r.losses}-${r.ties}`
-    : `${r.wins}-${r.losses}`;
-}
+import { formatRecord } from "../../../lib/trade-utils";
 
 type CardProposal = {
   playersToGive: string[];
@@ -300,7 +295,7 @@ export function PotentialTrades({
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700/40">
               <div className="flex items-center gap-2.5 min-w-0">
                 <Avatar hash={league.avatar} alt={league.name} size={20} />
-                <span className="text-sm font-medium text-gray-200 truncate">{league.name}</span>
+                <span title={league.name} className="text-sm font-medium text-gray-200 truncate">{league.name}</span>
                 <span className="text-[11px] text-gray-500 truncate">
                   {league.season} · {typeLabel} · {totalTeams} teams
                 </span>
@@ -312,6 +307,7 @@ export function PotentialTrades({
                 }}
                 className="text-gray-500 hover:text-gray-300 transition shrink-0"
                 title={isExpanded ? "Collapse" : "Expand"}
+                aria-expanded={isExpanded}
               >
                 <svg
                   className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
@@ -333,7 +329,7 @@ export function PotentialTrades({
                   <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
                     <Avatar hash={side.roster.avatar} alt={side.roster.username} size={28} />
                     <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-medium text-gray-100 truncate">
+                      <span title={side.isUser ? "You" : side.roster.username} className="text-sm font-medium text-gray-100 truncate">
                         {side.isUser ? "You" : side.roster.username}
                       </span>
                       <span className="text-[10px] text-gray-500 truncate">
@@ -380,7 +376,7 @@ export function PotentialTrades({
                                   {item.position}
                                 </span>
                               )}
-                              <span className="truncate">{item.label}</span>
+                              <span title={item.label} className="truncate">{item.label}</span>
                               {item.isTarget && <span aria-hidden>♥</span>}
                             </span>
                           ))}
@@ -400,7 +396,7 @@ export function PotentialTrades({
                               {item.position && (
                                 <span className="text-[10px] text-red-500/60 font-semibold">{item.position}</span>
                               )}
-                              <span className="truncate">{item.label}</span>
+                              <span title={item.label} className="truncate">{item.label}</span>
                             </span>
                           ))}
                         </div>

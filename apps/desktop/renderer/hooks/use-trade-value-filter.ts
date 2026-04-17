@@ -29,12 +29,9 @@ function adpToValue(adp: number): number {
   return 1000 * Math.exp(-(adp - 1) / 50)
 }
 
-export function getPickKtcName(season: string, round: number, order: number | null): string {
-  const suffix = round === 1 ? 'st' : round === 2 ? 'nd' : round === 3 ? 'rd' : 'th'
-  if (order == null || order === 0) return `${season} Mid ${round}${suffix}`
-  const type = order <= 4 ? 'Early' : order >= 9 ? 'Late' : 'Mid'
-  return `${season} ${type} ${round}${suffix}`
-}
+// Re-export from single source of truth
+export { getPickKtcName } from '../lib/trade-utils'
+import { getPickKtcName } from '../lib/trade-utils'
 
 function computeRosterValues(
   roster: Roster,

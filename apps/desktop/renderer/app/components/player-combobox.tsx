@@ -101,12 +101,17 @@ export function PlayerCombobox({
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
+        aria-label={placeholder}
+        role="combobox"
+        aria-expanded={open && matches.length > 0}
+        aria-autocomplete="list"
         className="w-full rounded border border-gray-700 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
         autoComplete="off"
       />
       {open && matches.length > 0 && (
         <ul
           ref={listRef}
+          role="listbox"
           className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded border border-gray-700 bg-gray-900 shadow-lg"
         >
           {matches.map((player_id, i) => {
@@ -115,6 +120,9 @@ export function PlayerCombobox({
             return (
               <li
                 key={player_id}
+                role="option"
+                aria-selected={i === activeIndex}
+                aria-disabled={disabled}
                 onMouseDown={() => {
                   if (!disabled) choose(player_id);
                 }}

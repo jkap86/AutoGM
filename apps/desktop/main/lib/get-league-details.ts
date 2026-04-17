@@ -1,4 +1,4 @@
-import {
+import type {
   League,
   Draft,
   User,
@@ -6,9 +6,9 @@ import {
   DraftpickDetailed,
   SleeperRoster,
   Roster,
-} from "./types";
+} from "@sleepier/shared";
 
-import { BROWSER_HEADERS } from './browser-headers'
+import { BROWSER_HEADERS } from "@sleepier/shared";
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers: BROWSER_HEADERS });

@@ -176,6 +176,59 @@ export default function TradesView({
     });
   }, [leagues, allplayers, getDm, createDm, sendMessage]);
 
+  const handleCounterOrModify = useCallback(async (
+    { trade, playerIdsToGive, playerIdsToReceive, pickIdsToGive, pickIdsToReceive }: import("./trades-panel").CounterOffer,
+    action: string,
+  ) => {
+    const league = leagues[trade.league_id];
+    const userRosterId = league.user_roster.roster_id;
+    const partnerRosterId = trade.roster_ids.find((rid) => rid !== userRosterId)!;
+    const partnerRoster = league.rosters.find((r) => r.roster_id === partnerRosterId)!;
+    const result = await proposeTrade({
+      league_id: trade.league_id,
+      k_adds: [...playerIdsToGive, ...playerIdsToReceive],
+      v_adds: [
+        ...playerIdsToGive.map(() => partnerRosterId),
+        ...playerIdsToReceive.map(() => userRosterId),
+      ],
+      k_drops: [...playerIdsToGive, ...playerIdsToReceive],
+      v_drops: [
+        ...playerIdsToGive.map(() => userRosterId),
+        ...playerIdsToReceive.map(() => partnerRosterId),
+      ],
+      draft_picks: [
+        ...pickIdsToGive.flatMap((pickId) => {
+          const pick = league.user_roster.draftpicks.find((d) => getPickId(d) === pickId);
+          if (!pick) return [];
+          return [`${pick.roster_id},${pick.season},${pick.round},${partnerRosterId},${userRosterId}`];
+        }),
+        ...pickIdsToReceive.flatMap((pickId) => {
+          const pick = partnerRoster.draftpicks.find((d) => getPickId(d) === pickId);
+          if (!pick) return [];
+          return [`${pick.roster_id},${pick.season},${pick.round},${userRosterId},${partnerRosterId}`];
+        }),
+      ],
+      waiver_budget: [],
+      reject_transaction_id: trade.transaction_id,
+      reject_transaction_leg: trade.leg,
+    });
+    try {
+      await sendTradeDm(
+        trade.league_id,
+        partnerRoster.user_id,
+        result.propose_trade,
+        playerIdsToGive,
+        playerIdsToReceive,
+        pickIdsToGive,
+        pickIdsToReceive,
+        "proposed",
+        `@${league.user_roster.username} has ${action} a trade in ${league.name}`,
+      );
+    } catch (e) {
+      console.error(`DM for ${action} trade failed:`, e);
+    }
+  }, [leagues, proposeTrade, sendTradeDm]);
+
   const submitProposals = useCallback(async () => {
     if (selectedProposals.length === 0) return;
     setSubmitting(true);
@@ -363,6 +416,8 @@ export default function TradesView({
             <button
               key={t}
               onClick={() => setTab(t)}
+              role="tab"
+              aria-selected={tab === t}
               className={`relative px-5 py-2.5 text-sm font-medium transition ${
                 tab === t
                   ? "text-gray-100"
@@ -415,54 +470,8 @@ export default function TradesView({
             });
             refetchPending();
           }}
-          onCounter={async ({ trade, playerIdsToGive, playerIdsToReceive, pickIdsToGive, pickIdsToReceive }) => {
-            const league = leagues[trade.league_id];
-            const userRosterId = league.user_roster.roster_id;
-            const partnerRosterId = trade.roster_ids.find((rid) => rid !== userRosterId)!;
-            const partnerRoster = league.rosters.find((r) => r.roster_id === partnerRosterId)!;
-            const result = await proposeTrade({
-              league_id: trade.league_id,
-              k_adds: [...playerIdsToGive, ...playerIdsToReceive],
-              v_adds: [
-                ...playerIdsToGive.map(() => partnerRosterId),
-                ...playerIdsToReceive.map(() => userRosterId),
-              ],
-              k_drops: [...playerIdsToGive, ...playerIdsToReceive],
-              v_drops: [
-                ...playerIdsToGive.map(() => userRosterId),
-                ...playerIdsToReceive.map(() => partnerRosterId),
-              ],
-              draft_picks: [
-                ...pickIdsToGive.flatMap((pickId) => {
-                  const pick = league.user_roster.draftpicks.find((d) => getPickId(d) === pickId);
-                  if (!pick) return [];
-                  return [`${pick.roster_id},${pick.season},${pick.round},${partnerRosterId},${userRosterId}`];
-                }),
-                ...pickIdsToReceive.flatMap((pickId) => {
-                  const pick = partnerRoster.draftpicks.find((d) => getPickId(d) === pickId);
-                  if (!pick) return [];
-                  return [`${pick.roster_id},${pick.season},${pick.round},${userRosterId},${partnerRosterId}`];
-                }),
-              ],
-              waiver_budget: [],
-              reject_transaction_id: trade.transaction_id,
-              reject_transaction_leg: trade.leg,
-            });
-            try {
-              await sendTradeDm(
-                trade.league_id,
-                partnerRoster.user_id,
-                result.propose_trade,
-                playerIdsToGive,
-                playerIdsToReceive,
-                pickIdsToGive,
-                pickIdsToReceive,
-                "proposed",
-                `@${league.user_roster.username} has counter-offered a trade in ${league.name}`,
-              );
-            } catch (e) {
-              console.error("DM for counter-offer failed:", e);
-            }
+          onCounter={async (data) => {
+            await handleCounterOrModify(data, "counter-offered");
             refetchPending();
           }}
           onWithdraw={async (trade) => {
@@ -473,54 +482,8 @@ export default function TradesView({
             });
             refetchPending();
           }}
-          onModify={async ({ trade, playerIdsToGive, playerIdsToReceive, pickIdsToGive, pickIdsToReceive }) => {
-            const league = leagues[trade.league_id];
-            const userRosterId = league.user_roster.roster_id;
-            const partnerRosterId = trade.roster_ids.find((rid) => rid !== userRosterId)!;
-            const partnerRoster = league.rosters.find((r) => r.roster_id === partnerRosterId)!;
-            const result = await proposeTrade({
-              league_id: trade.league_id,
-              k_adds: [...playerIdsToGive, ...playerIdsToReceive],
-              v_adds: [
-                ...playerIdsToGive.map(() => partnerRosterId),
-                ...playerIdsToReceive.map(() => userRosterId),
-              ],
-              k_drops: [...playerIdsToGive, ...playerIdsToReceive],
-              v_drops: [
-                ...playerIdsToGive.map(() => userRosterId),
-                ...playerIdsToReceive.map(() => partnerRosterId),
-              ],
-              draft_picks: [
-                ...pickIdsToGive.flatMap((pickId) => {
-                  const pick = league.user_roster.draftpicks.find((d) => getPickId(d) === pickId);
-                  if (!pick) return [];
-                  return [`${pick.roster_id},${pick.season},${pick.round},${partnerRosterId},${userRosterId}`];
-                }),
-                ...pickIdsToReceive.flatMap((pickId) => {
-                  const pick = partnerRoster.draftpicks.find((d) => getPickId(d) === pickId);
-                  if (!pick) return [];
-                  return [`${pick.roster_id},${pick.season},${pick.round},${userRosterId},${partnerRosterId}`];
-                }),
-              ],
-              waiver_budget: [],
-              reject_transaction_id: trade.transaction_id,
-              reject_transaction_leg: trade.leg,
-            });
-            try {
-              await sendTradeDm(
-                trade.league_id,
-                partnerRoster.user_id,
-                result.propose_trade,
-                playerIdsToGive,
-                playerIdsToReceive,
-                pickIdsToGive,
-                pickIdsToReceive,
-                "proposed",
-                `@${league.user_roster.username} has modified a trade in ${league.name}`,
-              );
-            } catch (e) {
-              console.error("DM for modified trade failed:", e);
-            }
+          onModify={async (data) => {
+            await handleCounterOrModify(data, "modified");
             refetchPending();
           }}
         />

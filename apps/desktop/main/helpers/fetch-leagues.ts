@@ -1,6 +1,6 @@
 import { cached } from "../lib/cache";
 import { getLeagueDetails } from "../lib/get-league-details";
-import { League, LeagueDetailed, LeaguesPayload, User } from "../lib/types";
+import type { League, LeagueDetailed, LeaguesPayload, User } from "@sleepier/shared";
 import { getJson } from "./get-json";
 
 const CACHE_TTL_MS = 0.05 * 60 * 1000;

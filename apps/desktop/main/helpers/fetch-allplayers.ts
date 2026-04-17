@@ -1,5 +1,5 @@
 import { cached } from "../lib/cache";
-import { Allplayer } from "../lib/types";
+import type { Allplayer } from "@sleepier/shared";
 import { getJson } from "./get-json";
 
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
