@@ -90,7 +90,7 @@ export function PotentialTrades({
     league: LeagueDetailed,
     partner: Roster,
     p: CardProposal,
-  ): ProposeTradeVars & { user_id: string } => ({
+  ): ProposeTradeVars & { user_id: string; _effective: CardProposal } => ({
     league_id: league.league_id,
     user_id: partner.user_id,
     k_adds: [...p.playersToGive, ...p.playersToReceive],
@@ -116,6 +116,7 @@ export function PotentialTrades({
       }),
     ],
     waiver_budget: [],
+    _effective: p,
   });
 
   const toggleCardField = (

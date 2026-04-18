@@ -65,7 +65,7 @@ export default function TradesView({
   const [picksToGive, setPicksToGive] = useState<string[]>([]);
   const [picksToReceive, setPicksToReceive] = useState<string[]>([]);
   const [selectedProposals, setSelectedProposals] = useState<
-    (ProposeTradeVars & { user_id: string })[]
+    (ProposeTradeVars & { user_id: string; _effective?: { playersToGive: string[]; playersToReceive: string[]; picksToGive: string[]; picksToReceive: string[] } })[]
   >([]);
 
   const [submitting, setSubmitting] = useState(false);
@@ -234,7 +234,8 @@ export default function TradesView({
     setSubmitting(true);
     setSubmitProgress(0);
     for (let i = 0; i < selectedProposals.length; i++) {
-      const { user_id, ...vars } = selectedProposals[i];
+      const { user_id, _effective, ...vars } = selectedProposals[i];
+      const eff = _effective ?? { playersToGive, playersToReceive, picksToGive, picksToReceive };
       try {
         const result = await proposeTrade(vars);
         const transaction = result.propose_trade;
@@ -245,10 +246,10 @@ export default function TradesView({
             vars.league_id,
             user_id,
             transaction,
-            playersToGive,
-            playersToReceive,
-            picksToGive,
-            picksToReceive,
+            eff.playersToGive,
+            eff.playersToReceive,
+            eff.picksToGive,
+            eff.picksToReceive,
             "proposed",
             `@${league?.user_roster.username} has proposed a trade in ${league?.name}`,
           );
