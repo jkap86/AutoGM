@@ -387,7 +387,7 @@ export default function TradesView({
     loading: pendingLoading,
     error: pendingError,
     refetch: refetchPending,
-  } = useTradesByStatus(leagues, "proposed");
+  } = useTradesByStatus(leagues, "proposed", undefined, 30_000);
   const {
     trades: completedTrades,
     loading: completedLoading,

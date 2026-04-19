@@ -59,6 +59,7 @@ export function useTradesByStatus(
   leagues: { [league_id: string]: LeagueDetailed },
   status: string,
   limit?: number,
+  pollIntervalMs?: number,
 ) {
   const [state, setState] = useState<State>({
     trades: [],
@@ -113,9 +114,17 @@ export function useTradesByStatus(
     }
   }, [leagues, status, limit])
 
+  // Initial fetch
   useEffect(() => {
     fetch()
   }, [fetch])
+
+  // Polling
+  useEffect(() => {
+    if (!pollIntervalMs || pollIntervalMs <= 0) return
+    const id = setInterval(fetch, pollIntervalMs)
+    return () => clearInterval(id)
+  }, [fetch, pollIntervalMs])
 
   return { ...state, refetch: fetch }
 }

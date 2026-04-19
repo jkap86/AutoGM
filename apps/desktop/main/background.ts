@@ -17,6 +17,7 @@ import type { AdpFilters } from "./helpers/fetch-adp";
 // Wire shared GraphQL client to desktop's auth token
 configureClient({ getToken });
 
+
 const isProd = process.env.NODE_ENV === "production";
 
 if (isProd) {
