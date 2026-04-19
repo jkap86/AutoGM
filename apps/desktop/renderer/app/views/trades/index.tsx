@@ -50,6 +50,7 @@ export default function TradesView({
   userId,
   ktc,
   interestByLeague,
+  tradeBlockByLeague,
 }: {
   leagues: { [league_id: string]: LeagueDetailed };
   playerShares: PlayerShares;
@@ -59,6 +60,7 @@ export default function TradesView({
   userId: string;
   ktc: Record<string, number>;
   interestByLeague?: InterestByLeague;
+  tradeBlockByLeague?: InterestByLeague;
 }) {
   const [playersToGive, setPlayerstoGive] = useState<string[]>([]);
   const [playersToReceive, setPlayersToReceive] = useState<string[]>([]);
@@ -754,6 +756,7 @@ export default function TradesView({
             leagues={leagues}
             filter={valueFilter}
             interestByLeague={interestByLeague}
+            tradeBlockByLeague={tradeBlockByLeague}
           />
         )}
       </div>

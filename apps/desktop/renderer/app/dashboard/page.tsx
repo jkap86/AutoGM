@@ -40,7 +40,7 @@ export default function DashboardPage() {
   const { filters, setFilters, filteredLeagues } = useLeagueFilter(leagues);
   const { ktc } = useKtc();
 
-  const { interestByLeague } = useLeaguePlayers(leagues);
+  const { interestByLeague, tradeBlockByLeague } = useLeaguePlayers(leagues);
 
   const views = ["trades", "polls", "adp"];
 
@@ -99,6 +99,7 @@ export default function DashboardPage() {
           userId={session.user_id}
           ktc={ktc}
           interestByLeague={interestByLeague}
+          tradeBlockByLeague={tradeBlockByLeague}
         />
       ) : view === "polls" ? (
         <PollsView leagues={filteredLeagues} />

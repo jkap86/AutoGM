@@ -13,12 +13,12 @@ type LeaguePlayer = {
 type Result = { league_players: LeaguePlayer[] }
 
 /**
- * Normalized "who likes each player" data per league.
- *   interestByLeague[league_id][player_id] = [roster_id, roster_id, ...]
+ * Per-league player interest data:
+ *   interestByLeague[league_id][player_id] = [roster_id, ...] (who liked the player)
+ *   tradeBlockByLeague[league_id][player_id] = [roster_id, ...] (who put the player OTB)
  *
- * Sleeper stores likes in `metadata.likes` as a comma-separated string of roster_ids,
- * one record per (league_id, player_id). This hook flattens that into a lookup usable
- * anywhere we need to flag trade-target signals.
+ * Sleeper stores likes in metadata.likes and trade block in settings.trade_block,
+ * both as comma-separated strings of roster_ids.
  */
 export type InterestByLeague = Record<string, Record<string, number[]>>
 
@@ -34,7 +34,8 @@ export function useLeaguePlayers(
   leagues: { [league_id: string]: LeagueDetailed } | null | undefined,
   batchSize = 8,
 ) {
-  const [data, setData] = useState<InterestByLeague>({})
+  const [interest, setInterest] = useState<InterestByLeague>({})
+  const [tradeBlock, setTradeBlock] = useState<InterestByLeague>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,7 +48,8 @@ export function useLeaguePlayers(
     setLoading(true)
     setError(null)
     ;(async () => {
-      const accum: InterestByLeague = {}
+      const interestAccum: InterestByLeague = {}
+      const tbAccum: InterestByLeague = {}
       try {
         for (let i = 0; i < ids.length; i += batchSize) {
           if (cancelled) return
@@ -64,17 +66,32 @@ export function useLeaguePlayers(
           )
           for (let j = 0; j < chunk.length; j++) {
             const league_id = chunk[j]
-            const perPlayer: Record<string, number[]> = {}
+            const perPlayerLikes: Record<string, number[]> = {}
+            const perPlayerTB: Record<string, number[]> = {}
             for (const lp of resps[j].league_players) {
+              // Likes (metadata.likes)
               const likes = parseRosterIds(lp.metadata?.likes)
-              if (likes.length === 0) continue
-              if (!perPlayer[lp.player_id]) perPlayer[lp.player_id] = []
-              perPlayer[lp.player_id].push(...likes)
+              if (likes.length > 0) {
+                if (!perPlayerLikes[lp.player_id]) perPlayerLikes[lp.player_id] = []
+                perPlayerLikes[lp.player_id].push(...likes)
+              }
+              // Trade block — try multiple possible locations
+              const tb = parseRosterIds(
+                lp.settings?.trade_block ?? lp.metadata?.trade_block,
+              )
+              if (tb.length > 0) {
+                if (!perPlayerTB[lp.player_id]) perPlayerTB[lp.player_id] = []
+                perPlayerTB[lp.player_id].push(...tb)
+              }
             }
-            accum[league_id] = perPlayer
+            interestAccum[league_id] = perPlayerLikes
+            tbAccum[league_id] = perPlayerTB
           }
         }
-        if (!cancelled) setData(accum)
+        if (!cancelled) {
+          setInterest(interestAccum)
+          setTradeBlock(tbAccum)
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e))
       } finally {
@@ -85,10 +102,8 @@ export function useLeaguePlayers(
     return () => {
       cancelled = true
     }
-    // Stable key by league_ids — re-fetch only when the set of leagues changes,
-    // not on every keystroke elsewhere.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagues ? Object.keys(leagues).sort().join(',') : ''])
 
-  return { interestByLeague: data, loading, error }
+  return { interestByLeague: interest, tradeBlockByLeague: tradeBlock, loading, error }
 }

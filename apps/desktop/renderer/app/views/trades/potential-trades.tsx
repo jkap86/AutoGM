@@ -39,6 +39,7 @@ export function PotentialTrades({
   leagues,
   filter,
   interestByLeague,
+  tradeBlockByLeague,
 }: {
   playersToGive: string[];
   playersToReceive: string[];
@@ -54,6 +55,7 @@ export function PotentialTrades({
   leagues: { [league_id: string]: LeagueDetailed };
   filter: TradeValueFilter;
   interestByLeague?: InterestByLeague;
+  tradeBlockByLeague?: InterestByLeague;
 }) {
   const {
     valueLookup,
@@ -200,19 +202,24 @@ export function PotentialTrades({
           position?: string;
           value: number;
           isTarget?: boolean; // receiving side has this player in their "likes"
+          isOtb?: boolean; // sending side has this player on the trade block
           likersCount?: number;
         };
         const leagueInterest = interestByLeague?.[league.league_id];
-        // Player item. `receivingRosterId` is the roster that's acquiring the player, so we
-        // flag as "target" when that roster has previously liked the player in this league.
-        const playerItem = (pid: string, receivingRosterId: number): TradeItem => {
+        const leagueTB = tradeBlockByLeague?.[league.league_id];
+        // Player item. `receivingRosterId` is the roster acquiring the player, `sendingRosterId`
+        // is the roster giving the player away. Flag as "target" when the receiver has liked
+        // the player, and as "otb" when the sender put the player on the trade block.
+        const playerItem = (pid: string, receivingRosterId: number, sendingRosterId: number): TradeItem => {
           const likers = leagueInterest?.[pid] ?? [];
+          const tbRosters = leagueTB?.[pid] ?? [];
           return {
             type: "player",
             label: allplayers[pid]?.full_name ?? pid,
             position: allplayers[pid]?.position,
             value: valueLookup[pid] ?? 0,
             isTarget: likers.includes(receivingRosterId),
+            isOtb: tbRosters.includes(sendingRosterId),
             likersCount: likers.length,
           };
         };
@@ -222,14 +229,14 @@ export function PotentialTrades({
           const ktcName = getPickKtcName(pick.season, pick.round, pick.order);
           return { type: "pick", label: getPickId(pick), value: valueLookup[ktcName] ?? 0 };
         };
-        // Things moving from user → partner. Receiving side is partner.
+        // Things moving from user → partner. Sender is user, receiver is partner.
         const userGiving: TradeItem[] = [
-          ...effective.playersToGive.map((pid) => playerItem(pid, partner.roster_id)),
+          ...effective.playersToGive.map((pid) => playerItem(pid, partner.roster_id, userRoster.roster_id)),
           ...effective.picksToGive.map((id) => pickItem(id, userRoster.draftpicks)).filter((x): x is TradeItem => x !== null),
         ];
-        // Things moving from partner → user. Receiving side is user.
+        // Things moving from partner → user. Sender is partner, receiver is user.
         const userReceiving: TradeItem[] = [
-          ...effective.playersToReceive.map((pid) => playerItem(pid, userRoster.roster_id)),
+          ...effective.playersToReceive.map((pid) => playerItem(pid, userRoster.roster_id, partner.roster_id)),
           ...effective.picksToReceive.map((id) => pickItem(id, partner.draftpicks)).filter((x): x is TradeItem => x !== null),
         ];
         const sumValues = (items: TradeItem[]) => items.reduce((s, it) => s + it.value, 0);
@@ -362,25 +369,33 @@ export function PotentialTrades({
                       <div className="min-w-0">
                         <span className="text-[10px] uppercase tracking-wider text-green-500/70 font-semibold">Receives</span>
                         <div className="flex flex-col gap-1 mt-1">
-                          {side.receiving.map((item, j) => (
-                            <span
-                              key={j}
-                              title={item.isTarget ? `This roster has liked ${item.label}` : undefined}
-                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs ${
-                                item.isTarget
-                                  ? "bg-pink-500/15 text-pink-200 ring-1 ring-pink-400/50"
-                                  : "bg-green-500/10 text-green-300"
-                              }`}
-                            >
-                              {item.position && (
-                                <span className={`text-[10px] font-semibold ${item.isTarget ? "text-pink-300/80" : "text-green-500/60"}`}>
-                                  {item.position}
-                                </span>
-                              )}
-                              <span title={item.label} className="truncate">{item.label}</span>
-                              {item.isTarget && <span aria-hidden>♥</span>}
-                            </span>
-                          ))}
+                          {side.receiving.map((item, j) => {
+                            const hint = item.isTarget ? `Liked by this roster` : item.isOtb ? `On the trade block` : undefined;
+                            return (
+                              <span
+                                key={j}
+                                title={hint}
+                                className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs ${
+                                  item.isTarget
+                                    ? "bg-pink-500/15 text-pink-200 ring-1 ring-pink-400/50"
+                                    : item.isOtb
+                                      ? "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/50"
+                                      : "bg-green-500/10 text-green-300"
+                                }`}
+                              >
+                                {item.position && (
+                                  <span className={`text-[10px] font-semibold ${
+                                    item.isTarget ? "text-pink-300/80" : item.isOtb ? "text-amber-300/80" : "text-green-500/60"
+                                  }`}>
+                                    {item.position}
+                                  </span>
+                                )}
+                                <span title={item.label} className="truncate">{item.label}</span>
+                                {item.isTarget && <span aria-hidden>♥</span>}
+                                {item.isOtb && !item.isTarget && <span aria-hidden className="text-[10px]">OTB</span>}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -392,12 +407,18 @@ export function PotentialTrades({
                           {side.giving.map((item, j) => (
                             <span
                               key={j}
-                              className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-0.5 text-xs text-red-300"
+                              title={item.isOtb ? `On the trade block` : undefined}
+                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs ${
+                                item.isOtb
+                                  ? "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/50"
+                                  : "bg-red-500/10 text-red-300"
+                              }`}
                             >
                               {item.position && (
-                                <span className="text-[10px] text-red-500/60 font-semibold">{item.position}</span>
+                                <span className={`text-[10px] font-semibold ${item.isOtb ? "text-amber-300/80" : "text-red-500/60"}`}>{item.position}</span>
                               )}
                               <span title={item.label} className="truncate">{item.label}</span>
+                              {item.isOtb && <span aria-hidden className="text-[10px]">OTB</span>}
                             </span>
                           ))}
                         </div>
