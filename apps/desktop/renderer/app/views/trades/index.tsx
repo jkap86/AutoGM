@@ -99,12 +99,14 @@ export default function TradesView({
     if (!league || !partnerRoster) return;
     const userRoster = league.user_roster;
 
+    // In Sleeper's DM attachment, "adds" = what this roster RECEIVES.
+    // User gives → partner receives (partner's adds). Partner gives → user receives (user's adds).
     const transactionsByRoster: Record<string, unknown> = {
       [userRoster.roster_id]: {
-        adds: playerIdsGiving.map((pid) => buildPlayerAttachment(allplayers[pid])),
+        adds: playerIdsReceiving.map((pid) => buildPlayerAttachment(allplayers[pid])),
         drops: [],
-        added_picks: pickIdsGiving.flatMap((pickId) => {
-          const pick = userRoster.draftpicks.find((d) => getPickId(d) === pickId);
+        added_picks: pickIdsReceiving.flatMap((pickId) => {
+          const pick = partnerRoster.draftpicks.find((d) => getPickId(d) === pickId);
           if (!pick) return [];
           return [{
             roster_id: String(pick.roster_id),
@@ -122,10 +124,10 @@ export default function TradesView({
         user: buildUserAttachment(userRoster, leagueId),
       },
       [partnerRoster.roster_id]: {
-        adds: playerIdsReceiving.map((pid) => buildPlayerAttachment(allplayers[pid])),
+        adds: playerIdsGiving.map((pid) => buildPlayerAttachment(allplayers[pid])),
         drops: [],
-        added_picks: pickIdsReceiving.flatMap((pickId) => {
-          const pick = partnerRoster.draftpicks.find((d) => getPickId(d) === pickId);
+        added_picks: pickIdsGiving.flatMap((pickId) => {
+          const pick = userRoster.draftpicks.find((d) => getPickId(d) === pickId);
           if (!pick) return [];
           return [{
             roster_id: String(pick.roster_id),
