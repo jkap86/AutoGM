@@ -151,7 +151,7 @@ export default function TradesView({
       usersMap[roster.user_id] = buildUserAttachment(roster, leagueId);
     });
 
-    const dmResult = await getDm({ members: [partnerId] });
+    const dmResult = await getDm({ members: [userId, partnerId] });
     let dmId = dmResult.get_dm_by_members?.dm_id;
     if (!dmId) {
       const newDm = await createDm({ members: [partnerId], dm_type: "direct" });
@@ -176,7 +176,7 @@ export default function TradesView({
         JSON.stringify(usersMap),
       ],
     });
-  }, [leagues, allplayers, getDm, createDm, sendMessage]);
+  }, [leagues, allplayers, userId, getDm, createDm, sendMessage]);
 
   const handleCounterOrModify = useCallback(async (
     { trade, playerIdsToGive, playerIdsToReceive, pickIdsToGive, pickIdsToReceive }: import("./trades-panel").CounterOffer,
