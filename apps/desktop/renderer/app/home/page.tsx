@@ -3,16 +3,18 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSleeperLogin } from "../../hooks/use-sleeper-login";
+import { useAuth } from "../../contexts/auth-context";
 
 export default function HomePage() {
   const router = useRouter();
   const { login, loading, result, error } = useSleeperLogin();
+  const { accessAllowed } = useAuth();
 
   useEffect(() => {
-    if (result?.token && result?.user_id) {
-      router.push("/dashboard");
+    if (result?.token && result?.user_id && accessAllowed !== null) {
+      router.push(accessAllowed ? "/dashboard" : "/access-denied");
     }
-  }, [result?.token, result?.user_id, router]);
+  }, [result?.token, result?.user_id, accessAllowed, router]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4">

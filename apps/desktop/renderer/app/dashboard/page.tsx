@@ -18,7 +18,7 @@ type View = "trades" | "polls" | "adp" | null;
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, accessAllowed } = useAuth();
   const {
     allplayers,
     loading: allPlayersLoading,
@@ -47,10 +47,12 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!session?.token || !session?.user_id) {
       router.push("/home");
+    } else if (accessAllowed === false) {
+      router.push("/access-denied");
     }
-  }, [session?.token, session?.user_id, router]);
+  }, [session?.token, session?.user_id, accessAllowed, router]);
 
-  if (!session?.user_id) return null;
+  if (!session?.user_id || !accessAllowed) return null;
 
   return (
     <main className="flex min-h-screen flex-col items-center gap-4 p-8">

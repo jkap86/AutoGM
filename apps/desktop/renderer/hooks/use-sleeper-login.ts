@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Session, useAuth } from '../contexts/auth-context'
 
 export function useSleeperLogin() {
-  const { session, setSession } = useAuth()
+  const { session, setSession, setAccessAllowed } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -14,6 +14,15 @@ export function useSleeperLogin() {
     try {
       const data = await window.ipc.invoke<Session>('login')
       setSession(data)
+
+      if (data?.user_id) {
+        const { allowed } = await window.ipc.invoke<{ allowed: boolean }>(
+          'access:check',
+          { user_id: data.user_id },
+        )
+        setAccessAllowed(allowed)
+      }
+
       return data
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)

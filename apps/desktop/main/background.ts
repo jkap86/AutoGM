@@ -16,6 +16,7 @@ import { fetchAdp, fetchAdpStats } from "./helpers/fetch-adp";
 import type { AdpFilters } from "./helpers/fetch-adp";
 import { fetchOpponentDrafts } from "./helpers/fetch-opponent-drafts";
 import { fetchOpponentTrades } from "./helpers/fetch-opponent-trades";
+import { checkAccess } from "./lib/access";
 
 // Wire shared GraphQL client to desktop's auth token
 configureClient({ getToken });
@@ -75,6 +76,10 @@ ipcMain.handle("login", async () => {
   } finally {
     await page.context().close();
   }
+});
+
+ipcMain.handle("access:check", async (_event, args: { user_id: string }) => {
+  return checkAccess(args.user_id);
 });
 
 ipcMain.handle(
