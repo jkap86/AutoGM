@@ -9,6 +9,7 @@ import { getPickId } from "@sleepier/shared";
 import { Avatar } from "../../components/avatar";
 import { RosterColumn } from "../../components/roster-column";
 import { DmPanel } from "./trades-panel";
+import { OpponentPanel } from "./opponent-panel";
 import {
   getPickKtcName,
   passThreshold,
@@ -431,7 +432,7 @@ export function PotentialTrades({
 
             {/* Expanded section with tabs */}
             {isExpanded && (() => {
-              const tabs = ["Rosters", "DM"];
+              const tabs = ["Rosters", "DM", "Opponent"];
               const activeTab = expandedTab[cardKey] || "Rosters";
               return (
                 <div className="border-t border-gray-700/40" onClick={(e) => e.stopPropagation()}>
@@ -519,6 +520,16 @@ export function PotentialTrades({
                       partnerId={partner.user_id}
                       partnerName={partner.username}
                       leagues={leagues}
+                    />
+                  )}
+
+                  {activeTab === "Opponent" && (
+                    <OpponentPanel
+                      partner={partner}
+                      league={league}
+                      allplayers={allplayers}
+                      leagues={leagues}
+                      involvedPlayerIds={[...effective.playersToGive, ...effective.playersToReceive]}
                     />
                   )}
                 </div>

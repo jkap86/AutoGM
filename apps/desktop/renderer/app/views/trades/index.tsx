@@ -156,7 +156,7 @@ export default function TradesView({
     const dmResult = await getDm({ members: [userId, partnerId] });
     let dmId = dmResult.get_dm_by_members?.dm_id;
     if (!dmId) {
-      const newDm = await createDm({ members: [partnerId], dm_type: "direct" });
+      const newDm = await createDm({ members: [userId, partnerId], dm_type: "direct" });
       dmId = newDm.create_dm.dm_id;
     }
 

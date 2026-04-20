@@ -71,7 +71,9 @@ export function useTradesByStatus(
     const leagueEntries = Object.entries(leagues)
     if (leagueEntries.length === 0) return
 
-    setState((s) => ({ ...s, loading: true, error: null }))
+    // Only show loading spinner on the initial fetch (no data yet).
+    // Poll/refresh updates happen silently in the background.
+    setState((s) => ({ ...s, loading: s.trades.length === 0, error: null }))
     try {
       const results = await mapWithConcurrency(
         leagueEntries,
@@ -110,7 +112,7 @@ export function useTradesByStatus(
       setState({ trades, loading: false, error: null })
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e)
-      setState({ trades: [], loading: false, error })
+      setState((s) => ({ ...s, loading: false, error }))
     }
   }, [leagues, status, limit])
 

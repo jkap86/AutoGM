@@ -13,6 +13,8 @@ import type { StoredPoll } from "./lib/poll-store";
 import { fetchKtcLatest, fetchKtcHistory, fetchKtcByDate } from "./helpers/fetch-ktc";
 import { fetchAdp, fetchAdpStats } from "./helpers/fetch-adp";
 import type { AdpFilters } from "./helpers/fetch-adp";
+import { fetchOpponentDrafts } from "./helpers/fetch-opponent-drafts";
+import { fetchOpponentTrades } from "./helpers/fetch-opponent-trades";
 
 // Wire shared GraphQL client to desktop's auth token
 configureClient({ getToken });
@@ -129,4 +131,12 @@ ipcMain.handle("adp:fetch", async (_event, filters: AdpFilters = {}) => {
 
 ipcMain.handle("adp:stats", async (_event, filters: AdpFilters = {}) => {
   return fetchAdpStats(filters);
+});
+
+ipcMain.handle("opponent:drafts", async (_event, args: { userId: string }) => {
+  return fetchOpponentDrafts(args.userId);
+});
+
+ipcMain.handle("opponent:trades", async (_event, args: { opponentUserId: string; playerIds: string[]; season?: string }) => {
+  return fetchOpponentTrades(args);
 });
