@@ -215,7 +215,8 @@ function RecentTradesSection({
       .then((r) => {
         if (!cancelled) setTrades(r);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn('[opponent-panel] Failed to fetch opponent trades:', err)
         if (!cancelled) setTrades([]);
       })
       .finally(() => {
@@ -305,7 +306,8 @@ function DraftHistorySection({
       .then((r) => {
         if (!cancelled) setPicks(r);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn('[opponent-panel] Failed to fetch opponent drafts:', err)
         if (!cancelled) setPicks([]);
       })
       .finally(() => {

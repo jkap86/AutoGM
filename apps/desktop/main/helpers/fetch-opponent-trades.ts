@@ -1,6 +1,9 @@
 import { getJson } from "./get-json"
 import { runQuery } from "@sleepier/shared"
 import type { Transaction } from "@sleepier/shared"
+import createLogger from "../lib/logger"
+
+const log = createLogger("fetch-opponent-trades")
 
 type SleeperLeague = {
   league_id: string
@@ -50,7 +53,8 @@ export async function fetchOpponentTrades({
             status: "complete",
           })
           return { league: lg, txs: result.league_transactions }
-        } catch {
+        } catch (err) {
+          log.warn(`failed to fetch trades for league ${lg.league_id}:`, err instanceof Error ? err.message : err)
           return { league: lg, txs: [] as Transaction[] }
         }
       }),

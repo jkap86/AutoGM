@@ -9,6 +9,9 @@ import type {
 } from "@sleepier/shared";
 
 import { BROWSER_HEADERS } from "@sleepier/shared";
+import createLogger from "./logger";
+
+const log = createLogger("get-league-details");
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers: BROWSER_HEADERS });
@@ -87,8 +90,8 @@ async function getOneLeagueDetails(
       user_roster,
     };
   } catch (err) {
-    console.warn(
-      `[get-league-details] failed to load league ${league.league_id} (${league.name}):`,
+    log.warn(
+      `failed to load league ${league.league_id} (${league.name}):`,
       err instanceof Error ? err.message : err,
     );
     return null;
@@ -128,8 +131,8 @@ export async function getLeagueDetails({
   leagues: League[];
   user_id: string;
 }): Promise<LeagueWithRosters[]> {
-  console.log(
-    `[get-league-details] fetching ${leagues.length} leagues with concurrency=${MAX_CONCURRENT_LEAGUES}`,
+  log.info(
+    `fetching ${leagues.length} leagues with concurrency=${MAX_CONCURRENT_LEAGUES}`,
   );
 
   const results = await mapWithConcurrency(
@@ -139,9 +142,7 @@ export async function getLeagueDetails({
   );
 
   const kept = results.filter((l): l is LeagueWithRosters => l !== null);
-  console.log(
-    `[get-league-details] kept ${kept.length}/${leagues.length} leagues`,
-  );
+  log.info(`kept ${kept.length}/${leagues.length} leagues`);
   return kept;
 }
 

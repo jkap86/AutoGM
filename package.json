@@ -8,14 +8,25 @@
     "typecheck": "turbo typecheck",
     "dev:desktop": "turbo dev --filter=sleepier-desktop",
     "dev:mobile": "turbo dev --filter=sleepier-mobile",
-    "pack:ci": "pnpm install --config.node-linker=hoisted && pnpm --filter sleepier-desktop build"
+    "pack:ci": "pnpm install --config.node-linker=hoisted && pnpm --filter sleepier-desktop build",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "turbo": "^2.5.0"
+    "@eslint/js": "^9.20.0",
+    "eslint": "^9.20.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "prettier": "^3.5.0",
+    "turbo": "^2.5.0",
+    "typescript-eslint": "^8.25.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "electron",
+      "esbuild",
       "sharp",
       "core-js-pure",
       "electron-winstaller"

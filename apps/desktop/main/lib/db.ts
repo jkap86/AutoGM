@@ -1,6 +1,12 @@
 import { Pool } from 'pg'
+import createLogger from './logger'
 
-const DATABASE_URL = 'postgresql://postgres:password123@localhost:5432/thelab_dev'
+const log = createLogger('db')
+
+const DATABASE_URL = process.env.DATABASE_URL
+if (!DATABASE_URL) {
+  throw new Error('[db] DATABASE_URL is not set. See .env.example')
+}
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
@@ -11,7 +17,7 @@ const pool = new Pool({
 })
 
 pool.on('error', (err) => {
-  console.error('[db] Unexpected error on idle client', err)
+  log.error('Unexpected error on idle client', err)
 })
 
 export default pool

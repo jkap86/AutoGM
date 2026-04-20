@@ -12,3 +12,8 @@ dist
 
 # turbo
 .turbo
+
+# environment
+.env
+.env.local
+.env.*.local
