@@ -14,6 +14,7 @@ import { formatRecord, formatTime } from "../../../lib/trade-utils";
 
 // DmPanel was extracted to dm-panel.tsx — import for local use + re-export
 import { DmPanel } from "./dm-panel";
+import { LeagueChatPanel } from "./league-chat-panel";
 import { OpponentPanel } from "./opponent-panel";
 export { DmPanel };
 
@@ -546,7 +547,7 @@ function TradeCards({
 
             {/* Expanded section with tabs */}
             {(isExpanded || isCounter) && sides.length === 2 && sides[0].roster && sides[1].roster && (() => {
-              const tabs = ["Rosters", "DM", "Opponent"];
+              const tabs = ["Rosters", "DM", "League Chat", "Opponent"];
               const activeTab = expandedTab[trade.transaction_id] || "Rosters";
               return (
                 <div className="border-t border-gray-700/40">
@@ -608,6 +609,14 @@ function TradeCards({
                     if (!partnerId) return <div className="px-4 py-6 text-center text-xs text-gray-500">Unknown partner</div>;
                     return <DmPanel userId={userId} partnerId={partnerId} partnerName={partnerSide?.roster?.username ?? "Leaguemate"} leagues={leagues} />;
                   })()}
+
+                  {activeTab === "League Chat" && league && (
+                    <LeagueChatPanel
+                      userId={userId}
+                      leagueId={trade.league_id}
+                      leagueName={league.name}
+                    />
+                  )}
 
                   {activeTab === "Opponent" && (() => {
                     const partnerSide = sides.find((s) => s.roster_id !== userRosterId);

@@ -9,6 +9,7 @@ import { getPickId } from "@sleepier/shared";
 import { Avatar } from "../../components/avatar";
 import { RosterColumn } from "../../components/roster-column";
 import { DmPanel } from "./trades-panel";
+import { LeagueChatPanel } from "./league-chat-panel";
 import { OpponentPanel } from "./opponent-panel";
 import {
   getPickKtcName,
@@ -432,7 +433,7 @@ export function PotentialTrades({
 
             {/* Expanded section with tabs */}
             {isExpanded && (() => {
-              const tabs = ["Rosters", "DM", "Opponent"];
+              const tabs = ["Rosters", "DM", "League Chat", "Opponent"];
               const activeTab = expandedTab[cardKey] || "Rosters";
               return (
                 <div className="border-t border-gray-700/40" onClick={(e) => e.stopPropagation()}>
@@ -520,6 +521,14 @@ export function PotentialTrades({
                       partnerId={partner.user_id}
                       partnerName={partner.username}
                       leagues={leagues}
+                    />
+                  )}
+
+                  {activeTab === "League Chat" && (
+                    <LeagueChatPanel
+                      userId={userId}
+                      leagueId={league.league_id}
+                      leagueName={league.name}
                     />
                   )}
 

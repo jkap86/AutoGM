@@ -3,7 +3,7 @@ import type { CreateDmVars, CreateDmResult } from "./types";
 
 const QUERY = `
   mutation create_dm(
-    $members: [Snowflake],
+    $members: [String]!,
     $dm_type: String!,
     $title: String
   ) {

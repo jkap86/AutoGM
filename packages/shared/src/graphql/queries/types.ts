@@ -67,6 +67,7 @@ export type RejectTradeResult = {
 export type CreateMessageVars = {
   parent_id: string;
   text: string;
+  attachment_type?: string;
   k_attachment_data: string[];
   v_attachment_data: string[];
 };
@@ -180,6 +181,14 @@ export type LeagueTransactionsResult = {
   league_transactions: Transaction[];
 };
 
+export type CreateLeagueMessageVars = {
+  parent_id: string;
+  text: string;
+  attachment_type?: string;
+  k_attachment_data?: string[];
+  v_attachment_data?: string[];
+};
+
 export type MessagesVars = {
   parent_id: string;
   before?: string;
@@ -241,6 +250,10 @@ export type QueryMap = {
   };
   messages: { vars: MessagesVars; result: MessagesResult };
   leaguePlayers: { vars: LeaguePlayersVars; result: LeaguePlayersResult };
+  createLeagueMessage: {
+    vars: CreateLeagueMessageVars;
+    result: CreateMessageResult;
+  };
 };
 
 export type QueryName = keyof QueryMap;

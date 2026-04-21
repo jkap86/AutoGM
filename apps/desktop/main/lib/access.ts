@@ -2,9 +2,13 @@ import createLogger from "./logger";
 
 const log = createLogger("access");
 
-const ALLOWLIST_URL =
-  process.env.ALLOWLIST_URL ||
-  "https://gist.githubusercontent.com/OWNER/GIST_ID/raw/allowlist.json";
+function getAllowlistUrl(): string {
+  const url = process.env.ALLOWLIST_URL;
+  if (!url) {
+    throw new Error("[access] ALLOWLIST_URL is not set. See .env.example");
+  }
+  return url;
+}
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -16,7 +20,7 @@ type AllowlistCache = {
 let cache: AllowlistCache | null = null;
 
 async function fetchAllowlist(): Promise<Set<string>> {
-  const res = await fetch(ALLOWLIST_URL);
+  const res = await fetch(getAllowlistUrl());
   if (!res.ok) {
     throw new Error(`Allowlist fetch failed: ${res.status}`);
   }

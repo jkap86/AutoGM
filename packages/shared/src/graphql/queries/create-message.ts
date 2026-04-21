@@ -4,12 +4,13 @@ import type { CreateMessageVars, CreateMessageResult } from "./types";
 const MUTATION = `
   mutation create_message(
     $parent_id: String!, $client_id: String!, $text: String,
+    $attachment_type: String,
     $k_attachment_data: [String], $v_attachment_data: [String]
   ) {
     create_message(
       parent_id: $parent_id, client_id: $client_id, parent_type: "dm",
       text: $text, shard_min: null, shard_max: null,
-      attachment_type: "trade_dm",
+      attachment_type: $attachment_type,
       k_attachment_data: $k_attachment_data,
       v_attachment_data: $v_attachment_data
     ) {
@@ -30,6 +31,7 @@ export async function createMessage(
       parent_id: vars.parent_id,
       client_id: crypto.randomUUID(),
       text: vars.text,
+      attachment_type: vars.attachment_type,
       k_attachment_data: vars.k_attachment_data,
       v_attachment_data: vars.v_attachment_data,
     },

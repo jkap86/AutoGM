@@ -11,6 +11,7 @@ import AdpView from "../views/adp-view";
 import { LeagueFilterBar, useLeagueFilter } from "../components/league-filter";
 import { useKtc } from "../../hooks/use-ktc";
 import { useLeaguePlayers } from "../../hooks/use-league-players";
+import { DevLeagueMessage } from "../components/dev-league-message";
 
 const SEASON = "2026";
 
@@ -110,6 +111,7 @@ export default function DashboardPage() {
       ) : (
         <p className="text-gray-400">Select a view above.</p>
       )}
+      <DevLeagueMessage leagues={leagues ?? {}} allplayers={allplayers ?? {}} userId={session.user_id} />
     </main>
   );
 }

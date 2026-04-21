@@ -163,6 +163,7 @@ export default function TradesView({
     await sendMessage({
       parent_id: dmId,
       text,
+      attachment_type: "trade_dm",
       k_attachment_data: [
         "status",
         "transactions_by_roster",
