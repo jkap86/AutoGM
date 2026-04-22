@@ -2,6 +2,8 @@ import type { Allplayer, Roster } from "@sleepier/shared";
 import { getPickId } from "@sleepier/shared";
 import { getPickKtcName } from "../../lib/trade-utils";
 
+const POS_ORDER: Record<string, number> = { QB: 0, RB: 1, WR: 2, TE: 3, K: 4, DEF: 5 };
+
 export function RosterColumn({
   roster,
   allplayers,
@@ -13,6 +15,7 @@ export function RosterColumn({
   onTogglePick,
   valueLookup,
   formatValue,
+  rosterPositions,
 }: {
   roster: Roster;
   allplayers: { [id: string]: Allplayer };
@@ -22,11 +25,13 @@ export function RosterColumn({
   highlightPickIds?: string[];
   onToggle?: (id: string) => void;
   onTogglePick?: (pickId: string) => void;
-  // If provided, each row shows the player's value on the right (team moves next to name).
-  // Keyed by player_id for players and by getPickKtcName(season, round, order) for picks.
   valueLookup?: Record<string, number>;
   formatValue?: (n: number) => string;
+  rosterPositions?: string[];
 }) {
+  const starterSlots = (rosterPositions ?? []).filter(
+    (s) => s !== "BN" && s !== "IR" && s !== "TAXI",
+  );
   const starters = roster.starters.filter((id) => id !== "0");
   const taxi = roster.taxi ?? [];
   const reserve = roster.reserve ?? [];
@@ -34,6 +39,25 @@ export function RosterColumn({
     (id) =>
       !starters.includes(id) && !taxi.includes(id) && !reserve.includes(id),
   );
+
+  // Sort bench by position order, then value descending
+  const sortedBench = [...bench].sort((a, b) => {
+    const pa = allplayers[a]?.position ?? "?";
+    const pb = allplayers[b]?.position ?? "?";
+    const posA = POS_ORDER[pa] ?? 99;
+    const posB = POS_ORDER[pb] ?? 99;
+    if (posA !== posB) return posA - posB;
+    const va = valueLookup?.[a] ?? 0;
+    const vb = valueLookup?.[b] ?? 0;
+    return vb - va;
+  });
+
+  // Sort picks by season, round, order
+  const sortedPicks = [...roster.draftpicks].sort((a, b) => {
+    if (a.season !== b.season) return a.season.localeCompare(b.season);
+    if (a.round !== b.round) return a.round - b.round;
+    return (a.order ?? 99) - (b.order ?? 99);
+  });
 
   const hlSet = new Set(highlightIds ?? []);
   const hlPickSet = new Set(highlightPickIds ?? []);
@@ -54,10 +78,10 @@ export function RosterColumn({
     );
   };
 
-  const renderPlayer = (id: string) => {
+  const renderPlayer = (id: string, slotLabel?: string) => {
     const p = allplayers[id];
     const name = p?.full_name || id;
-    const pos = p?.position || "?";
+    const pos = slotLabel ?? p?.position ?? "?";
     const team = p?.team || "";
     const isHighlighted = hlSet.has(id);
     return (
@@ -80,38 +104,57 @@ export function RosterColumn({
     );
   };
 
-  const sections: { label: string; ids: string[] }[] = [
-    { label: "Starters", ids: starters },
-    { label: "Bench", ids: bench },
-  ];
-  if (taxi.length > 0) sections.push({ label: "Taxi", ids: taxi });
-  if (reserve.length > 0) sections.push({ label: "IR", ids: reserve });
-
-  const picks = roster.draftpicks;
-
   return (
     <div className="flex flex-col min-w-0">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
         {label}
       </p>
       <div className="max-h-72 overflow-y-auto pr-1 flex flex-col gap-1.5">
-        {sections.map(
-          (section) =>
-            section.ids.length > 0 && (
-              <div key={section.label}>
-                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
-                  {section.label}
-                </p>
-                {section.ids.map(renderPlayer)}
-              </div>
-            ),
+        {starters.length > 0 && (
+          <div>
+            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
+              Starters
+            </p>
+            {starters.map((id, i) => {
+              const slot = starterSlots[roster.starters.indexOf(id)];
+              return renderPlayer(id, slot);
+            })}
+          </div>
         )}
-        {picks.length > 0 && (
+
+        {sortedBench.length > 0 && (
+          <div>
+            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
+              Bench
+            </p>
+            {sortedBench.map((id) => renderPlayer(id))}
+          </div>
+        )}
+
+        {taxi.length > 0 && (
+          <div>
+            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
+              Taxi
+            </p>
+            {taxi.map((id) => renderPlayer(id))}
+          </div>
+        )}
+
+        {reserve.length > 0 && (
+          <div>
+            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
+              IR
+            </p>
+            {reserve.map((id) => renderPlayer(id))}
+          </div>
+        )}
+
+        {sortedPicks.length > 0 && (
           <div>
             <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
               Draft Picks
             </p>
-            {picks.map((pick) => {
+            {sortedPicks.map((pick) => {
               const pickId = getPickId(pick);
               const isPickHl = hlPickSet.has(pickId);
               const ktcName = getPickKtcName(pick.season, pick.round, pick.order);

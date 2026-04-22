@@ -8,8 +8,8 @@ import { useAdp, type AdpFilters } from './use-adp'
 export type ValueType = 'ktc' | 'adp' | 'auction'
 export const VALUE_TYPES: ValueType[] = ['ktc', 'adp', 'auction']
 
-export type PositionFilter = 'ALL' | 'PLAYERS' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
-export const POSITION_FILTERS: PositionFilter[] = ['ALL', 'PLAYERS', 'QB', 'RB', 'WR', 'TE', 'PICKS']
+export type PositionFilter = 'ALL' | 'PLAYERS' | 'PLAYERS+CUR' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
+export const POSITION_FILTERS: PositionFilter[] = ['ALL', 'PLAYERS', 'PLAYERS+CUR', 'QB', 'RB', 'WR', 'TE', 'PICKS']
 
 export type ThresholdFilter = { op: '>=' | '<=' | '>' | '<'; value: number | null }
 export const passThreshold = (n: number | null, f: ThresholdFilter): boolean => {
@@ -38,18 +38,20 @@ function computeRosterValues(
   filter: PositionFilter,
   valueLookup: Record<string, number>,
   allplayers: { [id: string]: Allplayer },
+  currentSeason?: string,
 ): number[] {
   const values: number[] = []
   if (filter !== 'PICKS') {
     for (const pid of roster.players ?? []) {
       const player = allplayers[pid]
       if (!player) continue
-      if (filter !== 'ALL' && filter !== 'PLAYERS' && player.position !== filter) continue
+      if (filter !== 'ALL' && filter !== 'PLAYERS' && filter !== 'PLAYERS+CUR' && player.position !== filter) continue
       values.push(valueLookup[pid] ?? 0)
     }
   }
-  if (filter === 'ALL' || filter === 'PICKS') {
+  if (filter === 'ALL' || filter === 'PICKS' || filter === 'PLAYERS+CUR') {
     for (const pick of roster.draftpicks ?? []) {
+      if (filter === 'PLAYERS+CUR' && pick.season !== currentSeason) continue
       const name = getPickKtcName(pick.season, pick.round, pick.order)
       values.push(valueLookup[name] ?? 0)
     }
@@ -132,7 +134,7 @@ export function useTradeValueFilter({
       for (const filter of POSITION_FILTERS) {
         const perRoster: Record<number, number[]> = {}
         for (const r of league.rosters) {
-          perRoster[r.roster_id] = computeRosterValues(r, filter, valueLookup, allplayers)
+          perRoster[r.roster_id] = computeRosterValues(r, filter, valueLookup, allplayers, league.season)
         }
         perFilter[filter] = perRoster
       }

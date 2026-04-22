@@ -152,7 +152,7 @@ export function TradeFilterBar({
                 : 'bg-gray-700/60 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
             }`}
           >
-            {pos}
+            {pos === 'PLAYERS+CUR' ? 'Players+Cur Picks' : pos}
           </button>
         ))}
       </div>

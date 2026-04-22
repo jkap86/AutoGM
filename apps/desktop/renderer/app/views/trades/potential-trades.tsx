@@ -498,6 +498,7 @@ export function PotentialTrades({
                           formatValue={auctionFmt}
                           onToggle={(id) => toggleCardField(cardKey, league, partner, "playersToGive", id)}
                           onTogglePick={(id) => toggleCardField(cardKey, league, partner, "picksToGive", id)}
+                          rosterPositions={league.roster_positions}
                         />
                         <RosterColumn
                           roster={partner}
@@ -510,6 +511,7 @@ export function PotentialTrades({
                           formatValue={auctionFmt}
                           onToggle={(id) => toggleCardField(cardKey, league, partner, "playersToReceive", id)}
                           onTogglePick={(id) => toggleCardField(cardKey, league, partner, "picksToReceive", id)}
+                          rosterPositions={league.roster_positions}
                         />
                       </div>
                     </>

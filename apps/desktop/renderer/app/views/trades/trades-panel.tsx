@@ -596,6 +596,7 @@ function TradeCards({
                               }
                               onToggle={isCounter ? toggleInSet(isUserSide ? setCounterGive : setCounterReceive) : undefined}
                               onTogglePick={isCounter ? toggleInSet(isUserSide ? setCounterPicksGive : setCounterPicksReceive) : undefined}
+                              rosterPositions={league?.roster_positions}
                             />
                           );
                         })}
