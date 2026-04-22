@@ -96,6 +96,7 @@ export function OpponentPanel({
             partnerId={partner.user_id}
             allplayers={allplayers}
             involvedPlayerIds={involvedPlayerIds}
+            leagues={leagues}
           />
         )}
         {tab === "drafts" && (
@@ -189,10 +190,12 @@ function RecentTradesSection({
   partnerId,
   allplayers,
   involvedPlayerIds,
+  leagues,
 }: {
   partnerId: string;
   allplayers: { [id: string]: Allplayer };
   involvedPlayerIds: string[];
+  leagues: { [league_id: string]: LeagueDetailed };
 }) {
   const [trades, setTrades] = useState<(TradeTransaction & { league_name: string })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -262,9 +265,11 @@ function RecentTradesSection({
                   .filter(([, r]) => r === rid)
                   .map(([pid]) => ({ pid, name: allplayers[pid]?.full_name ?? pid, involved: involvedSet.has(pid) }));
                 if (got.length === 0 && gave.length === 0) return null;
+                const rosterUser = leagues[tx.league_id]?.rosters.find((r) => r.roster_id === rid);
+                const rosterName = rosterUser?.username ?? `Roster ${rid}`;
                 return (
                   <div key={rid} className="min-w-0">
-                    <span className="text-[10px] font-semibold text-gray-400">Roster {rid}</span>
+                    <span className="text-[10px] font-semibold text-gray-400">{rosterName}</span>
                     {got.map((p, i) => (
                       <div key={`g${i}`} className={`text-[11px] ${p.involved ? "text-green-300 font-medium" : "text-green-400/60"}`}>
                         + {p.name}
