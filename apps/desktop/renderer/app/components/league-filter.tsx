@@ -138,7 +138,7 @@ export function LeagueFilterBar({
       {activeCount > 0 && (
         <button
           onClick={() => setFilters(DEFAULT_FILTERS)}
-          className="text-[10px] text-gray-500 hover:text-gray-300 underline"
+          className="text-xs text-gray-500 hover:text-gray-300 underline"
         >
           Clear all
         </button>
@@ -178,7 +178,7 @@ export function LeagueFilterBar({
 
 function Chip({ label }: { label: string }) {
   return (
-    <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] text-blue-400 font-medium">{label}</span>
+    <span className="rounded bg-blue-500/15 px-2.5 py-1 text-xs text-blue-400 font-medium">{label}</span>
   );
 }
 

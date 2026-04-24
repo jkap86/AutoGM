@@ -54,7 +54,7 @@ export function OpponentPanel({
           <span className="text-sm font-medium text-gray-100 truncate" title={partner.username}>
             {partner.username}
           </span>
-          <span className="text-[10px] text-gray-500">
+          <span className="text-xs text-gray-500">
             {formatRecord(partner)} · {league.name}
           </span>
         </div>
@@ -155,16 +155,16 @@ function PlayerSharesSection({
 
   return (
     <div className="flex flex-col gap-0.5">
-      <p className="text-[10px] text-gray-500 mb-1">
+      <p className="text-xs text-gray-500 mb-1">
         {shares.length} players across {new Set(shares.flatMap((s) => s.leagueNames)).size} leagues
       </p>
       {shares.map((s) => (
         <div key={s.player_id} className="flex items-center gap-1.5 py-0.5 text-xs">
           <span className="w-6 shrink-0 text-center font-semibold text-gray-500">{s.position}</span>
           <span className="text-gray-200 truncate min-w-0" title={s.name}>{s.name}</span>
-          {s.team && <span className="shrink-0 text-gray-600 text-[10px]">{s.team}</span>}
+          {s.team && <span className="shrink-0 text-gray-600 text-xs">{s.team}</span>}
           <span
-            className="ml-auto shrink-0 text-[10px] text-gray-500 cursor-help"
+            className="ml-auto shrink-0 text-xs text-gray-500 cursor-help"
             title={s.leagueNames.join(", ")}
           >
             {s.count} lg{s.count !== 1 ? "s" : ""}
@@ -245,7 +245,7 @@ function RecentTradesSection({
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[10px] text-gray-500 mb-1">
+      <p className="text-xs text-gray-500 mb-1">
         {trades.length} trade{trades.length !== 1 ? "s" : ""} involving selected players across {new Set(trades.map((t) => t.league_name)).size} league{new Set(trades.map((t) => t.league_name)).size !== 1 ? "s" : ""}
       </p>
       {trades.map((tx) => {
@@ -253,8 +253,8 @@ function RecentTradesSection({
         return (
           <div key={tx.transaction_id} className="rounded bg-gray-900/40 px-2.5 py-2">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-500">{formatTime(tx.status_updated)}</span>
-              <span className="text-[10px] text-gray-600 truncate" title={tx.league_name}>{tx.league_name}</span>
+              <span className="text-xs text-gray-500">{formatTime(tx.status_updated)}</span>
+              <span className="text-xs text-gray-600 truncate" title={tx.league_name}>{tx.league_name}</span>
             </div>
             <div className="flex gap-4 mt-1">
               {rosterIds.map((rid) => {
@@ -269,14 +269,14 @@ function RecentTradesSection({
                 const rosterName = rosterUser?.username ?? `Roster ${rid}`;
                 return (
                   <div key={rid} className="min-w-0">
-                    <span className="text-[10px] font-semibold text-gray-400">{rosterName}</span>
+                    <span className="text-xs font-semibold text-gray-400">{rosterName}</span>
                     {got.map((p, i) => (
-                      <div key={`g${i}`} className={`text-[11px] ${p.involved ? "text-green-300 font-medium" : "text-green-400/60"}`}>
+                      <div key={`g${i}`} className={`text-xs ${p.involved ? "text-green-300 font-medium" : "text-green-400/60"}`}>
                         + {p.name}
                       </div>
                     ))}
                     {gave.map((p, i) => (
-                      <div key={`s${i}`} className={`text-[11px] ${p.involved ? "text-red-300 font-medium" : "text-red-400/60"}`}>
+                      <div key={`s${i}`} className={`text-xs ${p.involved ? "text-red-300 font-medium" : "text-red-400/60"}`}>
                         - {p.name}
                       </div>
                     ))}
@@ -349,17 +349,17 @@ function DraftHistorySection({
       {grouped.map((draft) => (
         <div key={draft.draft_id}>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+            <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
               {draft.season} {draft.type}
             </span>
-            <span className="text-[10px] text-gray-600">{draft.picks.length} picks</span>
+            <span className="text-xs text-gray-600">{draft.picks.length} picks</span>
           </div>
           <div className="flex flex-col gap-0.5">
             {draft.picks.map((pick) => {
               const p = allplayers[pick.player_id];
               return (
                 <div key={`${pick.draft_id}-${pick.pick_no}`} className="flex items-center gap-1.5 text-xs py-0.5">
-                  <span className="w-8 shrink-0 text-right text-gray-600 text-[10px]">
+                  <span className="w-8 shrink-0 text-right text-gray-600 text-xs">
                     {formatDraftPick(pick)}
                   </span>
                   <span className="w-6 shrink-0 text-center font-semibold text-gray-500">
@@ -368,9 +368,9 @@ function DraftHistorySection({
                   <span className="text-gray-200 truncate min-w-0" title={p?.full_name ?? pick.player_id}>
                     {p?.full_name ?? pick.player_id}
                   </span>
-                  {p?.team && <span className="shrink-0 text-gray-600 text-[10px]">{p.team}</span>}
+                  {p?.team && <span className="shrink-0 text-gray-600 text-xs">{p.team}</span>}
                   {pick.amount != null && (
-                    <span className="ml-auto shrink-0 text-[10px] text-green-400">${pick.amount}</span>
+                    <span className="ml-auto shrink-0 text-xs text-green-400">${pick.amount}</span>
                   )}
                 </div>
               );

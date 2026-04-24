@@ -419,7 +419,7 @@ function TradeCards({
         return (
           <div
             key={trade.transaction_id}
-            className="rounded-xl border border-gray-700/80 bg-gray-800/60 overflow-hidden hover:border-gray-600/80 transition"
+            className="rounded-xl border border-gray-700/80 bg-gray-800 overflow-hidden hover:border-gray-600/80 transition"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700/40">
@@ -430,14 +430,14 @@ function TradeCards({
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                <span className={`rounded px-1.5 py-1 text-xs font-medium ${
                   trade.creator === userId
                     ? "bg-blue-500/15 text-blue-400"
                     : "bg-orange-500/15 text-orange-400"
                 }`}>
                   {trade.creator === userId ? "Outgoing" : "Received"}
                 </span>
-                <span className="text-[11px] text-gray-500">
+                <span className="text-xs text-gray-500">
                   {formatTime(trade.status_updated)}
                 </span>
                 <button
@@ -477,7 +477,7 @@ function TradeCards({
                         {side.roster?.username ?? `Roster ${side.roster_id}`}
                       </span>
                       {side.roster && (side.teamValue != null || side.teamRank != null) && (
-                        <span className="text-[10px] text-gray-500 truncate">
+                        <span className="text-xs text-gray-500 truncate">
                           {formatRecord(side.roster)}
                           {side.teamRank != null && (
                             <>
@@ -505,15 +505,15 @@ function TradeCards({
                   <div className="px-4 pb-3 flex gap-3">
                     {side.receiving.length > 0 && (
                       <div>
-                        <span className="text-[10px] uppercase tracking-wider text-green-500/70 font-semibold">Receives</span>
+                        <span className="text-xs uppercase tracking-wider text-green-500/70 font-semibold">Receives</span>
                         <div className="flex flex-col gap-1 mt-1">
                           {side.receiving.map((item, j) => (
                             <span
                               key={j}
-                              className="inline-flex items-center gap-1 rounded-md bg-green-500/10 px-2 py-0.5 text-xs text-green-300"
+                              className="inline-flex items-center gap-1 rounded-md bg-green-500/10 px-2 py-1 text-xs text-green-300"
                             >
                               {item.position && (
-                                <span className="text-[10px] text-green-500/60 font-semibold">{item.position}</span>
+                                <span className="text-xs text-green-500/60 font-semibold">{item.position}</span>
                               )}
                               {item.label}
                             </span>
@@ -524,15 +524,15 @@ function TradeCards({
 
                     {side.giving.length > 0 && (
                       <div>
-                        <span className="text-[10px] uppercase tracking-wider text-red-500/70 font-semibold">Sends</span>
+                        <span className="text-xs uppercase tracking-wider text-red-500/70 font-semibold">Sends</span>
                         <div className="flex flex-col gap-1 mt-1">
                           {side.giving.map((item, j) => (
                             <span
                               key={j}
-                              className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-0.5 text-xs text-red-300"
+                              className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-300"
                             >
                               {item.position && (
-                                <span className="text-[10px] text-red-500/60 font-semibold">{item.position}</span>
+                                <span className="text-xs text-red-500/60 font-semibold">{item.position}</span>
                               )}
                               {item.label}
                             </span>

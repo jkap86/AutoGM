@@ -95,10 +95,10 @@ export function LeagueChatPanel({
                 <div key={msg.message_id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
                   <div className={`max-w-[75%] rounded-lg px-3 py-1.5 ${isUser ? "bg-blue-600/20" : "bg-gray-700/60"}`}>
                     <div className="flex items-baseline gap-2 mb-0.5">
-                      <span className={`text-[10px] font-semibold ${isUser ? "text-blue-400" : "text-gray-300"}`}>
+                      <span className={`text-xs font-semibold ${isUser ? "text-blue-400" : "text-gray-300"}`}>
                         {msg.author_display_name}
                       </span>
-                      <span className="text-[9px] text-gray-600">{formatTime(msg.created)}</span>
+                      <span className="text-xs text-gray-600">{formatTime(msg.created)}</span>
                     </div>
                     {msg.text && <p className="text-xs text-gray-200 whitespace-pre-wrap">{decodeHtmlEntities(msg.text)}</p>}
                   </div>
@@ -135,7 +135,7 @@ export function LeagueChatPanel({
       </div>
       {error && messages.length > 0 && (
         <div className="px-4 pb-2">
-          <span className="text-[10px] text-red-400">{error}</span>
+          <span className="text-xs text-red-400">{error}</span>
         </div>
       )}
     </div>

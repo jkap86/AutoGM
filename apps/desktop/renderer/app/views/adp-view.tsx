@@ -73,7 +73,7 @@ export default function AdpView({
       {/* Header + filter controls */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-col">
-          <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">From</span>
+          <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">From</span>
           <input
             type="date"
             value={filters.startDate ?? ""}
@@ -82,7 +82,7 @@ export default function AdpView({
           />
         </div>
         <div className="flex flex-col">
-          <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">To</span>
+          <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">To</span>
           <input
             type="date"
             value={filters.endDate ?? ""}
@@ -91,7 +91,7 @@ export default function AdpView({
           />
         </div>
         <div className="flex flex-col">
-          <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Type</span>
+          <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Type</span>
           <select
             value={filters.draftType ?? ""}
             onChange={(e) =>
@@ -106,7 +106,7 @@ export default function AdpView({
           </select>
         </div>
         <div className="flex flex-col">
-          <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Min drafts</span>
+          <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Min drafts</span>
           <input
             type="number"
             min={1}
@@ -204,7 +204,7 @@ export default function AdpView({
             </tbody>
           </table>
           {filtered.length > 500 && (
-            <div className="px-3 py-2 text-center text-[10px] text-gray-500 bg-gray-800/40">
+            <div className="px-3 py-2 text-center text-xs text-gray-500 bg-gray-800/40">
               Showing first 500 of {filtered.length} players
             </div>
           )}

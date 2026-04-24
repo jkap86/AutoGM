@@ -87,7 +87,7 @@ function CreatePolls({
 
   return (
     <div className="w-full max-w-xl">
-      <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-5">
+      <div className="rounded-lg border border-gray-700 bg-gray-800 p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-gray-100">New Poll</h3>
           <button
@@ -339,7 +339,7 @@ function PollGroupCard({
   }
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+    <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div>

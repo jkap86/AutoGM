@@ -52,14 +52,14 @@ export function TradeFilterBar({
     (adpFilters.rosterSlotFilters?.length ?? 0)
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-gray-700 bg-gray-800/60 p-2.5 w-full max-w-4xl">
+    <div className="flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800 p-3 w-full max-w-4xl">
       <div className="flex items-center gap-1 flex-wrap">
-        <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold mr-1">Value</span>
+        <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold mr-1">Value</span>
         {VALUE_TYPES.map((v) => (
           <button
             key={v}
             onClick={() => setValueType(v)}
-            className={`rounded px-2 py-0.5 text-[10px] font-medium transition uppercase ${
+            className={`rounded px-2 py-1 text-xs font-medium transition uppercase ${
               valueType === v
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-700/60 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
@@ -68,9 +68,9 @@ export function TradeFilterBar({
             {v}
           </button>
         ))}
-        {loading && <span className="text-[10px] text-gray-500 ml-2">Loading…</span>}
+        {loading && <span className="text-xs text-gray-500 ml-2">Loading…</span>}
         {isAdp && adpStats && !loading && (
-          <span className="text-[10px] text-gray-500 ml-2">
+          <span className="text-xs text-gray-500 ml-2">
             {adpStats.n_drafts} drafts · {adpStats.n_leagues} leagues
           </span>
         )}
@@ -78,49 +78,49 @@ export function TradeFilterBar({
 
       {valueType === 'ktc' ? (
         <div className="flex items-center gap-2">
-          <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold">Date</span>
+          <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Date</span>
           <input
             type="date"
             value={ktcDate}
             max={today}
             onChange={(e) => setKtcDate(e.target.value || today)}
-            className="rounded border border-gray-700 bg-gray-900 px-2 py-0.5 text-[10px] text-gray-200"
+            className="rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200"
           />
         </div>
       ) : (
         <>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold">From</span>
+            <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">From</span>
             <input
               type="date"
               value={adpFilters.startDate ?? ''}
               max={adpFilters.endDate ?? today}
               onChange={(e) => setAdpFilters((p) => ({ ...p, startDate: e.target.value || null }))}
-              className="rounded border border-gray-700 bg-gray-900 px-2 py-0.5 text-[10px] text-gray-200"
+              className="rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200"
             />
-            <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold">To</span>
+            <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">To</span>
             <input
               type="date"
               value={adpFilters.endDate ?? ''}
               min={adpFilters.startDate ?? undefined}
               max={today}
               onChange={(e) => setAdpFilters((p) => ({ ...p, endDate: e.target.value || null }))}
-              className="rounded border border-gray-700 bg-gray-900 px-2 py-0.5 text-[10px] text-gray-200"
+              className="rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200"
             />
-            <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold">Type</span>
+            <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Type</span>
             <select
               value={adpFilters.draftType ?? ''}
               onChange={(e) =>
                 setAdpFilters((p) => ({ ...p, draftType: (e.target.value || null) as AdpFilters['draftType'] }))
               }
-              className="rounded border border-gray-700 bg-gray-900 px-2 py-0.5 text-[10px] text-gray-200"
+              className="rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200"
             >
               <option value="">Any</option>
               <option value="snake">Snake</option>
               <option value="auction">Auction</option>
               <option value="linear">Linear</option>
             </select>
-            <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold">Min</span>
+            <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Min</span>
             <input
               type="number"
               min={1}
@@ -128,11 +128,11 @@ export function TradeFilterBar({
               onChange={(e) =>
                 setAdpFilters((p) => ({ ...p, minDrafts: Math.max(1, Number(e.target.value) || 1) }))
               }
-              className="w-12 rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200 text-center"
+              className="w-16 rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200 text-center"
             />
             <button
               onClick={() => setAdvancedOpen(true)}
-              className="rounded border border-gray-700 bg-gray-900 px-2 py-0.5 text-[10px] font-medium text-gray-300 hover:bg-gray-700 transition"
+              className="rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs font-medium text-gray-300 hover:bg-gray-700 transition"
             >
               Advanced{advancedCount > 0 && <span className="ml-1 text-blue-400">({advancedCount})</span>}
             </button>
@@ -141,12 +141,12 @@ export function TradeFilterBar({
       )}
 
       <div className="flex items-center gap-1 flex-wrap">
-        <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold mr-1">Pos</span>
+        <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold mr-1">Pos</span>
         {POSITION_FILTERS.map((pos) => (
           <button
             key={pos}
             onClick={() => setPositionFilter(pos)}
-            className={`rounded px-2 py-0.5 text-[10px] font-medium transition ${
+            className={`rounded px-2 py-1 text-xs font-medium transition ${
               positionFilter === pos
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-700/60 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
@@ -158,10 +158,10 @@ export function TradeFilterBar({
       </div>
 
       <div className="flex items-center gap-1 flex-wrap">
-        <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold mr-1">Top</span>
+        <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold mr-1">Top</span>
         <button
           onClick={() => setTopN(0)}
-          className={`rounded px-2 py-0.5 text-[10px] font-medium transition ${
+          className={`rounded px-2 py-1 text-xs font-medium transition ${
             topN === 0
               ? 'bg-blue-600 text-white'
               : 'bg-gray-700/60 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
@@ -178,7 +178,7 @@ export function TradeFilterBar({
             const v = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value))
             setTopN(v)
           }}
-          className="w-14 rounded bg-gray-700/60 border border-gray-600 px-2 py-0.5 text-[10px] text-gray-200 text-center focus:border-blue-500 focus:outline-none"
+          className="w-16 rounded bg-gray-700/60 border border-gray-600 px-2 py-1 text-xs text-gray-200 text-center focus:border-blue-500 focus:outline-none"
         />
       </div>
 
@@ -188,7 +188,7 @@ export function TradeFilterBar({
         <ThresholdInput label="Ptr Value" filter={partnerValueFilter} setFilter={setPartnerValueFilter} />
         <ThresholdInput label="Ptr Rank" filter={partnerRankFilter} setFilter={setPartnerRankFilter} />
         {countInfo && countInfo.visible !== countInfo.total && (
-          <span className="text-[10px] text-gray-500 ml-auto">
+          <span className="text-xs text-gray-500 ml-auto">
             Showing {countInfo.visible} of {countInfo.total}
           </span>
         )}
@@ -216,11 +216,11 @@ function ThresholdInput({
 }) {
   return (
     <div className="flex items-center gap-1">
-      <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold">{label}</span>
+      <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">{label}</span>
       <select
         value={filter.op}
         onChange={(e) => setFilter((p) => ({ ...p, op: e.target.value as ThresholdFilter['op'] }))}
-        className="rounded border border-gray-700 bg-gray-900 px-1 py-0.5 text-[10px] text-gray-200"
+        className="rounded border border-gray-700 bg-gray-900 px-1 py-1 text-xs text-gray-200"
       >
         <option value=">=">&ge;</option>
         <option value="<=">&le;</option>
@@ -237,7 +237,7 @@ function ThresholdInput({
             value: e.target.value === '' ? null : Number(e.target.value),
           }))
         }
-        className="w-16 rounded bg-gray-700/60 border border-gray-600 px-2 py-0.5 text-[10px] text-gray-200 text-center focus:border-blue-500 focus:outline-none"
+        className="w-20 rounded bg-gray-700/60 border border-gray-600 px-2 py-1 text-xs text-gray-200 text-center focus:border-blue-500 focus:outline-none"
       />
     </div>
   )

@@ -112,7 +112,7 @@ export function PlayerCombobox({
         <ul
           ref={listRef}
           role="listbox"
-          className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded border border-gray-700 bg-gray-900 shadow-lg"
+          className="absolute z-10 mt-1 max-h-80 w-full overflow-auto rounded border border-gray-700 bg-gray-900 shadow-lg"
         >
           {matches.map((player_id, i) => {
             const p = allplayers[player_id];

@@ -297,7 +297,7 @@ export function PotentialTrades({
             className={`rounded-xl border overflow-hidden transition cursor-pointer ${
               isSelected
                 ? "border-yellow-500 bg-yellow-500/5 shadow-md shadow-yellow-500/10"
-                : "border-gray-700/80 bg-gray-800/60 hover:border-gray-600/80"
+                : "border-gray-700/80 bg-gray-800 hover:border-gray-600/80"
             }`}
             onClick={toggleSelect}
           >
@@ -306,7 +306,7 @@ export function PotentialTrades({
               <div className="flex items-center gap-2.5 min-w-0">
                 <Avatar hash={league.avatar} alt={league.name} size={20} />
                 <span title={league.name} className="text-sm font-medium text-gray-200 truncate">{league.name}</span>
-                <span className="text-[11px] text-gray-500 truncate">
+                <span className="text-xs text-gray-500 truncate">
                   {league.season} · {typeLabel} · {totalTeams} teams
                 </span>
               </div>
@@ -342,7 +342,7 @@ export function PotentialTrades({
                       <span title={side.isUser ? "You" : side.roster.username} className="text-sm font-medium text-gray-100 truncate">
                         {side.isUser ? "You" : side.roster.username}
                       </span>
-                      <span className="text-[10px] text-gray-500 truncate">
+                      <span className="text-xs text-gray-500 truncate">
                         {formatRecord(side.roster)}
                         {side.rank != null && (
                           <>
@@ -369,7 +369,7 @@ export function PotentialTrades({
                   <div className="px-4 pb-3 flex gap-3 flex-wrap">
                     {side.receiving.length > 0 && (
                       <div className="min-w-0">
-                        <span className="text-[10px] uppercase tracking-wider text-green-500/70 font-semibold">Receives</span>
+                        <span className="text-xs uppercase tracking-wider text-green-500/70 font-semibold">Receives</span>
                         <div className="flex flex-col gap-1 mt-1">
                           {side.receiving.map((item, j) => {
                             const hint = item.isTarget ? `Liked by this roster` : item.isOtb ? `On the trade block` : undefined;
@@ -377,7 +377,7 @@ export function PotentialTrades({
                               <span
                                 key={j}
                                 title={hint}
-                                className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs ${
+                                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${
                                   item.isTarget
                                     ? "bg-pink-500/15 text-pink-200 ring-1 ring-pink-400/50"
                                     : item.isOtb
@@ -386,7 +386,7 @@ export function PotentialTrades({
                                 }`}
                               >
                                 {item.position && (
-                                  <span className={`text-[10px] font-semibold ${
+                                  <span className={`text-xs font-semibold ${
                                     item.isTarget ? "text-pink-300/80" : item.isOtb ? "text-amber-300/80" : "text-green-500/60"
                                   }`}>
                                     {item.position}
@@ -394,7 +394,7 @@ export function PotentialTrades({
                                 )}
                                 <span title={item.label} className="truncate">{item.label}</span>
                                 {item.isTarget && <span aria-hidden>♥</span>}
-                                {item.isOtb && !item.isTarget && <span aria-hidden className="text-[10px]">OTB</span>}
+                                {item.isOtb && !item.isTarget && <span aria-hidden className="text-xs">OTB</span>}
                               </span>
                             );
                           })}
@@ -404,23 +404,23 @@ export function PotentialTrades({
 
                     {side.giving.length > 0 && (
                       <div className="min-w-0">
-                        <span className="text-[10px] uppercase tracking-wider text-red-500/70 font-semibold">Sends</span>
+                        <span className="text-xs uppercase tracking-wider text-red-500/70 font-semibold">Sends</span>
                         <div className="flex flex-col gap-1 mt-1">
                           {side.giving.map((item, j) => (
                             <span
                               key={j}
                               title={item.isOtb ? `On the trade block` : undefined}
-                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs ${
+                              className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${
                                 item.isOtb
                                   ? "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/50"
                                   : "bg-red-500/10 text-red-300"
                               }`}
                             >
                               {item.position && (
-                                <span className={`text-[10px] font-semibold ${item.isOtb ? "text-amber-300/80" : "text-red-500/60"}`}>{item.position}</span>
+                                <span className={`text-xs font-semibold ${item.isOtb ? "text-amber-300/80" : "text-red-500/60"}`}>{item.position}</span>
                               )}
                               <span title={item.label} className="truncate">{item.label}</span>
-                              {item.isOtb && <span aria-hidden className="text-[10px]">OTB</span>}
+                              {item.isOtb && <span aria-hidden className="text-xs">OTB</span>}
                             </span>
                           ))}
                         </div>
@@ -480,7 +480,7 @@ export function PotentialTrades({
                                 return updated;
                               });
                             }}
-                            className="text-[10px] text-yellow-200 hover:text-yellow-100 underline"
+                            className="text-xs text-yellow-200 hover:text-yellow-100 underline"
                           >
                             Reset to global
                           </button>

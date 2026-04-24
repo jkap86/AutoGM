@@ -432,12 +432,12 @@ export default function TradesView({
             >
               {label}
               {t !== "create" && count > 0 && (
-                <span className={`ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full px-1 text-[10px] font-semibold ${badgeColor}`}>
+                <span className={`ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full px-1 text-xs font-semibold ${badgeColor}`}>
                   {count}
                 </span>
               )}
               {tab === t && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-t" />
+                <span className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500 rounded-t" />
               )}
             </button>
           );
@@ -526,7 +526,7 @@ export default function TradesView({
       {/* Trade builder */}
       <div className="flex gap-4 w-full max-w-3xl">
         {/* Give side */}
-        <div className="flex-1 flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+        <div className="flex-1 flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800 p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-red-400">
             You give
           </h3>
@@ -561,10 +561,10 @@ export default function TradesView({
                 return (
                   <span
                     key={player_id}
-                    className="inline-flex items-center gap-1 rounded-full bg-red-900/30 border border-red-800/50 px-2.5 py-0.5 text-xs text-red-300"
+                    className="inline-flex items-center gap-1 rounded-full bg-red-900/30 border border-red-800/50 px-2.5 py-1 text-xs text-red-300"
                   >
                     {allplayers[player_id]?.full_name || player_id}
-                    {value > 0 && <span className="text-red-400/70 text-[10px]">{value}</span>}
+                    {value > 0 && <span className="text-red-400/70 text-xs">{value}</span>}
                     <button
                       onClick={() =>
                         setPlayerstoGive((prev) =>
@@ -583,10 +583,10 @@ export default function TradesView({
                 return (
                   <span
                     key={pick_id}
-                    className="inline-flex items-center gap-1 rounded-full bg-red-900/30 border border-red-800/50 px-2.5 py-0.5 text-xs text-red-300"
+                    className="inline-flex items-center gap-1 rounded-full bg-red-900/30 border border-red-800/50 px-2.5 py-1 text-xs text-red-300"
                   >
                     {pick_id}
-                    {value > 0 && <span className="text-red-400/70 text-[10px]">{value}</span>}
+                    {value > 0 && <span className="text-red-400/70 text-xs">{value}</span>}
                     <button
                       onClick={() =>
                         setPicksToGive((prev) =>
@@ -604,7 +604,7 @@ export default function TradesView({
           )}
           {(playersToGive.length > 0 || picksToGive.length > 0) && (
             <div className="flex justify-between items-center border-t border-gray-700/50 pt-2 mt-1">
-              <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Total KTC</span>
+              <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total KTC</span>
               <span className="text-sm font-semibold text-red-400">
                 {(
                   playersToGive.reduce((sum, pid) => sum + (ktc[pid] ?? 0), 0) +
@@ -616,7 +616,7 @@ export default function TradesView({
         </div>
 
         {/* Receive side */}
-        <div className="flex-1 flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+        <div className="flex-1 flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800 p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-green-400">
             You receive
           </h3>
@@ -651,10 +651,10 @@ export default function TradesView({
                 return (
                   <span
                     key={player_id}
-                    className="inline-flex items-center gap-1 rounded-full bg-green-900/30 border border-green-800/50 px-2.5 py-0.5 text-xs text-green-300"
+                    className="inline-flex items-center gap-1 rounded-full bg-green-900/30 border border-green-800/50 px-2.5 py-1 text-xs text-green-300"
                   >
                     {allplayers[player_id]?.full_name || player_id}
-                    {value > 0 && <span className="text-green-400/70 text-[10px]">{value}</span>}
+                    {value > 0 && <span className="text-green-400/70 text-xs">{value}</span>}
                     <button
                       onClick={() =>
                         setPlayersToReceive((prev) =>
@@ -673,10 +673,10 @@ export default function TradesView({
                 return (
                   <span
                     key={pick_id}
-                    className="inline-flex items-center gap-1 rounded-full bg-green-900/30 border border-green-800/50 px-2.5 py-0.5 text-xs text-green-300"
+                    className="inline-flex items-center gap-1 rounded-full bg-green-900/30 border border-green-800/50 px-2.5 py-1 text-xs text-green-300"
                   >
                     {pick_id}
-                    {value > 0 && <span className="text-green-400/70 text-[10px]">{value}</span>}
+                    {value > 0 && <span className="text-green-400/70 text-xs">{value}</span>}
                     <button
                       onClick={() =>
                         setPicksToReceive((prev) =>
@@ -694,7 +694,7 @@ export default function TradesView({
           )}
           {(playersToReceive.length > 0 || picksToReceive.length > 0) && (
             <div className="flex justify-between items-center border-t border-gray-700/50 pt-2 mt-1">
-              <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Total KTC</span>
+              <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total KTC</span>
               <span className="text-sm font-semibold text-green-400">
                 {(
                   playersToReceive.reduce((sum, pid) => sum + (ktc[pid] ?? 0), 0) +

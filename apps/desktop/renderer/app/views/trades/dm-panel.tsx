@@ -135,10 +135,10 @@ export function DmPanel({ userId, partnerId, partnerName, leagues }: { userId: s
             <div key={msg.message_id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
               <div className={`max-w-[75%] rounded-lg px-3 py-1.5 ${isUser ? "bg-blue-600/20" : "bg-gray-700/60"}`}>
                 <div className="flex items-baseline gap-2 mb-0.5">
-                  <span className={`text-[10px] font-semibold ${isUser ? "text-blue-400" : "text-gray-300"}`}>
+                  <span className={`text-xs font-semibold ${isUser ? "text-blue-400" : "text-gray-300"}`}>
                     {msg.author_display_name}
                   </span>
-                  <span className="text-[9px] text-gray-600">{formatTime(msg.created)}</span>
+                  <span className="text-xs text-gray-600">{formatTime(msg.created)}</span>
                 </div>
                 {msg.text && <p className="text-xs text-gray-200 whitespace-pre-wrap">{decodeHtmlEntities(msg.text)}</p>}
                 {att && <AttachmentView attachment={att} leagues={leagues} />}
@@ -176,7 +176,7 @@ export function DmPanel({ userId, partnerId, partnerName, leagues }: { userId: s
       </div>
       {error && messages.length > 0 && (
         <div className="px-4 pb-2">
-          <span className="text-[10px] text-red-400">{error}</span>
+          <span className="text-xs text-red-400">{error}</span>
         </div>
       )}
     </div>
@@ -244,8 +244,8 @@ function AttachmentView({ attachment, leagues }: { attachment: Record<string, un
   const leagueId = attachment.league_id as string | undefined;
   if (txByRoster) {
     return (
-      <div className="mt-1 rounded bg-gray-800/60 px-2 py-1.5">
-        <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold">Trade Proposal</span>
+      <div className="mt-1 rounded bg-gray-800 px-2 py-1.5">
+        <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Trade Proposal</span>
         <div className="flex flex-col gap-2 mt-1">
           {Object.entries(txByRoster).map(([rid, side]) => {
             const name = side.user?.display_name ?? `Roster ${rid}`;
@@ -255,24 +255,24 @@ function AttachmentView({ attachment, leagues }: { attachment: Record<string, un
             const droppedPicks = side.dropped_picks ?? [];
             return (
               <div key={rid}>
-                <span className="text-[10px] font-semibold text-gray-300">{name}</span>
+                <span className="text-xs font-semibold text-gray-300">{name}</span>
                 {adds.map((p, i) => (
-                  <div key={`a${i}`} className="text-[11px] text-green-400 ml-2">
-                    + {p.first_name} {p.last_name} <span className="text-green-600 text-[10px]">{p.position} - {p.team}</span>
+                  <div key={`a${i}`} className="text-xs text-green-400 ml-2">
+                    + {p.first_name} {p.last_name} <span className="text-green-600 text-xs">{p.position} - {p.team}</span>
                   </div>
                 ))}
                 {drops.map((p, i) => (
-                  <div key={`d${i}`} className="text-[11px] text-red-400 ml-2">
-                    − {p.first_name} {p.last_name} <span className="text-red-600 text-[10px]">{p.position} - {p.team}</span>
+                  <div key={`d${i}`} className="text-xs text-red-400 ml-2">
+                    − {p.first_name} {p.last_name} <span className="text-red-600 text-xs">{p.position} - {p.team}</span>
                   </div>
                 ))}
                 {addedPicks.map((pk, i) => (
-                  <div key={`ap${i}`} className="text-[11px] text-blue-400 ml-2">
+                  <div key={`ap${i}`} className="text-xs text-blue-400 ml-2">
                     + {formatPickLabel(pk, rid, usersMap, leagues, leagueId)}
                   </div>
                 ))}
                 {droppedPicks.map((pk, i) => (
-                  <div key={`dp${i}`} className="text-[11px] text-orange-400 ml-2">
+                  <div key={`dp${i}`} className="text-xs text-orange-400 ml-2">
                     − {formatPickLabel(pk, rid, usersMap, leagues, leagueId)}
                   </div>
                 ))}
@@ -288,13 +288,13 @@ function AttachmentView({ attachment, leagues }: { attachment: Record<string, un
   if (prompt || attachment.poll_id) {
     const choices = attachment.choices as string[] | undefined;
     return (
-      <div className="mt-1 rounded bg-gray-800/60 px-2 py-1.5">
-        <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold">Poll</span>
-        {prompt && <p className="text-[11px] text-gray-200 mt-0.5">{prompt}</p>}
+      <div className="mt-1 rounded bg-gray-800 px-2 py-1.5">
+        <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Poll</span>
+        {prompt && <p className="text-xs text-gray-200 mt-0.5">{prompt}</p>}
         {choices && (
           <div className="flex flex-col gap-0.5 mt-1">
             {choices.map((c, i) => (
-              <span key={i} className="text-[11px] text-gray-400">• {c}</span>
+              <span key={i} className="text-xs text-gray-400">• {c}</span>
             ))}
           </div>
         )}
@@ -331,11 +331,11 @@ function AttachmentView({ attachment, leagues }: { attachment: Record<string, un
 
   const type = attachment.type as string | undefined;
   return (
-    <div className="mt-1 rounded bg-gray-800/60 px-2 py-1.5">
-      <span className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold">
+    <div className="mt-1 rounded bg-gray-800 px-2 py-1.5">
+      <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
         {type ?? "Attachment"}
       </span>
-      <p className="text-[10px] text-gray-500 mt-0.5 break-all">
+      <p className="text-xs text-gray-500 mt-0.5 break-all">
         {JSON.stringify(attachment, null, 0).slice(0, 200)}
       </p>
     </div>

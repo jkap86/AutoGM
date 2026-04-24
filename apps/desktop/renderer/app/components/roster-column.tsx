@@ -72,7 +72,7 @@ export function RosterColumn({
     if (!showValue) return null;
     const v = valueLookup![key];
     return (
-      <span className="ml-auto shrink-0 w-12 text-right text-[10px] font-medium text-blue-400">
+      <span className="ml-auto shrink-0 w-12 text-right text-xs font-medium text-blue-400">
         {v != null ? fmt(v) : "—"}
       </span>
     );
@@ -97,7 +97,7 @@ export function RosterColumn({
           {name}
         </span>
         {team && (
-          <span className="shrink-0 text-gray-600 text-[10px]">{team}</span>
+          <span className="shrink-0 text-gray-600 text-xs">{team}</span>
         )}
         {renderValueCell(id)}
       </div>
@@ -106,13 +106,13 @@ export function RosterColumn({
 
   return (
     <div className="flex flex-col min-w-0">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
         {label}
       </p>
       <div className="max-h-72 overflow-y-auto pr-1 flex flex-col gap-1.5">
         {starters.length > 0 && (
           <div>
-            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
+            <p className="text-xs text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
               Starters
             </p>
             {starters.map((id, i) => {
@@ -124,7 +124,7 @@ export function RosterColumn({
 
         {sortedBench.length > 0 && (
           <div>
-            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
+            <p className="text-xs text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
               Bench
             </p>
             {sortedBench.map((id) => renderPlayer(id))}
@@ -133,7 +133,7 @@ export function RosterColumn({
 
         {taxi.length > 0 && (
           <div>
-            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
+            <p className="text-xs text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
               Taxi
             </p>
             {taxi.map((id) => renderPlayer(id))}
@@ -142,7 +142,7 @@ export function RosterColumn({
 
         {reserve.length > 0 && (
           <div>
-            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
+            <p className="text-xs text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
               IR
             </p>
             {reserve.map((id) => renderPlayer(id))}
@@ -151,7 +151,7 @@ export function RosterColumn({
 
         {sortedPicks.length > 0 && (
           <div>
-            <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
+            <p className="text-xs text-gray-600 uppercase tracking-wider mb-0.5 px-1.5">
               Draft Picks
             </p>
             {sortedPicks.map((pick) => {
