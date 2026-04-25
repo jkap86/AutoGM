@@ -15,7 +15,7 @@ packages/shared TypeScript library shared between apps
 - **Node.js** >= 18
 - **pnpm** >= 10
 - **PostgreSQL** (desktop only, for KTC/ADP features)
-- **Playwright** Chromium (installed automatically for desktop login flow)
+- **Google Chrome** (desktop login uses `playwright-core` which requires a locally installed browser; set `PW_CHANNEL=chrome` or `PW_CHANNEL=chromium`)
 
 ## Setup
 
@@ -32,7 +32,7 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/sleepier
 ALLOWLIST_URL=https://example.com/allowlist.json
 LOG_LEVEL=info          # debug | info | warn | error
 LOGIN_URL=              # optional, defaults to https://sleeper.com/login
-PW_CHANNEL=             # optional, chrome or chromium for Playwright
+PW_CHANNEL=chrome       # browser channel for playwright-core (chrome, chromium, msedge)
 ```
 
 `DATABASE_URL` is only required when using KTC/ADP features. The app starts without it.

@@ -12,6 +12,7 @@ const ALLOWED_CHANNELS = new Set([
   'leagues:fetch',
   'allplayers:fetch',
   'graphql',
+  'polls:create',
   'polls:list',
   'polls:add',
   'polls:remove',

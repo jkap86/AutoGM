@@ -14,7 +14,7 @@ import type { StoredPoll } from "./lib/poll-store";
 import type { AdpFilters } from "./helpers/fetch-adp";
 import { checkAccess } from "./lib/access";
 import {
-  findRecent,
+  findRecentRecord,
   recordOperation,
   tradeOperationKey,
   pollOperationKey,
@@ -128,9 +128,9 @@ ipcMain.handle(
     if (args.name === "proposeTrade") {
       const vars = args.vars as QueryMap["proposeTrade"]["vars"];
       const opKey = tradeOperationKey(vars);
-      const existing = findRecent(opKey);
+      const existing = findRecentRecord(opKey);
       if (existing) {
-        throw new Error(`Duplicate trade blocked (recent transaction: ${existing})`);
+        throw new Error(`Duplicate trade blocked (recent transaction: ${existing.result_id})`);
       }
       const result = await runQuery(args.name, args.vars as never);
       const txId = (result as QueryMap["proposeTrade"]["result"]).propose_trade?.transaction_id ?? null;
@@ -138,30 +138,72 @@ ipcMain.handle(
       return result;
     }
 
-    // Idempotency guard for createPoll
-    if (args.name === "createPoll") {
-      const vars = args.vars as QueryMap["createPoll"]["vars"];
-      // createPoll vars don't include league_id/group_id/poll_type/privacy directly —
-      // they are in k_metadata/v_metadata. Build a key from the stable fields.
-      const opKey = pollOperationKey({
-        league_id: "",
-        group_id: "",
-        prompt: vars.prompt,
-        choices: vars.choices,
-        poll_type: "",
-        privacy: "",
-      });
-      const existing = findRecent(opKey);
-      if (existing) {
-        throw new Error(`Duplicate poll blocked (recent poll: ${existing})`);
-      }
-      const result = await runQuery(args.name, args.vars as never);
-      const pollId = (result as QueryMap["createPoll"]["result"]).create_poll?.poll_id ?? null;
-      recordOperation(opKey, pollId);
-      return result;
+    return runQuery(args.name, args.vars as never);
+  },
+);
+
+ipcMain.handle(
+  "polls:create",
+  async (
+    _event,
+    args: {
+      prompt: string;
+      choices: string[];
+      k_metadata: string[];
+      v_metadata: string[];
+      group_id: string;
+      league_id: string;
+      text?: string;
+    },
+  ) => {
+    await requireAccess();
+
+    const poll_type = args.v_metadata[0] ?? "single";
+    const privacy = args.v_metadata[1] ?? "public";
+
+    const opKey = pollOperationKey({
+      league_id: args.league_id,
+      group_id: args.group_id,
+      prompt: args.prompt,
+      choices: args.choices,
+      poll_type,
+      privacy,
+    });
+    const existing = findRecentRecord(opKey);
+    if (existing) {
+      throw new Error(`Duplicate poll blocked (recent poll: ${existing.result_id})`);
     }
 
-    return runQuery(args.name, args.vars as never);
+    const pollResult = await runQuery("createPoll", {
+      prompt: args.prompt,
+      choices: args.choices,
+      k_metadata: args.k_metadata,
+      v_metadata: args.v_metadata,
+    });
+
+    const poll_id = pollResult.create_poll.poll_id;
+
+    const messageResult = await runQuery("createPollMessage", {
+      parent_id: args.league_id,
+      attachment_id: poll_id,
+      text: args.text ?? "",
+    });
+
+    addPoll({
+      poll_id,
+      group_id: args.group_id,
+      league_id: args.league_id,
+      prompt: args.prompt,
+      choices: args.choices,
+      choices_order: pollResult.create_poll.choices_order as string[],
+      poll_type,
+      privacy,
+      created_at: Date.now(),
+    });
+
+    recordOperation(opKey, poll_id);
+
+    return { poll_id, message: messageResult };
   },
 );
 

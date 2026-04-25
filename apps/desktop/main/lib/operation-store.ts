@@ -1,7 +1,7 @@
 import Store from "electron-store";
 import crypto from "crypto";
 
-type OperationRecord = {
+export type OperationRecord = {
   key: string;
   result_id: string | null;
   created_at: number;
@@ -44,12 +44,11 @@ function prune(): OperationRecord[] {
 
 /**
  * Check if an operation was recently executed.
- * Returns the existing result_id if duplicate, or null if new.
+ * Returns the full record if a duplicate exists, or null if new.
  */
-export function findRecent(key: string): string | null {
+export function findRecentRecord(key: string): OperationRecord | null {
   const ops = prune();
-  const found = ops.find((o) => o.key === key);
-  return found?.result_id ?? null;
+  return ops.find((o) => o.key === key) ?? null;
 }
 
 /** Record a completed operation. */
@@ -69,7 +68,11 @@ export function recordOperation(key: string, resultId: string | null): void {
   getStore().set("operations", ops);
 }
 
-/** Build an idempotency key for a proposeTrade mutation. */
+/**
+ * Build an idempotency key for a proposeTrade mutation.
+ * k_adds/v_adds and k_drops/v_drops are normalized as paired tuples
+ * so independent sorting doesn't scramble the player-to-roster mapping.
+ */
 export function tradeOperationKey(vars: {
   league_id: string;
   k_adds: string[];
@@ -78,16 +81,26 @@ export function tradeOperationKey(vars: {
   v_drops: number[];
   draft_picks?: string[];
   waiver_budget?: string[];
+  reject_transaction_id?: string;
+  reject_transaction_leg?: number;
 }): string {
+  // Pair keys with values, then sort by key for deterministic ordering
+  const adds = vars.k_adds
+    .map((k, i) => [k, vars.v_adds[i]] as const)
+    .sort(([a], [b]) => a.localeCompare(b));
+  const drops = vars.k_drops
+    .map((k, i) => [k, vars.v_drops[i]] as const)
+    .sort(([a], [b]) => a.localeCompare(b));
+
   return makeKey([
     "proposeTrade",
     vars.league_id,
-    [...vars.k_adds].sort(),
-    [...vars.v_adds].sort(),
-    [...vars.k_drops].sort(),
-    [...vars.v_drops].sort(),
+    adds,
+    drops,
     [...(vars.draft_picks ?? [])].sort(),
     [...(vars.waiver_budget ?? [])].sort(),
+    vars.reject_transaction_id ?? null,
+    vars.reject_transaction_leg ?? null,
   ]);
 }
 
