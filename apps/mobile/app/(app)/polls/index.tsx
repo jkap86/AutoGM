@@ -10,16 +10,13 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native'
-import { useAuth, CURRENT_SEASON } from '@sleepier/shared'
+import { randomId } from '@sleepier/shared'
 import type { LeagueDetailed } from '@sleepier/shared'
-import { useLeagues } from '../../../src/hooks/use-leagues'
+import { useLeagueCache } from '../../../src/league-cache'
 import { useCreatePoll } from '../../../src/hooks/use-create-poll'
 import { usePolls, addPoll, type PollGroup } from '../../../src/hooks/use-polls'
 import { ErrorBoundary } from '../../../src/components/error-boundary'
 import { colors } from '../../../src/theme'
-import 'react-native-get-random-values'
-
-const SEASON = CURRENT_SEASON
 
 // ---- Create Poll Form ----
 
@@ -53,7 +50,7 @@ function CreatePollForm({
   const handleSubmit = useCallback(async () => {
     if (!canSubmit) return
     const validChoices = choices.filter((c) => c.trim())
-    const groupId = crypto.randomUUID()
+    const groupId = randomId()
     for (let i = 0; i < selected.length; i++) {
       const result = await createPoll({
         group_id: groupId,
@@ -278,11 +275,7 @@ function PollGroupCard({
 // ---- Main Screen ----
 
 function PollsContent() {
-  const { session } = useAuth()
-  const { leagues, loading: leaguesLoading } = useLeagues({
-    user_id: session?.user_id,
-    season: SEASON,
-  })
+  const { leagues, loading: leaguesLoading } = useLeagueCache()
   const { groups, loading, error, refetch, removeGroup } = usePolls()
   const [showCreate, setShowCreate] = useState(false)
 

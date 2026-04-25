@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { randomId } from "@sleepier/shared";
 import type { LeagueDetailed } from "@sleepier/shared";
 import { useCreatePoll } from "../../hooks/use-create-poll";
 import { usePolls, PollGroup } from "../../hooks/use-polls";
@@ -66,7 +67,7 @@ function CreatePolls({
     e.preventDefault();
     if (!canSubmit) return;
     const validChoices = choices.filter((c) => c.trim() !== "");
-    const groupId = crypto.randomUUID();
+    const groupId = randomId();
     for (let i = 0; i < selectedLeagues.length; i++) {
       await createPoll({
         group_id: groupId,

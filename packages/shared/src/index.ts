@@ -23,6 +23,7 @@ export { BROWSER_HEADERS } from './browser-headers'
 export { CURRENT_SEASON } from './config'
 
 // Lib
+export { randomId } from './lib/random-id'
 export { getPickId, deriveCollections } from './lib/leagues'
 export { buildPlayerAttachment, buildUserAttachment } from './lib/trade-helpers'
 

@@ -8,19 +8,18 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native'
-import { useAuth, CURRENT_SEASON } from '@sleepier/shared'
+import { useAuth } from '@sleepier/shared'
 import type { Allplayer, LeagueDetailed } from '@sleepier/shared'
-import { useLeagues } from '../../../src/hooks/use-leagues'
+import { useLeagueCache } from '../../../src/league-cache'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import {
   useTradesByStatus,
   TradeWithLeague,
 } from '../../../src/hooks/use-trades-by-status'
-import { mobileDataClient } from '../../../src/data-client'
+import { useTradeAction } from '../../../src/hooks/use-trade-action'
 import { ErrorBoundary } from '../../../src/components/error-boundary'
 import { colors } from '../../../src/theme'
 
-const SEASON = CURRENT_SEASON
 type Tab = 'pending' | 'completed' | 'rejected'
 
 function TradeCard({
@@ -50,41 +49,33 @@ function TradeCard({
 
   const date = new Date(trade.status_updated).toLocaleDateString()
 
-  const [acting, setActing] = useState(false)
+  const { acting, execute } = useTradeAction()
+
+  const tradeVars = {
+    league_id: trade.league_id,
+    transaction_id: trade.transaction_id,
+    leg: trade.leg,
+  }
 
   const handleAccept = useCallback(async () => {
     if (!userRosterId) return
-    setActing(true)
     try {
-      await mobileDataClient.graphql('acceptTrade', {
-        league_id: trade.league_id,
-        transaction_id: trade.transaction_id,
-        leg: trade.leg,
-      })
+      await execute('acceptTrade', tradeVars)
       onAction?.()
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e))
-    } finally {
-      setActing(false)
     }
-  }, [trade, userRosterId, onAction])
+  }, [execute, tradeVars, userRosterId, onAction])
 
   const handleReject = useCallback(async () => {
     if (!userRosterId) return
-    setActing(true)
     try {
-      await mobileDataClient.graphql('rejectTrade', {
-        league_id: trade.league_id,
-        transaction_id: trade.transaction_id,
-        leg: trade.leg,
-      })
+      await execute('rejectTrade', tradeVars)
       onAction?.()
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e))
-    } finally {
-      setActing(false)
     }
-  }, [trade, userRosterId, onAction])
+  }, [execute, tradeVars, userRosterId, onAction])
 
   const showActions = isPending && isReceived && userRosterId != null
 
@@ -164,10 +155,7 @@ function TradeCard({
 
 function TradesContent() {
   const { session } = useAuth()
-  const { leagues, loading: leaguesLoading } = useLeagues({
-    user_id: session?.user_id,
-    season: SEASON,
-  })
+  const { leagues, loading: leaguesLoading } = useLeagueCache()
   const { allplayers } = useAllPlayers()
   const [tab, setTab] = useState<Tab>('pending')
 

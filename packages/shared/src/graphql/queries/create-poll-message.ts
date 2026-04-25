@@ -1,4 +1,5 @@
 import { gqlRequest } from "../client";
+import { randomId } from "../../lib/random-id";
 import type { CreatePollMessageVars, CreatePollMessageResult } from "./types";
 
 const MUTATION = `
@@ -26,7 +27,7 @@ export async function createPollMessage(
     MUTATION,
     {
       parent_id: vars.parent_id,
-      client_id: crypto.randomUUID(),
+      client_id: randomId(),
       text: vars.text,
       attachment_id: vars.attachment_id,
     },

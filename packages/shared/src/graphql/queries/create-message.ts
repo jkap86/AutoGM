@@ -1,4 +1,5 @@
 import { gqlRequest } from "../client";
+import { randomId } from "../../lib/random-id";
 import type { CreateMessageVars, CreateMessageResult } from "./types";
 
 const MUTATION = `
@@ -29,7 +30,7 @@ export async function createMessage(
     MUTATION,
     {
       parent_id: vars.parent_id,
-      client_id: crypto.randomUUID(),
+      client_id: randomId(),
       text: vars.text,
       attachment_type: vars.attachment_type,
       k_attachment_data: vars.k_attachment_data,

@@ -7,6 +7,7 @@ Fantasy football automation tool built on top of the [Sleeper](https://sleeper.c
 ```
 apps/desktop    Electron + Next.js desktop app (Nextron)
 apps/mobile     React Native mobile app (Expo)
+apps/web        Next.js landing page + KTC/ADP API
 packages/shared TypeScript library shared between apps
 ```
 
@@ -14,7 +15,7 @@ packages/shared TypeScript library shared between apps
 
 - **Node.js** >= 18
 - **pnpm** >= 10
-- **PostgreSQL** (desktop only, for KTC/ADP features)
+- **PostgreSQL** (desktop and web API, for KTC/ADP features)
 - **Google Chrome** (desktop login uses `playwright-core` which requires a locally installed browser; set `PW_CHANNEL=chrome` or `PW_CHANNEL=chromium`)
 
 ## Setup
@@ -23,9 +24,17 @@ packages/shared TypeScript library shared between apps
 pnpm install
 ```
 
+**Important:** `@sleepier/shared` must be built before running any app:
+
+```bash
+pnpm --filter @sleepier/shared build
+```
+
+This happens automatically via Turbo when using `pnpm dev`, but direct commands like `pnpm --filter sleepier-mobile dev` require it to be built first.
+
 ### Environment variables
 
-Create `apps/desktop/.env`:
+**Desktop** — create `apps/desktop/.env`:
 
 ```env
 DATABASE_URL=postgresql://user:pass@localhost:5432/sleepier
@@ -35,7 +44,22 @@ LOGIN_URL=              # optional, defaults to https://sleeper.com/login
 PW_CHANNEL=chrome       # browser channel for playwright-core (chrome, chromium, msedge)
 ```
 
-`DATABASE_URL` is only required when using KTC/ADP features. The app starts without it.
+**Web API** — create `apps/web/.env`:
+
+```env
+DATABASE_URL=postgresql://user:pass@localhost:5432/sleepier
+ALLOWLIST_URL=https://example.com/allowlist.json
+```
+
+**Mobile** — set in your Expo environment or `app.json`:
+
+```env
+EXPO_PUBLIC_ALLOWLIST_URL=https://example.com/allowlist.json
+```
+
+If `ALLOWLIST_URL` / `EXPO_PUBLIC_ALLOWLIST_URL` is not set, all users are allowed.
+
+`DATABASE_URL` is only required when using KTC/ADP features. Desktop and web start without it.
 
 `ALLOWLIST_URL` must return `{ "allowed_user_ids": ["123", ...] }`.
 
@@ -50,6 +74,9 @@ pnpm dev:desktop
 
 # Mobile only
 pnpm dev:mobile
+
+# Web only
+pnpm dev:web
 ```
 
 ## Commands
@@ -69,6 +96,21 @@ pnpm --filter sleepier-desktop build
 
 Output goes to `apps/desktop/dist/`.
 
+### Web build
+
+```bash
+pnpm --filter sleepier-web build
+```
+
+### Mobile build
+
+Mobile builds are handled through Expo / EAS:
+
+```bash
+pnpm --filter sleepier-mobile dev        # start Expo dev server
+pnpm --filter sleepier-mobile typecheck  # type-check mobile code
+```
+
 ### Shared package
 
 ```bash
@@ -79,8 +121,10 @@ pnpm --filter @sleepier/shared typecheck # tsc --noEmit
 
 ## Architecture notes
 
-- **Shared package** exports types, GraphQL queries, auth context, API helpers, and the `CURRENT_SEASON` constant.
-- **Desktop main process** handles IPC with auth guards (`requireAccess()`), lazy DB imports, and mutation idempotency.
+- **Shared package** exports types, GraphQL queries, auth context, API helpers, DB query modules, `CURRENT_SEASON`, and `randomId()`.
+- **Desktop main process** handles IPC with auth guards (`requireAccess()`), lazy DB imports, mutation idempotency, and dedicated mutation routes.
 - **Desktop preload** exposes a whitelisted `window.ipc.invoke()` API (no open channel access).
 - **Desktop session** persists to `electron-store` and restores on app restart.
-- **Mobile auth** uses `expo-secure-store` for token persistence and guards app routes with `useAuth()`.
+- **Mobile** uses `expo-secure-store` for token persistence, `AsyncStorage` for poll storage and operation idempotency, and guards app routes with allowlist access checks.
+- **Mobile league cache** fetches leagues once at the app level and shares across all tabs.
+- **Web** serves a static landing page with download links and server-side API routes for KTC/ADP data (requires `x-user-id` header validated against allowlist).

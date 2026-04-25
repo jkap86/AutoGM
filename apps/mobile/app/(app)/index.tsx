@@ -1,11 +1,9 @@
 import { useState, useMemo } from 'react'
 import { View, Text, FlatList, ActivityIndicator, Image, TouchableOpacity, StyleSheet } from 'react-native'
-import { useAuth, CURRENT_SEASON } from '@sleepier/shared'
 import type { LeagueDetailed } from '@sleepier/shared'
-import { useLeagues } from '../../src/hooks/use-leagues'
+import { useLeagueCache } from '../../src/league-cache'
 import { colors } from '../../src/theme'
 
-const SEASON = CURRENT_SEASON
 type Filter = 'all' | 'dynasty' | 'redraft' | 'keeper'
 
 function LeagueCard({ league }: { league: LeagueDetailed }) {
@@ -43,11 +41,7 @@ function LeagueCard({ league }: { league: LeagueDetailed }) {
 }
 
 export default function LeaguesScreen() {
-  const { session } = useAuth()
-  const { leagues, loading, error } = useLeagues({
-    user_id: session?.user_id,
-    season: SEASON,
-  })
+  const { leagues, loading, error } = useLeagueCache()
   const [filter, setFilter] = useState<Filter>('all')
 
   const leagueList = useMemo(() => {
