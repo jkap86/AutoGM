@@ -30,10 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(async (saved) => {
         if (saved?.token && saved?.user_id) {
           setSession(saved)
-          const { allowed } = await window.ipc.invoke<{ allowed: boolean }>(
-            'access:check',
-            { user_id: saved.user_id },
-          )
+          const { allowed } = await window.ipc.invoke<{ allowed: boolean }>('access:check')
           setAccessAllowed(allowed)
         }
       })
@@ -44,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const clearSession = () => {
+    window.ipc.invoke('logout').catch(() => {})
     setSession(null)
     setAccessAllowed(null)
   }

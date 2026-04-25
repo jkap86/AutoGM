@@ -16,32 +16,39 @@ type PollStoreSchema = {
   polls: StoredPoll[];
 };
 
-const store = new Store<PollStoreSchema>({
-  name: "polls",
-  defaults: { polls: [] },
-});
+let _store: Store<PollStoreSchema> | null = null;
+
+function getStore(): Store<PollStoreSchema> {
+  if (!_store) {
+    _store = new Store<PollStoreSchema>({
+      name: "polls",
+      defaults: { polls: [] },
+    });
+  }
+  return _store;
+}
 
 export function getPolls(): StoredPoll[] {
-  return store.get("polls");
+  return getStore().get("polls");
 }
 
 export function addPoll(poll: StoredPoll): void {
-  const polls = store.get("polls");
+  const polls = getStore().get("polls");
   const idx = polls.findIndex((p) => p.poll_id === poll.poll_id);
   if (idx !== -1) {
     polls[idx] = poll;
   } else {
     polls.push(poll);
   }
-  store.set("polls", polls);
+  getStore().set("polls", polls);
 }
 
 export function removePoll(pollId: string): void {
-  const polls = store.get("polls").filter((p) => p.poll_id !== pollId);
-  store.set("polls", polls);
+  const polls = getStore().get("polls").filter((p) => p.poll_id !== pollId);
+  getStore().set("polls", polls);
 }
 
 export function removePollGroup(groupId: string): void {
-  const polls = store.get("polls").filter((p) => p.group_id !== groupId);
-  store.set("polls", polls);
+  const polls = getStore().get("polls").filter((p) => p.group_id !== groupId);
+  getStore().set("polls", polls);
 }

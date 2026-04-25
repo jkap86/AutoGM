@@ -5,7 +5,7 @@ import serve from "electron-serve";
 import { createWindow } from "./helpers/create-window";
 import { launchPersistent } from "./helpers/launch-persistent";
 import { fetchLeagues } from "./helpers/fetch-leagues";
-import { setSession, getToken, requireAccess, restoreSession } from "./lib/auth";
+import { setSession, getSession, getToken, requireAccess, restoreSession, clearSession } from "./lib/auth";
 import { configureClient, runQuery } from "@sleepier/shared";
 import type { QueryMap, QueryName } from "@sleepier/shared";
 import { fetchAllPlayers } from "./helpers/fetch-allplayers";
@@ -13,13 +13,15 @@ import { getPolls, addPoll, removePoll, removePollGroup } from "./lib/poll-store
 import type { StoredPoll } from "./lib/poll-store";
 import type { AdpFilters } from "./helpers/fetch-adp";
 import { checkAccess } from "./lib/access";
+import {
+  findRecent,
+  recordOperation,
+  tradeOperationKey,
+  pollOperationKey,
+} from "./lib/operation-store";
 
 // Wire shared GraphQL client to desktop's auth token
 configureClient({ getToken });
-
-// Restore persisted session so the app doesn't lose auth on reload
-restoreSession();
-
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -28,6 +30,9 @@ if (isProd) {
 } else {
   app.setPath("userData", `${app.getPath("userData")} (development)`);
 }
+
+// Restore persisted session after userData path is set
+restoreSession();
 
 (async () => {
   await app.whenReady();
@@ -82,8 +87,17 @@ ipcMain.handle("session:restore", async () => {
   return session;
 });
 
-ipcMain.handle("access:check", async (_event, args: { user_id: string }) => {
-  return checkAccess(args.user_id);
+ipcMain.handle("logout", async () => {
+  clearSession();
+  return { ok: true };
+});
+
+ipcMain.handle("access:check", async () => {
+  const session = getSession();
+  if (!session?.user_id) {
+    return { allowed: false };
+  }
+  return checkAccess(session.user_id);
 });
 
 ipcMain.handle(
@@ -109,6 +123,44 @@ ipcMain.handle(
     args: { name: QueryName; vars: QueryMap[QueryName]["vars"] },
   ) => {
     await requireAccess();
+
+    // Idempotency guard for proposeTrade
+    if (args.name === "proposeTrade") {
+      const vars = args.vars as QueryMap["proposeTrade"]["vars"];
+      const opKey = tradeOperationKey(vars);
+      const existing = findRecent(opKey);
+      if (existing) {
+        throw new Error(`Duplicate trade blocked (recent transaction: ${existing})`);
+      }
+      const result = await runQuery(args.name, args.vars as never);
+      const txId = (result as QueryMap["proposeTrade"]["result"]).propose_trade?.transaction_id ?? null;
+      recordOperation(opKey, txId);
+      return result;
+    }
+
+    // Idempotency guard for createPoll
+    if (args.name === "createPoll") {
+      const vars = args.vars as QueryMap["createPoll"]["vars"];
+      // createPoll vars don't include league_id/group_id/poll_type/privacy directly —
+      // they are in k_metadata/v_metadata. Build a key from the stable fields.
+      const opKey = pollOperationKey({
+        league_id: "",
+        group_id: "",
+        prompt: vars.prompt,
+        choices: vars.choices,
+        poll_type: "",
+        privacy: "",
+      });
+      const existing = findRecent(opKey);
+      if (existing) {
+        throw new Error(`Duplicate poll blocked (recent poll: ${existing})`);
+      }
+      const result = await runQuery(args.name, args.vars as never);
+      const pollId = (result as QueryMap["createPoll"]["result"]).create_poll?.poll_id ?? null;
+      recordOperation(opKey, pollId);
+      return result;
+    }
+
     return runQuery(args.name, args.vars as never);
   },
 );

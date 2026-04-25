@@ -10,16 +10,23 @@ type AuthStoreSchema = {
   session: Session | null
 }
 
-const store = new Store<AuthStoreSchema>({
-  name: "auth",
-  defaults: { session: null },
-})
+let _store: Store<AuthStoreSchema> | null = null
+
+function getStore(): Store<AuthStoreSchema> {
+  if (!_store) {
+    _store = new Store<AuthStoreSchema>({
+      name: "auth",
+      defaults: { session: null },
+    })
+  }
+  return _store
+}
 
 let currentSession: Session | null = null
 
 export function setSession(session: Session | null) {
   currentSession = session
-  store.set("session", session)
+  getStore().set("session", session)
 }
 
 export function getSession(): Session | null {
@@ -32,12 +39,12 @@ export function getToken(): string | null {
 
 export function clearSession() {
   currentSession = null
-  store.set("session", null)
+  getStore().set("session", null)
 }
 
 /** Restore session from disk (called once at startup). */
 export function restoreSession(): Session | null {
-  const saved = store.get("session")
+  const saved = getStore().get("session")
   if (saved?.token && saved?.user_id) {
     currentSession = saved
     return saved

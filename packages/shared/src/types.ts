@@ -1,7 +1,7 @@
 export type League = {
   league_id: string;
   name: string;
-  avatar: string;
+  avatar: string | null;
   season: string;
   settings: LeagueSettings;
   scoring_settings: Record<string, number>;
@@ -139,13 +139,13 @@ export type PickShares = {
 
 export type Allplayer = {
   player_id: string;
-  position: string;
-  team: string;
+  position: string | null;
+  team: string | null;
   full_name: string;
   first_name: string;
   last_name: string;
-  age: string;
-  fantasy_positions: string[];
-  years_exp: number;
+  age: number | string | null;
+  fantasy_positions: string[] | null;
+  years_exp: number | null;
   active: boolean;
 };

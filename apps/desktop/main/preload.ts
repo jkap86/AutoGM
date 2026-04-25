@@ -8,6 +8,7 @@ const ALLOWED_CHANNELS = new Set([
   'login',
   'access:check',
   'session:restore',
+  'logout',
   'leagues:fetch',
   'allplayers:fetch',
   'graphql',

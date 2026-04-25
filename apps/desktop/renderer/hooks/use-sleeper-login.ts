@@ -16,10 +16,7 @@ export function useSleeperLogin() {
       setSession(data)
 
       if (data?.user_id) {
-        const { allowed } = await window.ipc.invoke<{ allowed: boolean }>(
-          'access:check',
-          { user_id: data.user_id },
-        )
+        const { allowed } = await window.ipc.invoke<{ allowed: boolean }>('access:check')
         setAccessAllowed(allowed)
       }
 

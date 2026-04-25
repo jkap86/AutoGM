@@ -218,7 +218,7 @@ export function PotentialTrades({
           return {
             type: "player",
             label: allplayers[pid]?.full_name ?? pid,
-            position: allplayers[pid]?.position,
+            position: allplayers[pid]?.position ?? undefined,
             value: valueLookup[pid] ?? 0,
             isTarget: likers.includes(receivingRosterId),
             isOtb: tbRosters.includes(sendingRosterId),
