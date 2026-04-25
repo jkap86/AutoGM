@@ -73,8 +73,8 @@ function CreatePolls({
         league_id: selectedLeagues[i],
         prompt,
         choices: validChoices,
-        k_metadata: ["poll_type", "privacy"],
-        v_metadata: [pollType, privacy],
+        poll_type: pollType,
+        privacy,
       });
       if (i < selectedLeagues.length - 1) {
         await new Promise((r) => setTimeout(r, 2000 + Math.random() * 2000));

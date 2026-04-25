@@ -14,7 +14,6 @@ const ALLOWED_CHANNELS = new Set([
   'graphql',
   'polls:create',
   'polls:list',
-  'polls:add',
   'polls:remove',
   'polls:remove-group',
   'ktc:latest',

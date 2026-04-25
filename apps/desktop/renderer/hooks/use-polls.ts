@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import type { StoredPoll } from '../../main/lib/poll-store'
+import type { StoredPoll } from '../../types/poll'
 import type { PollVote, ListPollVotesResult } from '@sleepier/shared'
 
 export type PollWithVotes = StoredPoll & {

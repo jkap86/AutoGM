@@ -1,8 +1,11 @@
 import Store from "electron-store";
 import crypto from "crypto";
 
+export type OperationStatus = "pending" | "success" | "failed" | "unknown";
+
 export type OperationRecord = {
   key: string;
+  status: OperationStatus;
   result_id: string | null;
   created_at: number;
 };
@@ -43,20 +46,25 @@ function prune(): OperationRecord[] {
 }
 
 /**
- * Check if an operation was recently executed.
- * Returns the full record if a duplicate exists, or null if new.
+ * Check if an operation was recently executed or is in progress.
+ * Returns the full record if found, or null if new.
  */
 export function findRecentRecord(key: string): OperationRecord | null {
   const ops = prune();
   return ops.find((o) => o.key === key) ?? null;
 }
 
-/** Record a completed operation. */
-export function recordOperation(key: string, resultId: string | null): void {
+/** Record an operation with a given status. */
+export function recordOperation(
+  key: string,
+  status: OperationStatus,
+  resultId: string | null = null,
+): void {
   const ops = prune();
   const idx = ops.findIndex((o) => o.key === key);
   const record: OperationRecord = {
     key,
+    status,
     result_id: resultId,
     created_at: Date.now(),
   };
@@ -84,7 +92,6 @@ export function tradeOperationKey(vars: {
   reject_transaction_id?: string;
   reject_transaction_leg?: number;
 }): string {
-  // Pair keys with values, then sort by key for deterministic ordering
   const adds = vars.k_adds
     .map((k, i) => [k, vars.v_adds[i]] as const)
     .sort(([a], [b]) => a.localeCompare(b));

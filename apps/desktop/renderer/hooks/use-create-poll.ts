@@ -1,10 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import type {
-  CreatePollVars,
-  CreatePollMessageResult,
-} from '@sleepier/shared'
+import type { CreatePollMessageResult } from '@sleepier/shared'
 
 type State = {
   data: { poll_id: string; message: CreatePollMessageResult } | null
@@ -12,7 +9,11 @@ type State = {
   error: string | null
 }
 
-type CreatePollParams = CreatePollVars & {
+type CreatePollParams = {
+  prompt: string
+  choices: string[]
+  poll_type: string
+  privacy: string
   group_id: string
   league_id: string
   text?: string
@@ -35,8 +36,8 @@ export function useCreatePoll() {
         }>('polls:create', {
           prompt: params.prompt,
           choices: params.choices,
-          k_metadata: params.k_metadata,
-          v_metadata: params.v_metadata,
+          poll_type: params.poll_type,
+          privacy: params.privacy,
           group_id: params.group_id,
           league_id: params.league_id,
           text: params.text,

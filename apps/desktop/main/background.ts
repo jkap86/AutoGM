@@ -10,7 +10,6 @@ import { configureClient, runQuery } from "@sleepier/shared";
 import type { QueryMap, QueryName } from "@sleepier/shared";
 import { fetchAllPlayers } from "./helpers/fetch-allplayers";
 import { getPolls, addPoll, removePoll, removePollGroup } from "./lib/poll-store";
-import type { StoredPoll } from "./lib/poll-store";
 import type { AdpFilters } from "./helpers/fetch-adp";
 import { checkAccess } from "./lib/access";
 import {
@@ -116,6 +115,8 @@ ipcMain.handle("allplayers:fetch", async () => {
   return fetchAllPlayers();
 });
 
+const BLOCKED_GRAPHQL_QUERIES = new Set<QueryName>(["createPoll", "createPollMessage"]);
+
 ipcMain.handle(
   "graphql",
   async (
@@ -124,18 +125,28 @@ ipcMain.handle(
   ) => {
     await requireAccess();
 
+    if (BLOCKED_GRAPHQL_QUERIES.has(args.name)) {
+      throw new Error(`"${args.name}" must be called via its dedicated IPC route`);
+    }
+
     // Idempotency guard for proposeTrade
     if (args.name === "proposeTrade") {
       const vars = args.vars as QueryMap["proposeTrade"]["vars"];
       const opKey = tradeOperationKey(vars);
       const existing = findRecentRecord(opKey);
       if (existing) {
-        throw new Error(`Duplicate trade blocked (recent transaction: ${existing.result_id})`);
+        throw new Error(`Duplicate trade blocked (status: ${existing.status}, transaction: ${existing.result_id})`);
       }
-      const result = await runQuery(args.name, args.vars as never);
-      const txId = (result as QueryMap["proposeTrade"]["result"]).propose_trade?.transaction_id ?? null;
-      recordOperation(opKey, txId);
-      return result;
+      recordOperation(opKey, "pending");
+      try {
+        const result = await runQuery(args.name, args.vars as never);
+        const txId = (result as QueryMap["proposeTrade"]["result"]).propose_trade?.transaction_id ?? null;
+        recordOperation(opKey, "success", txId);
+        return result;
+      } catch (err) {
+        recordOperation(opKey, "failed");
+        throw err;
+      }
     }
 
     return runQuery(args.name, args.vars as never);
@@ -149,8 +160,8 @@ ipcMain.handle(
     args: {
       prompt: string;
       choices: string[];
-      k_metadata: string[];
-      v_metadata: string[];
+      poll_type: string;
+      privacy: string;
       group_id: string;
       league_id: string;
       text?: string;
@@ -158,50 +169,56 @@ ipcMain.handle(
   ) => {
     await requireAccess();
 
-    const poll_type = args.v_metadata[0] ?? "single";
-    const privacy = args.v_metadata[1] ?? "public";
-
     const opKey = pollOperationKey({
       league_id: args.league_id,
       group_id: args.group_id,
       prompt: args.prompt,
       choices: args.choices,
-      poll_type,
-      privacy,
+      poll_type: args.poll_type,
+      privacy: args.privacy,
     });
     const existing = findRecentRecord(opKey);
     if (existing) {
-      throw new Error(`Duplicate poll blocked (recent poll: ${existing.result_id})`);
+      throw new Error(`Duplicate poll blocked (status: ${existing.status}, poll: ${existing.result_id})`);
     }
 
-    const pollResult = await runQuery("createPoll", {
-      prompt: args.prompt,
-      choices: args.choices,
-      k_metadata: args.k_metadata,
-      v_metadata: args.v_metadata,
-    });
+    recordOperation(opKey, "pending");
 
-    const poll_id = pollResult.create_poll.poll_id;
+    let poll_id: string;
+    try {
+      const pollResult = await runQuery("createPoll", {
+        prompt: args.prompt,
+        choices: args.choices,
+        k_metadata: ["poll_type", "privacy"],
+        v_metadata: [args.poll_type, args.privacy],
+      });
+
+      poll_id = pollResult.create_poll.poll_id;
+
+      // Record success immediately so a retry cannot create another remote poll
+      recordOperation(opKey, "success", poll_id);
+
+      addPoll({
+        poll_id,
+        group_id: args.group_id,
+        league_id: args.league_id,
+        prompt: args.prompt,
+        choices: args.choices,
+        choices_order: pollResult.create_poll.choices_order as string[],
+        poll_type: args.poll_type,
+        privacy: args.privacy,
+        created_at: Date.now(),
+      });
+    } catch (err) {
+      recordOperation(opKey, "failed");
+      throw err;
+    }
 
     const messageResult = await runQuery("createPollMessage", {
       parent_id: args.league_id,
       attachment_id: poll_id,
       text: args.text ?? "",
     });
-
-    addPoll({
-      poll_id,
-      group_id: args.group_id,
-      league_id: args.league_id,
-      prompt: args.prompt,
-      choices: args.choices,
-      choices_order: pollResult.create_poll.choices_order as string[],
-      poll_type,
-      privacy,
-      created_at: Date.now(),
-    });
-
-    recordOperation(opKey, poll_id);
 
     return { poll_id, message: messageResult };
   },
@@ -210,11 +227,6 @@ ipcMain.handle(
 ipcMain.handle("polls:list", async () => {
   await requireAccess();
   return getPolls();
-});
-
-ipcMain.handle("polls:add", async (_event, poll: StoredPoll) => {
-  await requireAccess();
-  addPoll(poll);
 });
 
 ipcMain.handle("polls:remove", async (_event, pollId: string) => {
