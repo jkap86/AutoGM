@@ -20,6 +20,7 @@ export type OperationRecord = {
   status: OperationStatus;
   result_id: string | null;
   created_at: number;
+  updated_at: number;
 };
 
 type OperationStoreSchema = {
@@ -85,16 +86,11 @@ export function recordOperation(
 ): void {
   const ops = prune();
   const idx = ops.findIndex((o) => o.key === key);
-  const record: OperationRecord = {
-    key,
-    status,
-    result_id: resultId,
-    created_at: Date.now(),
-  };
+  const now = Date.now();
   if (idx !== -1) {
-    ops[idx] = record;
+    ops[idx] = { ...ops[idx], status, result_id: resultId, updated_at: now };
   } else {
-    ops.push(record);
+    ops.push({ key, status, result_id: resultId, created_at: now, updated_at: now });
   }
   getStore().set("operations", ops);
 }
@@ -167,8 +163,18 @@ export function pollOperationKey(vars: {
 export function messageOperationKey(vars: {
   parent_id: string;
   text: string;
+  attachment_type?: string;
+  k_attachment_data?: string[];
+  v_attachment_data?: string[];
 }): string {
-  return makeKey(["createMessage", vars.parent_id, vars.text]);
+  return makeKey([
+    "createMessage",
+    vars.parent_id,
+    vars.text,
+    vars.attachment_type ?? null,
+    vars.k_attachment_data ?? [],
+    vars.v_attachment_data ?? [],
+  ]);
 }
 
 /** Idempotency key for createDm (sorted members for determinism). */
@@ -183,6 +189,16 @@ export function dmOperationKey(vars: {
 export function leagueMessageOperationKey(vars: {
   parent_id: string;
   text: string;
+  attachment_type?: string;
+  k_attachment_data?: string[];
+  v_attachment_data?: string[];
 }): string {
-  return makeKey(["createLeagueMessage", vars.parent_id, vars.text]);
+  return makeKey([
+    "createLeagueMessage",
+    vars.parent_id,
+    vars.text,
+    vars.attachment_type ?? null,
+    vars.k_attachment_data ?? [],
+    vars.v_attachment_data ?? [],
+  ]);
 }

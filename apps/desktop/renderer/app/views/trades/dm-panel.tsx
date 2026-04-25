@@ -196,28 +196,25 @@ type RosterTransaction = {
 function formatPickLabel(
   pk: PickAtt,
   ownerRid: string,
-  usersMap: Record<string, UserAtt> | undefined,
   leagues: { [league_id: string]: LeagueDetailed } | undefined,
   leagueId: string | undefined,
 ) {
+  const league = leagues && leagueId ? leagues[leagueId] : undefined;
   let order: number | null = null;
-  if (leagues && leagueId && pk.roster_id && pk.season && pk.round) {
-    const league = leagues[leagueId];
+  if (league && pk.roster_id && pk.season && pk.round) {
     const rid = Number(pk.roster_id);
     const season = String(pk.season);
     const round = Number(pk.round);
-    if (league) {
-      for (const roster of league.rosters) {
-        const match = roster.draftpicks.find(
-          (dp) =>
-            dp.roster_id === rid &&
-            String(dp.season) === season &&
-            dp.round === round,
-        );
-        if (match?.order != null) {
-          order = match.order;
-          break;
-        }
+    for (const roster of league.rosters) {
+      const match = roster.draftpicks.find(
+        (dp) =>
+          dp.roster_id === rid &&
+          String(dp.season) === season &&
+          dp.round === round,
+      );
+      if (match?.order != null) {
+        order = match.order;
+        break;
       }
     }
   }
@@ -226,10 +223,10 @@ function formatPickLabel(
     return `${pk.season} ${pk.round}.${String(order).padStart(2, "0")}`;
   }
   const originalOwnerId = pk.original_owner_id;
-  if (originalOwnerId && originalOwnerId !== ownerRid && usersMap) {
-    const origUser = Object.values(usersMap).find((u) => u.user_id === originalOwnerId);
-    if (origUser?.display_name) {
-      return `${pk.season} Round ${pk.round} (${origUser.display_name})`;
+  if (originalOwnerId && originalOwnerId !== ownerRid && league) {
+    const origRoster = league.rosters.find((r) => r.user_id === originalOwnerId);
+    if (origRoster?.username) {
+      return `${pk.season} Round ${pk.round} (${origRoster.username})`;
     }
   }
   return `${pk.season} Round ${pk.round}`;
@@ -237,7 +234,6 @@ function formatPickLabel(
 
 function AttachmentView({ attachment, leagues }: { attachment: Record<string, unknown>; leagues?: { [league_id: string]: LeagueDetailed } }) {
   const txByRoster = attachment.transactions_by_roster as Record<string, RosterTransaction> | undefined;
-  const usersMap = attachment.users_in_league_map as Record<string, UserAtt> | undefined;
   const leagueId = attachment.league_id as string | undefined;
   if (txByRoster) {
     return (
@@ -265,12 +261,12 @@ function AttachmentView({ attachment, leagues }: { attachment: Record<string, un
                 ))}
                 {addedPicks.map((pk, i) => (
                   <div key={`ap${i}`} className="text-xs text-blue-400 ml-2">
-                    + {formatPickLabel(pk, rid, usersMap, leagues, leagueId)}
+                    + {formatPickLabel(pk, rid, leagues, leagueId)}
                   </div>
                 ))}
                 {droppedPicks.map((pk, i) => (
                   <div key={`dp${i}`} className="text-xs text-orange-400 ml-2">
-                    − {formatPickLabel(pk, rid, usersMap, leagues, leagueId)}
+                    − {formatPickLabel(pk, rid, leagues, leagueId)}
                   </div>
                 ))}
               </div>

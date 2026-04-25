@@ -147,7 +147,7 @@ ipcMain.handle(
   },
 );
 
-const VALID_POLL_TYPES = new Set(["single", "multi"]);
+const VALID_POLL_TYPES = new Set(["single", "multiple"]);
 const VALID_POLL_PRIVACY = new Set(["public", "anonymous"]);
 
 ipcMain.handle(
@@ -179,7 +179,7 @@ ipcMain.handle(
     if (choices.length < 2) throw new Error("At least 2 choices required");
     if (!league_id) throw new Error("league_id is required");
     if (!group_id) throw new Error("group_id is required");
-    if (!VALID_POLL_TYPES.has(poll_type)) throw new Error(`Invalid poll_type: "${poll_type}" (expected: single, multi)`);
+    if (!VALID_POLL_TYPES.has(poll_type)) throw new Error(`Invalid poll_type: "${poll_type}" (expected: single, multiple)`);
     if (!VALID_POLL_PRIVACY.has(privacy)) throw new Error(`Invalid privacy: "${privacy}" (expected: public, anonymous)`);
 
     const opKey = pollOperationKey({
@@ -195,6 +195,23 @@ ipcMain.handle(
     // skip createPoll and retry only the message step.
     const prior = findRecentRecord(opKey);
     if (prior?.status === "poll_created" && prior.result_id) {
+      // Ensure the local poll record exists (may have been lost if the
+      // process crashed between createPoll and addPoll)
+      const stored = getPolls();
+      if (!stored.some((p) => p.poll_id === prior.result_id)) {
+        addPoll({
+          poll_id: prior.result_id,
+          group_id,
+          league_id,
+          prompt,
+          choices,
+          choices_order: [],
+          poll_type,
+          privacy,
+          created_at: prior.created_at,
+        });
+      }
+
       const messageResult = await runQuery("createPollMessage", {
         parent_id: league_id,
         attachment_id: prior.result_id,
@@ -213,11 +230,13 @@ ipcMain.handle(
 
     let poll_id: string;
     try {
+      // Sleeper API uses "multi" not "multiple"
+      const sleeperPollType = poll_type === "multiple" ? "multi" : poll_type;
       const pollResult = await runQuery("createPoll", {
         prompt,
         choices,
         k_metadata: ["poll_type", "privacy"],
-        v_metadata: [poll_type, privacy],
+        v_metadata: [sleeperPollType, privacy],
       });
 
       poll_id = pollResult.create_poll.poll_id;

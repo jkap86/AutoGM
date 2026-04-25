@@ -149,11 +149,6 @@ export default function TradesView({
       },
     };
 
-    const usersMap: Record<string, unknown> = {};
-    league.rosters.forEach((roster) => {
-      usersMap[roster.user_id] = buildUserAttachment(roster, leagueId);
-    });
-
     const dmResult = await getDm({ members: [userId, partnerId] });
     let dmId = dmResult.get_dm_by_members?.dm_id;
     if (!dmId) {
@@ -170,14 +165,12 @@ export default function TradesView({
         "transactions_by_roster",
         "transaction_id",
         "league_id",
-        "users_in_league_map",
       ],
       v_attachment_data: [
         status,
         JSON.stringify(transactionsByRoster),
         transaction.transaction_id,
         leagueId,
-        JSON.stringify(usersMap),
       ],
     });
   }, [leagues, allplayers, userId, getDm, createDm, sendMessage]);
