@@ -1,15 +1,18 @@
-import { View, Text, FlatList, ActivityIndicator, Image, StyleSheet } from 'react-native'
-import { useAuth } from '@sleepier/shared'
+import { useState, useMemo } from 'react'
+import { View, Text, FlatList, ActivityIndicator, Image, TouchableOpacity, StyleSheet } from 'react-native'
+import { useAuth, CURRENT_SEASON } from '@sleepier/shared'
 import type { LeagueDetailed } from '@sleepier/shared'
 import { useLeagues } from '../../src/hooks/use-leagues'
-import { CURRENT_SEASON } from '@sleepier/shared'
 
 const SEASON = CURRENT_SEASON
+type Filter = 'all' | 'dynasty' | 'redraft' | 'keeper'
 
 function LeagueCard({ league }: { league: LeagueDetailed }) {
   const avatarUrl = league.avatar
     ? `https://sleepercdn.com/avatars/thumbs/${league.avatar}`
     : null
+
+  const typeLabel = league.settings.type === 2 ? 'Dynasty' : league.settings.type === 1 ? 'Keeper' : 'Redraft'
 
   return (
     <View style={s.card}>
@@ -23,7 +26,8 @@ function LeagueCard({ league }: { league: LeagueDetailed }) {
       <View style={{ flex: 1 }}>
         <Text style={s.leagueName}>{league.name}</Text>
         <Text style={s.subtext}>
-          {league.rosters.length} teams · {league.settings.type === 2 ? 'Dynasty' : 'Redraft'}
+          {league.rosters.length} teams · {typeLabel}
+          {league.settings.best_ball === 1 ? ' · Best Ball' : ''}
         </Text>
       </View>
       <View style={{ alignItems: 'flex-end' }}>
@@ -43,6 +47,17 @@ export default function LeaguesScreen() {
     user_id: session?.user_id,
     season: SEASON,
   })
+  const [filter, setFilter] = useState<Filter>('all')
+
+  const leagueList = useMemo(() => {
+    const all = leagues ? Object.values(leagues) : []
+    if (filter === 'all') return all
+    if (filter === 'dynasty') return all.filter((l) => l.settings.type === 2)
+    if (filter === 'keeper') return all.filter((l) => l.settings.type === 1)
+    return all.filter((l) => l.settings.type === 0)
+  }, [leagues, filter])
+
+  const totalCount = leagues ? Object.keys(leagues).length : 0
 
   if (loading && !leagues) {
     return (
@@ -61,10 +76,28 @@ export default function LeaguesScreen() {
     )
   }
 
-  const leagueList = leagues ? Object.values(leagues) : []
+  const filters: { key: Filter; label: string }[] = [
+    { key: 'all', label: `All (${totalCount})` },
+    { key: 'dynasty', label: 'Dynasty' },
+    { key: 'keeper', label: 'Keeper' },
+    { key: 'redraft', label: 'Redraft' },
+  ]
 
   return (
     <View style={s.container}>
+      <View style={s.filterBar}>
+        {filters.map((f) => (
+          <TouchableOpacity
+            key={f.key}
+            onPress={() => setFilter(f.key)}
+            style={[s.filterBtn, filter === f.key && s.filterBtnActive]}
+          >
+            <Text style={[s.filterText, filter === f.key && s.filterTextActive]}>
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
       <FlatList
         data={leagueList}
         keyExtractor={(l) => l.league_id}
@@ -95,4 +128,21 @@ const s = StyleSheet.create({
   subtext: { color: '#9CA3AF', fontSize: 13, marginTop: 2 },
   record: { color: '#60A5FA', fontWeight: '700', fontSize: 14 },
   pts: { color: '#6B7280', fontSize: 11, marginTop: 2 },
+  filterBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1F2937',
+  },
+  filterBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#1F2937',
+  },
+  filterBtnActive: { backgroundColor: '#2563EB' },
+  filterText: { color: '#6B7280', fontSize: 12, fontWeight: '500' },
+  filterTextActive: { color: '#FFF' },
 })

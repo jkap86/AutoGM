@@ -1,21 +1,22 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
   StyleSheet,
 } from 'react-native'
-import { useAuth } from '@sleepier/shared'
-import type { Allplayer } from '@sleepier/shared'
+import { useAuth, CURRENT_SEASON } from '@sleepier/shared'
+import type { Allplayer, LeagueDetailed } from '@sleepier/shared'
 import { useLeagues } from '../../../src/hooks/use-leagues'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import {
   useTradesByStatus,
   TradeWithLeague,
 } from '../../../src/hooks/use-trades-by-status'
-import { CURRENT_SEASON } from '@sleepier/shared'
+import { mobileDataClient } from '../../../src/data-client'
 
 const SEASON = CURRENT_SEASON
 type Tab = 'pending' | 'completed' | 'rejected'
@@ -24,14 +25,21 @@ function TradeCard({
   trade,
   allplayers,
   userId,
+  leagues,
+  onAction,
 }: {
   trade: TradeWithLeague
   allplayers: Record<string, Allplayer>
   userId: string | null
+  leagues: { [id: string]: LeagueDetailed }
+  onAction?: () => void
 }) {
   const isReceived = trade.creator !== userId
-  const adds = trade.adds ?? {}
+  const isPending = trade.status === 'proposed'
+  const league = leagues[trade.league_id]
+  const userRosterId = league?.user_roster?.roster_id
 
+  const adds = trade.adds ?? {}
   const sides: Record<number, { gets: string[] }> = {}
   for (const [pid, rid] of Object.entries(adds)) {
     if (!sides[rid]) sides[rid] = { gets: [] }
@@ -39,6 +47,44 @@ function TradeCard({
   }
 
   const date = new Date(trade.status_updated).toLocaleDateString()
+
+  const [acting, setActing] = useState(false)
+
+  const handleAccept = useCallback(async () => {
+    if (!userRosterId) return
+    setActing(true)
+    try {
+      await mobileDataClient.graphql('acceptTrade', {
+        league_id: trade.league_id,
+        transaction_id: trade.transaction_id,
+        leg: trade.leg,
+      })
+      onAction?.()
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : String(e))
+    } finally {
+      setActing(false)
+    }
+  }, [trade, userRosterId, onAction])
+
+  const handleReject = useCallback(async () => {
+    if (!userRosterId) return
+    setActing(true)
+    try {
+      await mobileDataClient.graphql('rejectTrade', {
+        league_id: trade.league_id,
+        transaction_id: trade.transaction_id,
+        leg: trade.leg,
+      })
+      onAction?.()
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : String(e))
+    } finally {
+      setActing(false)
+    }
+  }, [trade, userRosterId, onAction])
+
+  const showActions = isPending && isReceived && userRosterId != null
 
   return (
     <View style={s.card}>
@@ -54,20 +100,24 @@ function TradeCard({
         </View>
       </View>
 
-      {Object.entries(sides).map(([rid, side]) => (
-        <View key={rid} style={{ marginTop: 8 }}>
-          <Text style={s.label}>Roster {rid} receives:</Text>
-          {side.gets.map((pid) => {
-            const p = allplayers[pid]
-            return (
-              <Text key={pid} style={s.playerAdd}>
-                + {p ? `${p.first_name} ${p.last_name}` : pid}
-                {p ? ` (${p.position} - ${p.team})` : ''}
-              </Text>
-            )
-          })}
-        </View>
-      ))}
+      {Object.entries(sides).map(([rid, side]) => {
+        const roster = league?.rosters?.find((r) => r.roster_id === Number(rid))
+        const name = roster?.username ?? `Roster ${rid}`
+        return (
+          <View key={rid} style={{ marginTop: 8 }}>
+            <Text style={s.label}>{name} receives:</Text>
+            {side.gets.map((pid) => {
+              const p = allplayers[pid]
+              return (
+                <Text key={pid} style={s.playerAdd}>
+                  + {p ? `${p.first_name} ${p.last_name}` : pid}
+                  {p ? ` (${p.position ?? '?'} - ${p.team ?? 'FA'})` : ''}
+                </Text>
+              )
+            })}
+          </View>
+        )
+      })}
 
       {(trade.draft_picks ?? []).length > 0 && (
         <View style={{ marginTop: 8 }}>
@@ -75,6 +125,35 @@ function TradeCard({
           {trade.draft_picks!.map((pick, i) => (
             <Text key={i} style={s.pickText}>{pick}</Text>
           ))}
+        </View>
+      )}
+
+      {showActions && (
+        <View style={s.actions}>
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert('Accept Trade', 'Accept this trade?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Accept', onPress: handleAccept },
+              ])
+            }
+            disabled={acting}
+            style={[s.actionBtn, s.acceptBtn]}
+          >
+            <Text style={s.actionText}>{acting ? '...' : 'Accept'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert('Reject Trade', 'Reject this trade?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Reject', style: 'destructive', onPress: handleReject },
+              ])
+            }
+            disabled={acting}
+            style={[s.actionBtn, s.rejectBtn]}
+          >
+            <Text style={s.actionText}>{acting ? '...' : 'Reject'}</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -92,9 +171,12 @@ export default function TradesScreen() {
 
   const safeLeagues = leagues ?? {}
 
-  const { trades: pendingTrades, loading: pendingLoading } = useTradesByStatus(safeLeagues, 'proposed')
-  const { trades: completedTrades, loading: completedLoading } = useTradesByStatus(safeLeagues, 'complete')
-  const { trades: rejectedTrades, loading: rejectedLoading } = useTradesByStatus(safeLeagues, 'rejected')
+  const { trades: pendingTrades, loading: pendingLoading, refetch: refetchPending } =
+    useTradesByStatus(safeLeagues, 'proposed')
+  const { trades: completedTrades, loading: completedLoading } =
+    useTradesByStatus(safeLeagues, 'complete')
+  const { trades: rejectedTrades, loading: rejectedLoading } =
+    useTradesByStatus(safeLeagues, 'rejected')
 
   const trades =
     tab === 'pending' ? pendingTrades
@@ -137,7 +219,13 @@ export default function TradesScreen() {
           data={trades}
           keyExtractor={(t) => t.transaction_id}
           renderItem={({ item }) => (
-            <TradeCard trade={item} allplayers={allplayers} userId={session?.user_id ?? null} />
+            <TradeCard
+              trade={item}
+              allplayers={allplayers}
+              userId={session?.user_id ?? null}
+              leagues={safeLeagues}
+              onAction={tab === 'pending' ? refetchPending : undefined}
+            />
           )}
           contentContainerStyle={{ padding: 16 }}
           ListEmptyComponent={
@@ -168,4 +256,9 @@ const s = StyleSheet.create({
   tabActive: { borderBottomWidth: 2, borderBottomColor: '#60A5FA' },
   tabText: { fontSize: 13, fontWeight: '500', color: '#6B7280' },
   tabTextActive: { color: '#FFF' },
+  actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  actionBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  acceptBtn: { backgroundColor: 'rgba(34,197,94,0.15)' },
+  rejectBtn: { backgroundColor: 'rgba(239,68,68,0.15)' },
+  actionText: { fontWeight: '600', fontSize: 13, color: '#FFF' },
 })
