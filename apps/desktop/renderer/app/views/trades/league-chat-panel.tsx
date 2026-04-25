@@ -55,9 +55,9 @@ export function LeagueChatPanel({
     setSending(true);
     setError(null);
     try {
-      await window.ipc.invoke<CreateMessageResult>("graphql", {
-        name: "createLeagueMessage",
-        vars: { parent_id: leagueId, text },
+      await window.ipc.invoke<CreateMessageResult>("league-message:create", {
+        parent_id: leagueId,
+        text,
       });
       setDraft("");
       await fetchMessages();

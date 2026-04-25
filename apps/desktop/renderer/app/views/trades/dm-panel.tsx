@@ -89,14 +89,11 @@ export function DmPanel({ userId, partnerId, partnerName, leagues }: { userId: s
     setSending(true);
     setError(null);
     try {
-      await window.ipc.invoke("graphql", {
-        name: "createMessage",
-        vars: {
-          parent_id: dmId,
-          text,
-          k_attachment_data: [],
-          v_attachment_data: [],
-        },
+      await window.ipc.invoke("message:create", {
+        parent_id: dmId,
+        text,
+        k_attachment_data: [],
+        v_attachment_data: [],
       });
       setDraft("");
       await fetchMessages();

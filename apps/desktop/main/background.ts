@@ -13,7 +13,7 @@ import { getPolls, addPoll, removePoll, removePollGroup } from "./lib/poll-store
 import type { AdpFilters } from "./helpers/fetch-adp";
 import { checkAccess } from "./lib/access";
 import {
-  findRecentRecord,
+  findBlockingRecord,
   recordOperation,
   tradeOperationKey,
   pollOperationKey,
@@ -115,7 +115,16 @@ ipcMain.handle("allplayers:fetch", async () => {
   return fetchAllPlayers();
 });
 
-const BLOCKED_GRAPHQL_QUERIES = new Set<QueryName>(["createPoll", "createPollMessage"]);
+const BLOCKED_GRAPHQL_QUERIES = new Set<QueryName>([
+  "createPoll",
+  "createPollMessage",
+  "proposeTrade",
+  "acceptTrade",
+  "rejectTrade",
+  "createMessage",
+  "createDm",
+  "createLeagueMessage",
+]);
 
 ipcMain.handle(
   "graphql",
@@ -127,26 +136,6 @@ ipcMain.handle(
 
     if (BLOCKED_GRAPHQL_QUERIES.has(args.name)) {
       throw new Error(`"${args.name}" must be called via its dedicated IPC route`);
-    }
-
-    // Idempotency guard for proposeTrade
-    if (args.name === "proposeTrade") {
-      const vars = args.vars as QueryMap["proposeTrade"]["vars"];
-      const opKey = tradeOperationKey(vars);
-      const existing = findRecentRecord(opKey);
-      if (existing) {
-        throw new Error(`Duplicate trade blocked (status: ${existing.status}, transaction: ${existing.result_id})`);
-      }
-      recordOperation(opKey, "pending");
-      try {
-        const result = await runQuery(args.name, args.vars as never);
-        const txId = (result as QueryMap["proposeTrade"]["result"]).propose_trade?.transaction_id ?? null;
-        recordOperation(opKey, "success", txId);
-        return result;
-      } catch (err) {
-        recordOperation(opKey, "failed");
-        throw err;
-      }
     }
 
     return runQuery(args.name, args.vars as never);
@@ -169,15 +158,29 @@ ipcMain.handle(
   ) => {
     await requireAccess();
 
+    // Normalize and validate
+    const prompt = (args.prompt ?? "").trim();
+    const choices = (args.choices ?? []).map((c) => c.trim()).filter(Boolean);
+    const poll_type = (args.poll_type ?? "single").trim();
+    const privacy = (args.privacy ?? "public").trim();
+    const group_id = (args.group_id ?? "").trim();
+    const league_id = (args.league_id ?? "").trim();
+    const text = (args.text ?? "").trim();
+
+    if (!prompt) throw new Error("Poll prompt is required");
+    if (choices.length < 2) throw new Error("At least 2 choices required");
+    if (!league_id) throw new Error("league_id is required");
+    if (!group_id) throw new Error("group_id is required");
+
     const opKey = pollOperationKey({
-      league_id: args.league_id,
-      group_id: args.group_id,
-      prompt: args.prompt,
-      choices: args.choices,
-      poll_type: args.poll_type,
-      privacy: args.privacy,
+      league_id,
+      group_id,
+      prompt,
+      choices,
+      poll_type,
+      privacy,
     });
-    const existing = findRecentRecord(opKey);
+    const existing = findBlockingRecord(opKey);
     if (existing) {
       throw new Error(`Duplicate poll blocked (status: ${existing.status}, poll: ${existing.result_id})`);
     }
@@ -187,26 +190,27 @@ ipcMain.handle(
     let poll_id: string;
     try {
       const pollResult = await runQuery("createPoll", {
-        prompt: args.prompt,
-        choices: args.choices,
+        prompt,
+        choices,
         k_metadata: ["poll_type", "privacy"],
-        v_metadata: [args.poll_type, args.privacy],
+        v_metadata: [poll_type, privacy],
       });
 
       poll_id = pollResult.create_poll.poll_id;
 
-      // Record success immediately so a retry cannot create another remote poll
-      recordOperation(opKey, "success", poll_id);
+      // Record poll_created so createPollMessage can be retried without
+      // creating a second remote poll
+      recordOperation(opKey, "poll_created", poll_id);
 
       addPoll({
         poll_id,
-        group_id: args.group_id,
-        league_id: args.league_id,
-        prompt: args.prompt,
-        choices: args.choices,
+        group_id,
+        league_id,
+        prompt,
+        choices,
         choices_order: pollResult.create_poll.choices_order as string[],
-        poll_type: args.poll_type,
-        privacy: args.privacy,
+        poll_type,
+        privacy,
         created_at: Date.now(),
       });
     } catch (err) {
@@ -215,12 +219,78 @@ ipcMain.handle(
     }
 
     const messageResult = await runQuery("createPollMessage", {
-      parent_id: args.league_id,
+      parent_id: league_id,
       attachment_id: poll_id,
-      text: args.text ?? "",
+      text,
     });
 
+    recordOperation(opKey, "success", poll_id);
+
     return { poll_id, message: messageResult };
+  },
+);
+
+// ---- Dedicated mutation routes ----
+
+ipcMain.handle(
+  "trade:propose",
+  async (_event, vars: QueryMap["proposeTrade"]["vars"]) => {
+    await requireAccess();
+    const opKey = tradeOperationKey(vars);
+    const existing = findBlockingRecord(opKey);
+    if (existing) {
+      throw new Error(`Duplicate trade blocked (status: ${existing.status}, transaction: ${existing.result_id})`);
+    }
+    recordOperation(opKey, "pending");
+    try {
+      const result = await runQuery("proposeTrade", vars);
+      const txId = result.propose_trade?.transaction_id ?? null;
+      recordOperation(opKey, "success", txId);
+      return result;
+    } catch (err) {
+      recordOperation(opKey, "failed");
+      throw err;
+    }
+  },
+);
+
+ipcMain.handle(
+  "trade:accept",
+  async (_event, vars: QueryMap["acceptTrade"]["vars"]) => {
+    await requireAccess();
+    return runQuery("acceptTrade", vars);
+  },
+);
+
+ipcMain.handle(
+  "trade:reject",
+  async (_event, vars: QueryMap["rejectTrade"]["vars"]) => {
+    await requireAccess();
+    return runQuery("rejectTrade", vars);
+  },
+);
+
+ipcMain.handle(
+  "message:create",
+  async (_event, vars: QueryMap["createMessage"]["vars"]) => {
+    await requireAccess();
+    return runQuery("createMessage", vars);
+  },
+);
+
+ipcMain.handle(
+  "dm:create",
+  async (_event, vars: QueryMap["createDm"]["vars"]) => {
+    await requireAccess();
+    return runQuery("createDm", vars);
+  },
+);
+
+ipcMain.handle(
+  "league-message:create",
+  async (_event, vars: QueryMap["createLeagueMessage"]["vars"]) => {
+    await requireAccess();
+    return runQuery("createLeagueMessage", vars);
   },
 );
 

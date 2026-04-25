@@ -9,7 +9,7 @@ import type {
 } from "@sleepier/shared";
 import { getPickId, buildPlayerAttachment, buildUserAttachment } from "@sleepier/shared";
 import { useTradesByStatus } from "../../../hooks/use-trades-by-status";
-import { useIpcMutation } from "../../../hooks/use-ipc-mutation";
+import { useIpcMutation, useGraphqlMutation } from "../../../hooks/use-ipc-mutation";
 import { useTradeValueFilter } from "../../../hooks/use-trade-value-filter";
 import type { InterestByLeague } from "../../../hooks/use-league-players";
 import { TradesPanel } from "./trades-panel";
@@ -78,12 +78,12 @@ export default function TradesView({
     setSelectedProposals([]);
   }, [playersToGive, playersToReceive, picksToGive, picksToReceive]);
 
-  const { mutate: proposeTrade } = useIpcMutation("proposeTrade");
-  const { mutate: acceptTradeMut } = useIpcMutation("acceptTrade");
-  const { mutate: rejectTradeMut } = useIpcMutation("rejectTrade");
-  const { mutate: getDm } = useIpcMutation("getDmByMembers");
-  const { mutate: createDm } = useIpcMutation("createDm");
-  const { mutate: sendMessage } = useIpcMutation("createMessage");
+  const { mutate: proposeTrade } = useIpcMutation<"proposeTrade">("trade:propose");
+  const { mutate: acceptTradeMut } = useIpcMutation<"acceptTrade">("trade:accept");
+  const { mutate: rejectTradeMut } = useIpcMutation<"rejectTrade">("trade:reject");
+  const { mutate: getDm } = useGraphqlMutation("getDmByMembers");
+  const { mutate: createDm } = useIpcMutation<"createDm">("dm:create");
+  const { mutate: sendMessage } = useIpcMutation<"createMessage">("message:create");
 
   // Helper: get-or-create a DM channel, then send a trade attachment message.
   const sendTradeDm = useCallback(async (

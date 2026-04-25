@@ -9,10 +9,45 @@ type State<T> = {
   error: string | null
 }
 
-// Manual-trigger counterpart to useIpcQuery. Use for mutations (propose_trade,
-// accept_trade, etc.) — anything you want to fire on a button click rather
-// than on mount.
-export function useIpcMutation<N extends QueryName>(name: N) {
+/**
+ * Mutation hook for dedicated IPC channels.
+ * Vars are sent directly as the IPC argument.
+ */
+export function useIpcMutation<N extends QueryName>(channel: string) {
+  const [state, setState] = useState<State<QueryMap[N]['result']>>({
+    data: null,
+    loading: false,
+    error: null,
+  })
+
+  const mutate = useCallback(
+    async (vars: QueryMap[N]['vars']): Promise<QueryMap[N]['result']> => {
+      setState({ data: null, loading: true, error: null })
+      try {
+        const data = await window.ipc.invoke<QueryMap[N]['result']>(channel, vars)
+        setState({ data, loading: false, error: null })
+        return data
+      } catch (e) {
+        const error = e instanceof Error ? e.message : String(e)
+        setState({ data: null, loading: false, error })
+        throw e
+      }
+    },
+    [channel]
+  )
+
+  const reset = useCallback(() => {
+    setState({ data: null, loading: false, error: null })
+  }, [])
+
+  return { ...state, mutate, reset }
+}
+
+/**
+ * Mutation hook that goes through the generic "graphql" IPC channel.
+ * Wraps vars in { name, vars } for the graphql handler.
+ */
+export function useGraphqlMutation<N extends QueryName>(name: N) {
   const [state, setState] = useState<State<QueryMap[N]['result']>>({
     data: null,
     loading: false,

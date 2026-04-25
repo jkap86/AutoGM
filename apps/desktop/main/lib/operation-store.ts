@@ -1,7 +1,19 @@
 import Store from "electron-store";
 import crypto from "crypto";
 
-export type OperationStatus = "pending" | "success" | "failed" | "unknown";
+export type OperationStatus =
+  | "pending"
+  | "success"
+  | "poll_created"
+  | "failed"
+  | "unknown";
+
+/** Statuses that block a retry of the same operation key. */
+const BLOCKING_STATUSES = new Set<OperationStatus>([
+  "pending",
+  "success",
+  "poll_created",
+]);
 
 export type OperationRecord = {
   key: string;
@@ -46,12 +58,15 @@ function prune(): OperationRecord[] {
 }
 
 /**
- * Check if an operation was recently executed or is in progress.
- * Returns the full record if found, or null if new.
+ * Find a recent record that blocks a retry.
+ * Failed and unknown operations do NOT block — they can be retried.
+ * Returns the blocking record, or null if the operation is safe to attempt.
  */
-export function findRecentRecord(key: string): OperationRecord | null {
+export function findBlockingRecord(key: string): OperationRecord | null {
   const ops = prune();
-  return ops.find((o) => o.key === key) ?? null;
+  const found = ops.find((o) => o.key === key);
+  if (!found) return null;
+  return BLOCKING_STATUSES.has(found.status) ? found : null;
 }
 
 /** Record an operation with a given status. */

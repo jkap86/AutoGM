@@ -21,6 +21,12 @@ const ALLOWED_CHANNELS = new Set([
   'ktc:byDate',
   'adp:fetch',
   'adp:stats',
+  'trade:propose',
+  'trade:accept',
+  'trade:reject',
+  'message:create',
+  'dm:create',
+  'league-message:create',
   'opponent:drafts',
   'opponent:trades',
 ])
