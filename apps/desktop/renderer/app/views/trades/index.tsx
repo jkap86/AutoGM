@@ -16,8 +16,9 @@ import { TradesPanel } from "./trades-panel";
 import { PotentialTrades } from "./potential-trades";
 import { PlayerCombobox } from "../../components/player-combobox";
 import { TradeFilterBar } from "../../components/trade-filter-bar";
+import { LeaguesPanel } from "./leagues-panel";
 
-type TradesTab = "create" | "pending" | "completed" | "rejected";
+type TradesTab = "create" | "pending" | "completed" | "rejected" | "leagues";
 
 // Convert a UI pick_id like "2026 1.03" or "2026 Round 2" into the KTC-compatible name
 // like "2026 Early 1st" / "2026 Mid 2nd" / etc.
@@ -405,18 +406,21 @@ export default function TradesView({
   return (
     <div className="flex flex-col flex-1 items-center w-full gap-6 p-6">
       {/* Tabs */}
-      <div className="flex w-full max-w-3xl border-b border-gray-700">
-        {(["create", "pending", "completed", "rejected"] as TradesTab[]).map((t) => {
+      <div className="flex w-full max-w-3xl border-b border-gray-700 overflow-x-auto">
+        {(["create", "pending", "completed", "rejected", "leagues"] as TradesTab[]).map((t) => {
           const count = t === "pending" ? pendingTrades.length
             : t === "completed" ? completedTrades.length
             : t === "rejected" ? rejectedTrades.length
+            : t === "leagues" ? Object.keys(leagues).length
             : 0;
           const label = t === "create" ? "Create Trade"
             : t === "pending" ? "Pending"
             : t === "completed" ? "Completed"
-            : "Rejected";
+            : t === "rejected" ? "Rejected"
+            : "Leagues";
           const badgeColor = t === "pending" ? "bg-yellow-500/20 text-yellow-400"
             : t === "completed" ? "bg-green-500/20 text-green-400"
+            : t === "leagues" ? "bg-blue-500/20 text-blue-400"
             : "bg-red-500/20 text-red-400";
           return (
             <button
@@ -424,7 +428,7 @@ export default function TradesView({
               onClick={() => setTab(t)}
               role="tab"
               aria-selected={tab === t}
-              className={`relative px-5 py-2.5 text-sm font-medium transition ${
+              className={`relative shrink-0 px-5 py-2.5 text-sm font-semibold font-[family-name:var(--font-heading)] tracking-wide uppercase transition ${
                 tab === t
                   ? "text-gray-100"
                   : "text-gray-500 hover:text-gray-300"
@@ -520,6 +524,12 @@ export default function TradesView({
           filter={valueFilter}
           statusLabel="Rejected"
           emptyMessage="No rejected trades across your leagues."
+        />
+      ) : tab === "leagues" ? (
+        <LeaguesPanel
+          leagues={leagues}
+          userId={userId}
+          filter={valueFilter}
         />
       ) : (
       <>
@@ -707,7 +717,7 @@ export default function TradesView({
       </div>
 
       {/* Potential trades */}
-      <div className="w-full max-w-6xl">
+      <div className="w-full max-w-4xl">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-baseline gap-3">
             <h2 className="text-lg font-semibold text-gray-100">

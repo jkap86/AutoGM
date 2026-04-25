@@ -332,10 +332,11 @@ export function PotentialTrades({
             </div>
 
             {/* Body: two sides */}
-            <div className="flex items-stretch relative">
+            <div className="flex flex-col sm:flex-row items-stretch relative">
               {sides.map((side, i) => (
                 <div key={side.roster_id} className="flex-1 flex flex-col min-w-0 relative">
-                  {i > 0 && <div className="absolute inset-y-0 left-0 w-px bg-gray-700/50" />}
+                  {i > 0 && <div className="hidden sm:block absolute inset-y-0 left-0 w-px bg-gray-700/50" />}
+                  {i > 0 && <div className="sm:hidden border-t border-gray-700/50" />}
                   <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
                     <Avatar hash={side.roster.avatar} alt={side.roster.username} size={28} />
                     <div className="flex flex-col min-w-0">

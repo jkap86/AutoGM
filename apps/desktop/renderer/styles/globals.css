@@ -5,9 +5,19 @@
 @source "../hooks";
 @source "../lib";
 
+@theme {
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+}
+
 @layer base {
   body {
-    @apply bg-gray-900 text-white;
+    @apply bg-gray-900 text-white font-sans;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
   }
 }
 

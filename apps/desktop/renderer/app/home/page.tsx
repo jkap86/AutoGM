@@ -18,7 +18,7 @@ export default function HomePage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4">
-      <h1 className="text-4xl font-bold">Sleepier</h1>
+      <h1 className="text-5xl font-bold tracking-tight">Sleepier</h1>
       <p className="text-gray-400">Sleeper Automation Tool</p>
 
       <button

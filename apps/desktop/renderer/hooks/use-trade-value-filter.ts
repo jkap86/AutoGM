@@ -146,14 +146,14 @@ export function useTradeValueFilter({
   const sumTopN = (values: number[], n: number) =>
     (n > 0 ? values.slice(0, n) : values).reduce((a, b) => a + b, 0)
 
-  const getValue = (leagueId: string, rosterId: number): number => {
-    const values = rawByLeague[leagueId]?.[positionFilter]?.[rosterId]
+  const getValue = (leagueId: string, rosterId: number, filter?: PositionFilter): number => {
+    const values = rawByLeague[leagueId]?.[filter ?? positionFilter]?.[rosterId]
     if (!values) return 0
     return sumTopN(values, topN)
   }
 
-  const getRank = (leagueId: string, rosterId: number): number | null => {
-    const perRoster = rawByLeague[leagueId]?.[positionFilter]
+  const getRank = (leagueId: string, rosterId: number, filter?: PositionFilter): number | null => {
+    const perRoster = rawByLeague[leagueId]?.[filter ?? positionFilter]
     if (!perRoster) return null
     const totals = Object.entries(perRoster).map(([rid, vals]) => ({
       rid: Number(rid),
