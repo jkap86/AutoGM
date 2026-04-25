@@ -8,6 +8,7 @@
     "typecheck": "turbo typecheck",
     "dev:desktop": "turbo dev --filter=sleepier-desktop",
     "dev:mobile": "turbo dev --filter=sleepier-mobile",
+    "dev:web": "turbo dev --filter=sleepier-web",
     "pack:ci": "pnpm install --config.node-linker=hoisted && pnpm --filter sleepier-desktop build",
     "test": "turbo test",
     "lint": "turbo lint",
