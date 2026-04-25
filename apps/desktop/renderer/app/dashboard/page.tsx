@@ -11,8 +11,9 @@ import AdpView from "../views/adp-view";
 import { LeagueFilterBar, useLeagueFilter } from "../components/league-filter";
 import { useKtc } from "../../hooks/use-ktc";
 import { useLeaguePlayers } from "../../hooks/use-league-players";
+import { CURRENT_SEASON } from "@sleepier/shared";
 
-const SEASON = "2026";
+const SEASON = CURRENT_SEASON;
 
 type View = "trades" | "polls" | "adp" | null;
 

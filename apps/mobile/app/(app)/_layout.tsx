@@ -1,7 +1,14 @@
-import { Tabs } from 'expo-router'
+import { Tabs, Redirect } from 'expo-router'
 import { Text } from 'react-native'
+import { useAuth } from '@sleepier/shared'
 
 export default function AppLayout() {
+  const { session } = useAuth()
+
+  if (!session?.user_id) {
+    return <Redirect href="/(auth)/login" />
+  }
+
   return (
     <Tabs
       screenOptions={{

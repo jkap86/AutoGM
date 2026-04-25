@@ -1,5 +1,5 @@
 import { cached } from "../lib/cache";
-import { getLeagueDetails } from "../lib/get-league-details";
+import { getLeagueDetails } from "@sleepier/shared";
 import type { League, LeagueDetailed, LeaguesPayload, User } from "@sleepier/shared";
 import { getJson } from "./get-json";
 

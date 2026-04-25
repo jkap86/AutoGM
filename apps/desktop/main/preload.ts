@@ -1,22 +1,37 @@
-import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
+
+/**
+ * Whitelisted IPC channels — only these can be invoked from the renderer.
+ * Any channel not in this set is silently blocked.
+ */
+const ALLOWED_CHANNELS = new Set([
+  'login',
+  'access:check',
+  'session:restore',
+  'leagues:fetch',
+  'allplayers:fetch',
+  'graphql',
+  'polls:list',
+  'polls:add',
+  'polls:remove',
+  'polls:remove-group',
+  'ktc:latest',
+  'ktc:history',
+  'ktc:byDate',
+  'adp:fetch',
+  'adp:stats',
+  'opponent:drafts',
+  'opponent:trades',
+])
 
 const handler = {
-  send<T>(channel: string, value?: T) {
-    ipcRenderer.send(channel, value)
-  },
-  on<T>(channel: string, callback: (...args: T[]) => void) {
-    const subscription = (_event: IpcRendererEvent, ...args: T[]) =>
-      callback(...args)
-    ipcRenderer.on(channel, subscription)
-
-    return () => {
-      ipcRenderer.removeListener(channel, subscription)
-    }
-  },
   invoke<TResult = unknown, TArg = unknown>(
     channel: string,
     value?: TArg
   ): Promise<TResult> {
+    if (!ALLOWED_CHANNELS.has(channel)) {
+      return Promise.reject(new Error(`IPC channel "${channel}" is not allowed`))
+    }
     return ipcRenderer.invoke(channel, value)
   },
 }

@@ -15,8 +15,9 @@ import {
   useTradesByStatus,
   TradeWithLeague,
 } from '../../../src/hooks/use-trades-by-status'
+import { CURRENT_SEASON } from '@sleepier/shared'
 
-const SEASON = '2025'
+const SEASON = CURRENT_SEASON
 type Tab = 'pending' | 'completed' | 'rejected'
 
 function TradeCard({

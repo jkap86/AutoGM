@@ -27,7 +27,12 @@ export function getPolls(): StoredPoll[] {
 
 export function addPoll(poll: StoredPoll): void {
   const polls = store.get("polls");
-  polls.push(poll);
+  const idx = polls.findIndex((p) => p.poll_id === poll.poll_id);
+  if (idx !== -1) {
+    polls[idx] = poll;
+  } else {
+    polls.push(poll);
+  }
   store.set("polls", polls);
 }
 

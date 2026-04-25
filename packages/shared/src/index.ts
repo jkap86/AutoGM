@@ -20,6 +20,7 @@ export { fetchAllPlayersUncached } from './api/fetch-allplayers'
 
 // Constants
 export { BROWSER_HEADERS } from './browser-headers'
+export { CURRENT_SEASON } from './config'
 
 // Lib
 export { getPickId, deriveCollections } from './lib/leagues'

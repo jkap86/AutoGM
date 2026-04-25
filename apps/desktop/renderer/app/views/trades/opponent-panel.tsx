@@ -179,6 +179,7 @@ function PlayerSharesSection({
 
 type TradeTransaction = {
   transaction_id: string;
+  league_id: string;
   status_updated: number;
   roster_ids: number[];
   adds: Record<string, number> | null;

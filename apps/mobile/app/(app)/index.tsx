@@ -2,8 +2,9 @@ import { View, Text, FlatList, ActivityIndicator, Image, StyleSheet } from 'reac
 import { useAuth } from '@sleepier/shared'
 import type { LeagueDetailed } from '@sleepier/shared'
 import { useLeagues } from '../../src/hooks/use-leagues'
+import { CURRENT_SEASON } from '@sleepier/shared'
 
-const SEASON = '2025'
+const SEASON = CURRENT_SEASON
 
 function LeagueCard({ league }: { league: LeagueDetailed }) {
   const avatarUrl = league.avatar

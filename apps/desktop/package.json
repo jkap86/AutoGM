@@ -8,6 +8,7 @@
     "dev": "nextron",
     "build": "nextron build",
     "postinstall": "electron-builder install-app-deps",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint main/ renderer/"
   },
   "dependencies": {
