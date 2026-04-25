@@ -1,5 +1,5 @@
-// TODO: replace with actual release URL (e.g. GitHub Releases asset link)
-const DOWNLOAD_URL = "#";
+const DOWNLOAD_URL =
+  "https://github.com/jkap86/Sleepier/releases/latest/download/Sleepier.Setup.1.0.0.exe";
 
 const platforms = [
   {
