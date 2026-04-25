@@ -3,6 +3,7 @@ import { View, Text, FlatList, ActivityIndicator, Image, TouchableOpacity, Style
 import { useAuth, CURRENT_SEASON } from '@sleepier/shared'
 import type { LeagueDetailed } from '@sleepier/shared'
 import { useLeagues } from '../../src/hooks/use-leagues'
+import { colors } from '../../src/theme'
 
 const SEASON = CURRENT_SEASON
 type Filter = 'all' | 'dynasty' | 'redraft' | 'keeper'
@@ -62,7 +63,7 @@ export default function LeaguesScreen() {
   if (loading && !leagues) {
     return (
       <View style={s.center}>
-        <ActivityIndicator size="large" color="#60A5FA" />
+        <ActivityIndicator size="large" color={colors.blueLight} />
         <Text style={[s.subtext, { marginTop: 12 }]}>Loading leagues...</Text>
       </View>
     )
@@ -71,7 +72,7 @@ export default function LeaguesScreen() {
   if (error) {
     return (
       <View style={s.center}>
-        <Text style={{ color: '#F87171', textAlign: 'center' }}>{error}</Text>
+        <Text style={{ color: colors.red, textAlign: 'center' }}>{error}</Text>
       </View>
     )
   }
@@ -112,10 +113,10 @@ export default function LeaguesScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#111827' },
-  center: { flex: 1, backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  container: { flex: 1, backgroundColor: colors.bg },
+  center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: {
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -123,26 +124,26 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
-  avatarPlaceholder: { backgroundColor: '#374151', alignItems: 'center', justifyContent: 'center' },
-  leagueName: { color: '#FFFFFF', fontWeight: '600', fontSize: 15 },
-  subtext: { color: '#9CA3AF', fontSize: 13, marginTop: 2 },
-  record: { color: '#60A5FA', fontWeight: '700', fontSize: 14 },
-  pts: { color: '#6B7280', fontSize: 11, marginTop: 2 },
+  avatarPlaceholder: { backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  leagueName: { color: colors.white, fontWeight: '600', fontSize: 15 },
+  subtext: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
+  record: { color: colors.blueLight, fontWeight: '700', fontSize: 14 },
+  pts: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
   filterBar: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#1F2937',
+    borderBottomColor: colors.card,
   },
   filterBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.card,
   },
-  filterBtnActive: { backgroundColor: '#2563EB' },
-  filterText: { color: '#6B7280', fontSize: 12, fontWeight: '500' },
-  filterTextActive: { color: '#FFF' },
+  filterBtnActive: { backgroundColor: colors.blue },
+  filterText: { color: colors.textMuted, fontSize: 12, fontWeight: '500' },
+  filterTextActive: { color: colors.white },
 })

@@ -106,7 +106,8 @@ export function usePolls() {
               poll_id: poll.poll_id,
             })) as ListPollVotesResult
             return { ...poll, votes: result.list_poll_votes }
-          } catch {
+          } catch (e) {
+            console.warn(`[use-polls] Failed to fetch votes for ${poll.poll_id}:`, e)
             return { ...poll, votes: [] as PollVote[] }
           }
         }),

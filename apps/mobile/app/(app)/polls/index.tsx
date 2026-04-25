@@ -15,6 +15,8 @@ import type { LeagueDetailed } from '@sleepier/shared'
 import { useLeagues } from '../../../src/hooks/use-leagues'
 import { useCreatePoll } from '../../../src/hooks/use-create-poll'
 import { usePolls, addPoll, type PollGroup } from '../../../src/hooks/use-polls'
+import { ErrorBoundary } from '../../../src/components/error-boundary'
+import { colors } from '../../../src/theme'
 import 'react-native-get-random-values'
 
 const SEASON = CURRENT_SEASON
@@ -97,7 +99,7 @@ function CreatePollForm({
           value={prompt}
           onChangeText={setPrompt}
           placeholder="Ask a question..."
-          placeholderTextColor="#6B7280"
+          placeholderTextColor={colors.textMuted}
         />
 
         <Text style={[s.label, { marginTop: 12 }]}>Choices</Text>
@@ -108,11 +110,11 @@ function CreatePollForm({
               value={c}
               onChangeText={(v) => updateChoice(i, v)}
               placeholder={`Option ${i + 1}`}
-              placeholderTextColor="#6B7280"
+              placeholderTextColor={colors.textMuted}
             />
             {choices.length > 2 && (
               <TouchableOpacity onPress={() => removeChoice(i)} style={{ marginLeft: 8 }}>
-                <Text style={{ color: '#F87171', fontSize: 18 }}>&times;</Text>
+                <Text style={{ color: colors.red, fontSize: 18 }}>&times;</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -166,14 +168,14 @@ function CreatePollForm({
               onPress={() => toggleLeague(id)}
               style={[s.leagueRow, selected.includes(id) && s.leagueRowActive]}
             >
-              <Text style={[s.leagueText, selected.includes(id) && { color: '#FFF' }]}>
+              <Text style={[s.leagueText, selected.includes(id) && { color: colors.white }]}>
                 {selected.includes(id) ? '☑ ' : '☐ '}{league.name}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {error && <Text style={{ color: '#F87171', fontSize: 12, marginTop: 8 }}>{error}</Text>}
+        {error && <Text style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{error}</Text>}
 
         <TouchableOpacity
           onPress={handleSubmit}
@@ -187,16 +189,23 @@ function CreatePollForm({
   )
 }
 
-// ---- Vote Bar ----
+// ---- Vote Bar (visual) ----
 
 function VoteBar({ choice, count, total }: { choice: string; count: number; total: number }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 2 }}>
-      <Text style={{ color: '#D1D5DB', fontSize: 13, flex: 1 }}>
-        {choice}
-        <Text style={{ color: '#6B7280', fontSize: 11 }}>  {count} · {pct}%</Text>
-      </Text>
+    <View style={{ marginVertical: 2 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+        <Text style={{ color: colors.text, fontSize: 13 }} numberOfLines={1}>
+          {choice}
+        </Text>
+        <Text style={{ color: colors.textMuted, fontSize: 11 }}>
+          {count} · {pct}%
+        </Text>
+      </View>
+      <View style={s.barTrack}>
+        <View style={[s.barFill, { width: `${pct}%` }]} />
+      </View>
     </View>
   )
 }
@@ -223,18 +232,18 @@ function PollGroupCard({
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
         <View style={{ flex: 1 }}>
           <Text style={s.heading}>{group.prompt}</Text>
-          <Text style={{ color: '#6B7280', fontSize: 11 }}>
+          <Text style={{ color: colors.textMuted, fontSize: 11 }}>
             {group.poll_type} · {group.privacy}
           </Text>
         </View>
         <TouchableOpacity onPress={onRemove}>
-          <Text style={{ color: '#6B7280', fontSize: 11 }}>Remove</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 11 }}>Remove</Text>
         </TouchableOpacity>
       </View>
 
       {group.polls.length > 1 && (
         <View style={s.aggregate}>
-          <Text style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 4 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>
             Aggregate · {group.polls.length} leagues · {aggTotal} vote{aggTotal !== 1 ? 's' : ''}
           </Text>
           {group.choices.map((choice, i) => (
@@ -251,7 +260,7 @@ function PollGroupCard({
         const totalVotes = poll.votes.length
         return (
           <View key={poll.poll_id} style={{ marginTop: 8 }}>
-            <Text style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 2 }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 2 }}>
               {leagueName} · {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
             </Text>
             {poll.choices.map((choice, i) => {
@@ -268,7 +277,7 @@ function PollGroupCard({
 
 // ---- Main Screen ----
 
-export default function PollsScreen() {
+function PollsContent() {
   const { session } = useAuth()
   const { leagues, loading: leaguesLoading } = useLeagues({
     user_id: session?.user_id,
@@ -305,15 +314,15 @@ export default function PollsScreen() {
 
       {(loading || leaguesLoading) && groups.length === 0 ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#60A5FA" />
+          <ActivityIndicator size="large" color={colors.blueLight} />
         </View>
       ) : error ? (
         <View style={s.center}>
-          <Text style={{ color: '#F87171' }}>{error}</Text>
+          <Text style={{ color: colors.red }}>{error}</Text>
         </View>
       ) : groups.length === 0 ? (
         <View style={s.center}>
-          <Text style={{ color: '#9CA3AF' }}>No polls yet.</Text>
+          <Text style={{ color: colors.textSecondary }}>No polls yet.</Text>
         </View>
       ) : (
         <FlatList
@@ -338,39 +347,50 @@ export default function PollsScreen() {
   )
 }
 
+export default function PollsScreen() {
+  return (
+    <ErrorBoundary>
+      <PollsContent />
+    </ErrorBoundary>
+  )
+}
+
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#111827' },
+  container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  card: { backgroundColor: '#1F2937', borderRadius: 12, padding: 16, marginBottom: 12 },
-  heading: { color: '#FFF', fontWeight: '600', fontSize: 15 },
-  label: { color: '#9CA3AF', fontSize: 12, fontWeight: '500', marginBottom: 4 },
-  link: { color: '#60A5FA', fontSize: 13 },
+  card: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 12 },
+  heading: { color: colors.white, fontWeight: '600', fontSize: 15 },
+  label: { color: colors.textSecondary, fontSize: 12, fontWeight: '500', marginBottom: 4 },
+  link: { color: colors.blueLight, fontSize: 13 },
   input: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    color: '#FFF',
+    color: colors.white,
     fontSize: 14,
   },
-  segmented: { flexDirection: 'row', borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#374151' },
-  segBtn: { flex: 1, paddingVertical: 6, alignItems: 'center', backgroundColor: '#111827' },
-  segBtnActive: { backgroundColor: '#2563EB' },
-  segText: { color: '#6B7280', fontSize: 12, fontWeight: '500' },
-  segTextActive: { color: '#FFF' },
-  leagueList: { borderWidth: 1, borderColor: '#374151', borderRadius: 8, maxHeight: 160, overflow: 'hidden' },
+  segmented: { flexDirection: 'row', borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
+  segBtn: { flex: 1, paddingVertical: 6, alignItems: 'center', backgroundColor: colors.surface },
+  segBtnActive: { backgroundColor: colors.blue },
+  segText: { color: colors.textMuted, fontSize: 12, fontWeight: '500' },
+  segTextActive: { color: colors.white },
+  leagueList: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, maxHeight: 160, overflow: 'hidden' },
   leagueRow: { paddingHorizontal: 12, paddingVertical: 8 },
   leagueRowActive: { backgroundColor: 'rgba(37,99,235,0.1)' },
-  leagueText: { color: '#9CA3AF', fontSize: 13 },
+  leagueText: { color: colors.textSecondary, fontSize: 13 },
   submitBtn: {
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.blue,
     borderRadius: 8,
     paddingVertical: 10,
+    paddingHorizontal: 24,
     alignItems: 'center',
     marginTop: 12,
   },
-  submitText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
+  submitText: { color: colors.white, fontWeight: '600', fontSize: 14 },
   aggregate: { backgroundColor: 'rgba(17,24,39,0.5)', borderRadius: 8, padding: 10, marginBottom: 4 },
+  barTrack: { height: 6, borderRadius: 3, backgroundColor: colors.barTrack },
+  barFill: { height: 6, borderRadius: 3, backgroundColor: colors.barFill },
 })

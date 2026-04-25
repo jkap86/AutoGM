@@ -17,6 +17,8 @@ import {
   TradeWithLeague,
 } from '../../../src/hooks/use-trades-by-status'
 import { mobileDataClient } from '../../../src/data-client'
+import { ErrorBoundary } from '../../../src/components/error-boundary'
+import { colors } from '../../../src/theme'
 
 const SEASON = CURRENT_SEASON
 type Tab = 'pending' | 'completed' | 'rejected'
@@ -92,7 +94,7 @@ function TradeCard({
         <Text style={s.white600}>{trade.league_name}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={[s.badge, isReceived ? s.badgeOrange : s.badgeBlue]}>
-            <Text style={[s.badgeText, { color: isReceived ? '#FB923C' : '#60A5FA' }]}>
+            <Text style={[s.badgeText, { color: isReceived ? colors.orange : colors.blueLight }]}>
               {isReceived ? 'Received' : 'Outgoing'}
             </Text>
           </View>
@@ -140,7 +142,7 @@ function TradeCard({
             disabled={acting}
             style={[s.actionBtn, s.acceptBtn]}
           >
-            <Text style={s.actionText}>{acting ? '...' : 'Accept'}</Text>
+            <Text style={[s.actionText, { color: colors.green }]}>{acting ? '...' : 'Accept'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() =>
@@ -152,7 +154,7 @@ function TradeCard({
             disabled={acting}
             style={[s.actionBtn, s.rejectBtn]}
           >
-            <Text style={s.actionText}>{acting ? '...' : 'Reject'}</Text>
+            <Text style={[s.actionText, { color: colors.red }]}>{acting ? '...' : 'Reject'}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -160,7 +162,7 @@ function TradeCard({
   )
 }
 
-export default function TradesScreen() {
+function TradesContent() {
   const { session } = useAuth()
   const { leagues, loading: leaguesLoading } = useLeagues({
     user_id: session?.user_id,
@@ -212,7 +214,7 @@ export default function TradesScreen() {
 
       {isLoading && trades.length === 0 ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color="#60A5FA" />
+          <ActivityIndicator size="large" color={colors.blueLight} />
         </View>
       ) : (
         <FlatList
@@ -237,28 +239,36 @@ export default function TradesScreen() {
   )
 }
 
+export default function TradesScreen() {
+  return (
+    <ErrorBoundary>
+      <TradesContent />
+    </ErrorBoundary>
+  )
+}
+
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#111827' },
+  container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  card: { backgroundColor: '#1F2937', borderRadius: 12, padding: 16, marginBottom: 12 },
+  card: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 12 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  white600: { color: '#FFF', fontWeight: '600', fontSize: 14 },
+  white600: { color: colors.white, fontWeight: '600', fontSize: 14 },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  badgeOrange: { backgroundColor: 'rgba(249,115,22,0.2)' },
-  badgeBlue: { backgroundColor: 'rgba(59,130,246,0.2)' },
+  badgeOrange: { backgroundColor: colors.orangeBg },
+  badgeBlue: { backgroundColor: colors.blueBg },
   badgeText: { fontSize: 11, fontWeight: '500' },
-  dateText: { color: '#6B7280', fontSize: 11 },
-  label: { color: '#9CA3AF', fontSize: 11, marginBottom: 4 },
-  playerAdd: { color: '#4ADE80', fontSize: 13, marginLeft: 8 },
-  pickText: { color: '#60A5FA', fontSize: 13, marginLeft: 8 },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#374151', paddingHorizontal: 16 },
+  dateText: { color: colors.textMuted, fontSize: 11 },
+  label: { color: colors.textSecondary, fontSize: 11, marginBottom: 4 },
+  playerAdd: { color: colors.green, fontSize: 13, marginLeft: 8 },
+  pickText: { color: colors.blueLight, fontSize: 13, marginLeft: 8 },
+  tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 16 },
   tab: { paddingHorizontal: 16, paddingVertical: 12, marginRight: 4 },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: '#60A5FA' },
-  tabText: { fontSize: 13, fontWeight: '500', color: '#6B7280' },
-  tabTextActive: { color: '#FFF' },
+  tabActive: { borderBottomWidth: 2, borderBottomColor: colors.blueLight },
+  tabText: { fontSize: 13, fontWeight: '500', color: colors.textMuted },
+  tabTextActive: { color: colors.white },
   actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   actionBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  acceptBtn: { backgroundColor: 'rgba(34,197,94,0.15)' },
-  rejectBtn: { backgroundColor: 'rgba(239,68,68,0.15)' },
-  actionText: { fontWeight: '600', fontSize: 13, color: '#FFF' },
+  acceptBtn: { backgroundColor: colors.greenBg },
+  rejectBtn: { backgroundColor: colors.redBg },
+  actionText: { fontWeight: '600', fontSize: 13 },
 })
