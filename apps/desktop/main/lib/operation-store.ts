@@ -58,13 +58,21 @@ function prune(): OperationRecord[] {
 }
 
 /**
+ * Find a recent record regardless of status.
+ * Returns the record if found (any status), or null if no record exists.
+ */
+export function findRecentRecord(key: string): OperationRecord | null {
+  const ops = prune();
+  return ops.find((o) => o.key === key) ?? null;
+}
+
+/**
  * Find a recent record that blocks a retry.
  * Failed and unknown operations do NOT block — they can be retried.
  * Returns the blocking record, or null if the operation is safe to attempt.
  */
 export function findBlockingRecord(key: string): OperationRecord | null {
-  const ops = prune();
-  const found = ops.find((o) => o.key === key);
+  const found = findRecentRecord(key);
   if (!found) return null;
   return BLOCKING_STATUSES.has(found.status) ? found : null;
 }
@@ -91,10 +99,11 @@ export function recordOperation(
   getStore().set("operations", ops);
 }
 
+// ---- Key builders ----
+
 /**
  * Build an idempotency key for a proposeTrade mutation.
- * k_adds/v_adds and k_drops/v_drops are normalized as paired tuples
- * so independent sorting doesn't scramble the player-to-roster mapping.
+ * k_adds/v_adds and k_drops/v_drops are normalized as paired tuples.
  */
 export function tradeOperationKey(vars: {
   league_id: string;
@@ -126,7 +135,15 @@ export function tradeOperationKey(vars: {
   ]);
 }
 
-/** Build an idempotency key for a createPoll mutation. */
+/** Idempotency key for acceptTrade / rejectTrade (same shape). */
+export function tradeActionKey(
+  action: "acceptTrade" | "rejectTrade",
+  vars: { league_id: string; transaction_id: string; leg: number },
+): string {
+  return makeKey([action, vars.league_id, vars.transaction_id, vars.leg]);
+}
+
+/** Idempotency key for createPoll. */
 export function pollOperationKey(vars: {
   league_id: string;
   group_id: string;
@@ -144,4 +161,28 @@ export function pollOperationKey(vars: {
     vars.poll_type,
     vars.privacy,
   ]);
+}
+
+/** Idempotency key for createMessage. */
+export function messageOperationKey(vars: {
+  parent_id: string;
+  text: string;
+}): string {
+  return makeKey(["createMessage", vars.parent_id, vars.text]);
+}
+
+/** Idempotency key for createDm (sorted members for determinism). */
+export function dmOperationKey(vars: {
+  members: string[];
+  dm_type: string;
+}): string {
+  return makeKey(["createDm", [...vars.members].sort(), vars.dm_type]);
+}
+
+/** Idempotency key for createLeagueMessage. */
+export function leagueMessageOperationKey(vars: {
+  parent_id: string;
+  text: string;
+}): string {
+  return makeKey(["createLeagueMessage", vars.parent_id, vars.text]);
 }

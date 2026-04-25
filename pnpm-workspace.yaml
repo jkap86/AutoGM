@@ -1,5 +1,3 @@
 packages:
   - apps/*
   - packages/*
-
-onlyBuiltDependencies: electron sharp core-js-pure electron-winstaller esbuild
