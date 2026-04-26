@@ -4,7 +4,7 @@ import type {
   Leaguemates,
   PickShares,
   PlayerShares,
-} from "@sleepier/shared";
+} from "@autogm/shared";
 
 export function getPickId(draftpick: DraftpickDetailed): string {
   if (draftpick.order !== null) {

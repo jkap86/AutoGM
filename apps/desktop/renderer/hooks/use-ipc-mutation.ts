@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import type { QueryMap, QueryName } from '@sleepier/shared'
+import type { QueryMap, QueryName } from '@autogm/shared'
 
 type State<T> = {
   data: T | null

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchKtcByDate } from "@sleepier/shared";
+import { fetchKtcByDate } from "@autogm/shared";
 import { getPool } from "../../../../lib/db";
 import { requireAuth } from "../../../../lib/auth";
 

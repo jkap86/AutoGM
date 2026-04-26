@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { LeagueDetailed } from "@sleepier/shared";
+import type { LeagueDetailed } from "@autogm/shared";
 
 export type LeagueFilters = {
   leagueType1: number[];

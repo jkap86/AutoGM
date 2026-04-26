@@ -18,8 +18,8 @@ export default function HomePage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4">
-      <h1 className="text-5xl font-bold tracking-tight">Sleepier</h1>
-      <p className="text-gray-400">Sleeper Automation Tool</p>
+      <h1 className="text-5xl font-bold tracking-tight">AutoGM</h1>
+      <p className="text-gray-400">AutoGM - Fantasy Football Automation</p>
 
       <button
         onClick={login}

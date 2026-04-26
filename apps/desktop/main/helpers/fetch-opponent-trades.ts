@@ -1,6 +1,6 @@
 import { getJson } from "./get-json"
-import { runQuery } from "@sleepier/shared"
-import type { Transaction } from "@sleepier/shared"
+import { runQuery } from "@autogm/shared"
+import type { Transaction } from "@autogm/shared"
 import createLogger from "../lib/logger"
 
 const log = createLogger("fetch-opponent-trades")

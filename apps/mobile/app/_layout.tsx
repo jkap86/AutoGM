@@ -3,8 +3,8 @@ import { useEffect } from 'react'
 import { Slot } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SecureStore from 'expo-secure-store'
-import { setSession } from '@sleepier/shared'
-import { AuthProvider, useAuth } from '@sleepier/shared/react'
+import { setSession } from '@autogm/shared'
+import { AuthProvider, useAuth } from '@autogm/shared/react'
 
 function HydrateSession() {
   const { setSession: setAuthSession, setRestoring } = useAuth()

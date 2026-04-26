@@ -11,7 +11,7 @@ import AdpView from "../views/adp-view";
 import { LeagueFilterBar, useLeagueFilter } from "../components/league-filter";
 import { useKtc } from "../../hooks/use-ktc";
 import { useLeaguePlayers } from "../../hooks/use-league-players";
-import { CURRENT_SEASON } from "@sleepier/shared";
+import { CURRENT_SEASON } from "@autogm/shared";
 
 const SEASON = CURRENT_SEASON;
 

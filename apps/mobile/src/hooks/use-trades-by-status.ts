@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Transaction, LeagueTransactionsResult, LeagueDetailed } from '@sleepier/shared'
+import type { Transaction, LeagueTransactionsResult, LeagueDetailed } from '@autogm/shared'
 import { mobileDataClient } from '../data-client'
 
 export type TradeWithLeague = Transaction & {

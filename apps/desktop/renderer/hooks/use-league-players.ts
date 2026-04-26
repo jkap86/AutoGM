@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { LeagueDetailed } from '@sleepier/shared'
+import type { LeagueDetailed } from '@autogm/shared'
 
 type LeaguePlayer = {
   player_id: string

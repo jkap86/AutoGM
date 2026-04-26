@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import type { CreatePollMessageResult } from '@sleepier/shared'
+import type { CreatePollMessageResult } from '@autogm/shared'
 
 type State = {
   data: { poll_id: string; message: CreatePollMessageResult } | null

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Allplayer } from '@sleepier/shared'
+import type { Allplayer } from '@autogm/shared'
 import { mobileDataClient } from '../data-client'
 
 export function useAllPlayers() {

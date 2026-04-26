@@ -1,4 +1,4 @@
-# Sleepier
+# AutoGM
 
 Fantasy football automation tool built on top of the [Sleeper](https://sleeper.com) platform. Monorepo powered by pnpm workspaces and Turborepo.
 
@@ -24,20 +24,20 @@ packages/shared TypeScript library shared between apps
 pnpm install
 ```
 
-**Important:** `@sleepier/shared` must be built before running any app:
+**Important:** `@autogm/shared` must be built before running any app:
 
 ```bash
-pnpm --filter @sleepier/shared build
+pnpm --filter @autogm/shared build
 ```
 
-This happens automatically via Turbo when using `pnpm dev`, but direct commands like `pnpm --filter sleepier-mobile dev` require it to be built first.
+This happens automatically via Turbo when using `pnpm dev`, but direct commands like `pnpm --filter autogm-mobile dev` require it to be built first.
 
 ### Environment variables
 
 **Desktop** — create `apps/desktop/.env`:
 
 ```env
-DATABASE_URL=postgresql://user:pass@localhost:5432/sleepier
+DATABASE_URL=postgresql://user:pass@localhost:5432/autogm
 ALLOWLIST_URL=https://example.com/allowlist.json
 LOG_LEVEL=info          # debug | info | warn | error
 LOGIN_URL=              # optional, defaults to https://sleeper.com/login
@@ -47,7 +47,7 @@ PW_CHANNEL=chrome       # browser channel for playwright-core (chrome, chromium,
 **Web API** — create `apps/web/.env`:
 
 ```env
-DATABASE_URL=postgresql://user:pass@localhost:5432/sleepier
+DATABASE_URL=postgresql://user:pass@localhost:5432/autogm
 ALLOWLIST_URL=https://example.com/allowlist.json
 ```
 
@@ -91,7 +91,7 @@ pnpm build           # production build for all packages
 ### Desktop build
 
 ```bash
-pnpm --filter sleepier-desktop build
+pnpm --filter autogm-desktop build
 ```
 
 Output goes to `apps/desktop/dist/`.
@@ -99,7 +99,7 @@ Output goes to `apps/desktop/dist/`.
 ### Web build
 
 ```bash
-pnpm --filter sleepier-web build
+pnpm --filter autogm-web build
 ```
 
 ### Mobile build
@@ -107,16 +107,16 @@ pnpm --filter sleepier-web build
 Mobile builds are handled through Expo / EAS:
 
 ```bash
-pnpm --filter sleepier-mobile dev        # start Expo dev server
-pnpm --filter sleepier-mobile typecheck  # type-check mobile code
+pnpm --filter autogm-mobile dev        # start Expo dev server
+pnpm --filter autogm-mobile typecheck  # type-check mobile code
 ```
 
 ### Shared package
 
 ```bash
-pnpm --filter @sleepier/shared build     # compile to dist/
-pnpm --filter @sleepier/shared test      # run vitest
-pnpm --filter @sleepier/shared typecheck # tsc --noEmit
+pnpm --filter @autogm/shared build     # compile to dist/
+pnpm --filter @autogm/shared test      # run vitest
+pnpm --filter @autogm/shared typecheck # tsc --noEmit
 ```
 
 ## Architecture notes

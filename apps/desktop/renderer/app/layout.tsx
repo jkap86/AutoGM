@@ -17,8 +17,8 @@ const rajdhani = Rajdhani({
 })
 
 export const metadata: Metadata = {
-  title: 'Sleepier',
-  description: 'Sleepier desktop app',
+  title: 'AutoGM',
+  description: 'AutoGM desktop app',
 }
 
 export default function RootLayout({

@@ -16,9 +16,9 @@ const rajdhani = Rajdhani({
 });
 
 export const metadata: Metadata = {
-  title: "Sleepier - Fantasy Football Automation",
+  title: "AutoGM - Fantasy Football Automation",
   description:
-    "Automate trades, polls, and roster management on Sleeper.com with the Sleepier desktop app.",
+    "Automate trades, polls, and roster management on Sleeper.com with the AutoGM desktop app.",
 };
 
 export default function RootLayout({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAdp } from "@sleepier/shared";
-import type { AdpFilters } from "@sleepier/shared";
+import { fetchAdp } from "@autogm/shared";
+import type { AdpFilters } from "@autogm/shared";
 import { getPool } from "../../../../lib/db";
 import { requireAuth } from "../../../../lib/auth";
 

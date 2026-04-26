@@ -1,4 +1,4 @@
-import type { Allplayer, Roster } from "@sleepier/shared";
+import type { Allplayer, Roster } from "@autogm/shared";
 
 export function buildPlayerAttachment(p: Allplayer | undefined) {
   if (!p) return { player_id: "0" };

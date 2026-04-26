@@ -1,5 +1,5 @@
 const DOWNLOAD_URL =
-  "https://github.com/jkap86/Sleepier/releases/latest/download/Sleepier.Setup.1.0.0.exe";
+  "https://github.com/jkap86/Sleepier/releases/latest/download/AutoGM.Setup.1.0.0.exe";
 
 const platforms = [
   {
@@ -33,7 +33,7 @@ export default function Download() {
     <section id="download" className="py-24 px-6">
       <div className="mx-auto max-w-5xl">
         <h2 className="text-3xl sm:text-4xl font-bold text-center mb-14">
-          Download Sleepier
+          Download AutoGM
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {platforms.map((p) => (

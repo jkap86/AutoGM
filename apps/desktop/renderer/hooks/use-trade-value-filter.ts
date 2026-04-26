@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import type { Allplayer, LeagueDetailed, Roster } from '@sleepier/shared'
+import type { Allplayer, LeagueDetailed, Roster } from '@autogm/shared'
 import { useKtcByDate } from './use-ktc'
 import { useAdp, type AdpFilters } from './use-adp'
 

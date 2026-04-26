@@ -1,5 +1,5 @@
-import type { Allplayer, Roster } from "@sleepier/shared";
-import { getPickId } from "@sleepier/shared";
+import type { Allplayer, Roster } from "@autogm/shared";
+import { getPickId } from "@autogm/shared";
 import { getPickKtcName } from "../../lib/trade-utils";
 
 const POS_ORDER: Record<string, number> = { QB: 0, RB: 1, WR: 2, TE: 3, K: 4, DEF: 5 };

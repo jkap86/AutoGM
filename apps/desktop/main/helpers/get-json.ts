@@ -1,4 +1,4 @@
-import { BROWSER_HEADERS } from '@sleepier/shared'
+import { BROWSER_HEADERS } from '@autogm/shared'
 
 export async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers: BROWSER_HEADERS });

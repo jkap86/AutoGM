@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchOpponentDrafts } from "@sleepier/shared";
+import { fetchOpponentDrafts } from "@autogm/shared";
 import { getPool } from "../../../../lib/db";
 import { requireAuth } from "../../../../lib/auth";
 

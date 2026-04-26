@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router'
-import { useAuth } from '@sleepier/shared/react'
+import { useAuth } from '@autogm/shared/react'
 
 export default function Index() {
   const { session, restoring } = useAuth()

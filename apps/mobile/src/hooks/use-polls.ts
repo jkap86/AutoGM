@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ListPollVotesResult, PollVote } from '@sleepier/shared'
+import type { ListPollVotesResult, PollVote } from '@autogm/shared'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { mobileDataClient } from '../data-client'
 
-const POLLS_KEY = 'sleepier_polls'
+const POLLS_KEY = 'autogm_polls'
 
 export type StoredPoll = {
   poll_id: string

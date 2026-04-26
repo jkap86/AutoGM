@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { randomId } from "@sleepier/shared";
-import type { LeagueDetailed } from "@sleepier/shared";
+import { randomId } from "@autogm/shared";
+import type { LeagueDetailed } from "@autogm/shared";
 import { useCreatePoll } from "../../hooks/use-create-poll";
 import { usePolls, PollGroup } from "../../hooks/use-polls";
 import { Avatar } from "../components/avatar";

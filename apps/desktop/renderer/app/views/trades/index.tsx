@@ -6,8 +6,8 @@ import type {
   PickShares,
   PlayerShares,
   ProposeTradeVars,
-} from "@sleepier/shared";
-import { getPickId, buildPlayerAttachment, buildUserAttachment } from "@sleepier/shared";
+} from "@autogm/shared";
+import { getPickId, buildPlayerAttachment, buildUserAttachment } from "@autogm/shared";
 import { useTradesByStatus } from "../../../hooks/use-trades-by-status";
 import { useIpcMutation, useGraphqlMutation } from "../../../hooks/use-ipc-mutation";
 import { useTradeValueFilter } from "../../../hooks/use-trade-value-filter";

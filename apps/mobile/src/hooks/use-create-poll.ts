@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import type { CreatePollResult, CreatePollMessageResult } from '@sleepier/shared'
+import type { CreatePollResult, CreatePollMessageResult } from '@autogm/shared'
 import { mobileDataClient } from '../data-client'
 import {
   findBlockingRecord,

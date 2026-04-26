@@ -2,7 +2,7 @@ import { API_URL } from "./env";
 import { getSession } from "./auth";
 
 /**
- * Call the Sleepier web API. Adds the x-user-id header from the current session.
+ * Call the AutoGM web API. Adds the x-user-id header from the current session.
  */
 export async function apiGet<T>(path: string): Promise<T> {
   if (!API_URL) throw new Error("API_URL is not configured");

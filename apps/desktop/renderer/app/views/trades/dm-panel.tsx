@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { LeagueDetailed, Message, GetDmByMembersResult, MessagesResult } from "@sleepier/shared";
+import type { LeagueDetailed, Message, GetDmByMembersResult, MessagesResult } from "@autogm/shared";
 import { formatTime } from "../../../lib/trade-utils";
 
 function decodeHtmlEntities(text: string): string {

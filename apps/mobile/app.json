@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Sleepier",
-    "slug": "sleepier-mobile",
+    "name": "AutoGM",
+    "slug": "autogm-mobile",
     "version": "1.0.0",
-    "scheme": "sleepier",
+    "scheme": "autogm",
     "platforms": ["ios", "android"],
     "newArchEnabled": true,
     "plugins": ["expo-router", "expo-secure-store"]

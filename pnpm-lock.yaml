@@ -32,12 +32,12 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@autogm/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@babel/runtime-corejs3':
         specifier: ^7.26.0
         version: 7.29.2
-      '@sleepier/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
@@ -90,12 +90,12 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@autogm/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@react-native-async-storage/async-storage':
         specifier: ~2.1.2
         version: 2.1.2(react-native@0.79.7(@babel/core@7.26.0)(@types/react@19.2.14)(react@19.2.5))
-      '@sleepier/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       expo:
         specifier: ~53.0.0
         version: 53.0.27(@babel/core@7.26.0)(@expo/metro-runtime@5.0.4(react-native@0.79.7(@babel/core@7.26.0)(@types/react@19.2.14)(react@19.2.5)))(react-native-webview@13.12.5(react-native@0.79.7(@babel/core@7.26.0)(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native@0.79.7(@babel/core@7.26.0)(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)
@@ -136,7 +136,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@sleepier/shared':
+      '@autogm/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       next:

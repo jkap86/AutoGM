@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Allplayer } from "@sleepier/shared";
+import type { Allplayer } from "@autogm/shared";
 import { useAdp, type AdpFilters, type AdpRow } from "../../hooks/use-adp";
 
 const ROSTER_SLOT_OPTIONS = [

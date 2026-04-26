@@ -3,7 +3,7 @@ import type {
   Allplayer,
   LeagueDetailed,
   Roster,
-} from "@sleepier/shared";
+} from "@autogm/shared";
 import { Avatar } from "../../components/avatar";
 import { formatRecord, formatTime } from "../../../lib/trade-utils";
 

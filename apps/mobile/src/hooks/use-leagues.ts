@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { LeaguesPayload } from '@sleepier/shared'
-import { deriveCollections } from '@sleepier/shared'
+import type { LeaguesPayload } from '@autogm/shared'
+import { deriveCollections } from '@autogm/shared'
 import { mobileDataClient } from '../data-client'
 
 export function useLeagues({

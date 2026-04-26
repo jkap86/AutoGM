@@ -5,7 +5,7 @@ import type {
   Transaction,
   LeagueTransactionsResult,
   LeagueDetailed,
-} from '@sleepier/shared'
+} from '@autogm/shared'
 
 export type TradeWithLeague = Transaction & {
   league_name: string;

@@ -11,7 +11,7 @@ export type OperationRecord = {
   updated_at: number
 }
 
-const STORAGE_KEY = 'sleepier_operations'
+const STORAGE_KEY = 'autogm_operations'
 const TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 const BLOCKING_STATUSES = new Set<OperationStatus>(['pending', 'success', 'poll_created'])

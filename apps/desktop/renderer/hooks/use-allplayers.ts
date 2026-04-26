@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Allplayer } from "@sleepier/shared";
+import type { Allplayer } from "@autogm/shared";
 
 export function useAllPlayers() {
   const [data, setData] = useState<Allplayer[] | null>(null);

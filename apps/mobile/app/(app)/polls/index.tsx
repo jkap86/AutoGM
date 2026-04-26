@@ -10,8 +10,8 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native'
-import { randomId } from '@sleepier/shared'
-import type { LeagueDetailed } from '@sleepier/shared'
+import { randomId } from '@autogm/shared'
+import type { LeagueDetailed } from '@autogm/shared'
 import { useLeagueCache } from '../../../src/league-cache'
 import { useCreatePoll } from '../../../src/hooks/use-create-poll'
 import { usePolls, addPoll, type PollGroup } from '../../../src/hooks/use-polls'

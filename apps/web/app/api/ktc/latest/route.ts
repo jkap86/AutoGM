@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchKtcLatest } from "@sleepier/shared";
+import { fetchKtcLatest } from "@autogm/shared";
 import { getPool } from "../../../../lib/db";
 import { requireAuth } from "../../../../lib/auth";
 

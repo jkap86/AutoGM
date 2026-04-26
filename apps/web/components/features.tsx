@@ -3,7 +3,7 @@ const features = [
     icon: "🔄",
     title: "Trade Automation",
     description:
-      "Send batch trades across all your leagues in seconds. Target specific leaguemates, filter by league type, and let Sleepier handle the repetitive clicking.",
+      "Send batch trades across all your leagues in seconds. Target specific leaguemates, filter by league type, and let AutoGM handle the repetitive clicking.",
   },
   {
     icon: "📊",
@@ -30,7 +30,7 @@ export default function Features() {
     <section id="features" className="py-24 px-6">
       <div className="mx-auto max-w-5xl">
         <h2 className="text-3xl sm:text-4xl font-bold text-center mb-14">
-          What Sleepier Does
+          What AutoGM Does
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {features.map((f) => (

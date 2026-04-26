@@ -1,7 +1,7 @@
-import type { AdpFilters, AdpRow } from '@sleepier/shared'
+import type { AdpFilters, AdpRow } from '@autogm/shared'
 import { apiPost } from '../lib/api-client'
 
-export type { AdpFilters, AdpRow } from '@sleepier/shared'
+export type { AdpFilters, AdpRow } from '@autogm/shared'
 
 export const fetchAdp = (filters: AdpFilters = {}) =>
   apiPost<AdpRow[]>('/api/adp/fetch', filters)

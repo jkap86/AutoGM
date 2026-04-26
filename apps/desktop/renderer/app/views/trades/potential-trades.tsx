@@ -4,8 +4,8 @@ import type {
   LeagueDetailed,
   Roster,
   ProposeTradeVars,
-} from "@sleepier/shared";
-import { getPickId } from "@sleepier/shared";
+} from "@autogm/shared";
+import { getPickId } from "@autogm/shared";
 import { Avatar } from "../../components/avatar";
 import { RosterColumn } from "../../components/roster-column";
 import { DmPanel } from "./trades-panel";

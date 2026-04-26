@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { LeaguesPayload } from "@sleepier/shared";
-import { deriveCollections } from "@sleepier/shared";
+import type { LeaguesPayload } from "@autogm/shared";
+import { deriveCollections } from "@autogm/shared";
 
 export function useLeagues({
   user_id,

@@ -1,7 +1,7 @@
-import type { KtcData, KtcHistory } from '@sleepier/shared'
+import type { KtcData, KtcHistory } from '@autogm/shared'
 import { apiGet } from '../lib/api-client'
 
-export type { KtcData, KtcHistory } from '@sleepier/shared'
+export type { KtcData, KtcHistory } from '@autogm/shared'
 
 export const fetchKtcLatest = () =>
   apiGet<KtcData>('/api/ktc/latest')

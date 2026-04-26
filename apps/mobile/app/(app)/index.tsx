@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { View, Text, FlatList, ActivityIndicator, Image, TouchableOpacity, StyleSheet } from 'react-native'
-import type { LeagueDetailed } from '@sleepier/shared'
+import type { LeagueDetailed } from '@autogm/shared'
 import { useLeagueCache } from '../../src/league-cache'
 import { colors } from '../../src/theme'
 

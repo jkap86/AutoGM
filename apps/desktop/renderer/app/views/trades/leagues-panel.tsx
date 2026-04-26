@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { LeagueDetailed } from "@sleepier/shared";
+import type { LeagueDetailed } from "@autogm/shared";
 import { Avatar } from "../../components/avatar";
 import { formatRecord } from "../../../lib/trade-utils";
 import type { PositionFilter, TradeValueFilter } from "../../../hooks/use-trade-value-filter";

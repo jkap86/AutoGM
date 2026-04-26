@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { LeagueDetailed, Allplayer } from "@sleepier/shared";
+import type { LeagueDetailed, Allplayer } from "@autogm/shared";
 import { ConfirmModal } from "../../components/confirm-modal";
 import type { TradeWithLeague } from "../../../hooks/use-trades-by-status";
 import { Avatar } from "../../components/avatar";
@@ -191,7 +191,7 @@ function TradeCards({
   leagues: { [league_id: string]: LeagueDetailed };
   allplayers: { [player_id: string]: Allplayer };
   userId: string;
-  resolveRoster: (league_id: string, roster_id: number) => import("@sleepier/shared").Roster | undefined;
+  resolveRoster: (league_id: string, roster_id: number) => import("@autogm/shared").Roster | undefined;
   formatPick: (league_id: string, dp: { roster_id: number; season: string; round: number; previous_owner_id: number }) => string;
   formatTime: (epoch: number) => string;
   onAccept?: TradeAction;

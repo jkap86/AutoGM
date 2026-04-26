@@ -8,7 +8,7 @@ export default function Hero() {
     >
       <Image
         src="/images/logo.png"
-        alt="Sleepier logo"
+        alt="AutoGM logo"
         width={180}
         height={180}
         className="mb-8"

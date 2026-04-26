@@ -4,8 +4,8 @@ import {
   getToken,
   fetchLeaguesUncached,
   fetchAllPlayersUncached,
-} from '@sleepier/shared'
-import type { QueryMap, QueryName, LeaguesPayload, Allplayer } from '@sleepier/shared'
+} from '@autogm/shared'
+import type { QueryMap, QueryName, LeaguesPayload, Allplayer } from '@autogm/shared'
 
 // Wire up the shared GraphQL client to use the shared session token
 configureClient({ getToken })

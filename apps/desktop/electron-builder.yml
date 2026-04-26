@@ -1,5 +1,5 @@
-appId: com.sleepier.desktop
-productName: Sleepier
+appId: com.autogm.desktop
+productName: AutoGM
 copyright: Copyright © 2026
 directories:
   output: dist
