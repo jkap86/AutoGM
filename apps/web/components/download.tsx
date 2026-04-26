@@ -1,5 +1,5 @@
 const DOWNLOAD_URL =
-  "https://github.com/jkap86/Sleepier/releases/latest/download/AutoGM.Setup.1.0.0.exe";
+  "https://github.com/jkap86/AutoGM/releases/latest/download/AutoGM.Setup.1.0.0.exe";
 
 const platforms = [
   {
