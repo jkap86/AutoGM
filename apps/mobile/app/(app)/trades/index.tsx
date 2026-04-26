@@ -8,7 +8,7 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native'
-import { useAuth } from '@sleepier/shared'
+import { useAuth } from '@sleepier/shared/react'
 import type { Allplayer, LeagueDetailed } from '@sleepier/shared'
 import { useLeagueCache } from '../../../src/league-cache'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'

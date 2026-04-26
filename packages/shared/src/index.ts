@@ -33,6 +33,5 @@ export type { KtcData, KtcHistory, KtcHistoryRow } from './db/ktc'
 export { fetchAdp, fetchAdpStats } from './db/adp'
 export type { AdpFilters, AdpRow } from './db/adp'
 
-// Hooks
-export { AuthProvider, useAuth } from './hooks/use-auth-context'
-export type { Session } from './hooks/use-auth-context'
+// React hooks are in "@sleepier/shared/react" to avoid pulling React
+// into non-React environments (e.g. Electron main process).

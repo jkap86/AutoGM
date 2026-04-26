@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from 'react'
 import type { LeaguesPayload, LeagueDetailed, User, PlayerShares, Leaguemates, PickShares } from '@sleepier/shared'
-import { deriveCollections, useAuth, CURRENT_SEASON } from '@sleepier/shared'
+import { deriveCollections, CURRENT_SEASON } from '@sleepier/shared'
+import { useAuth } from '@sleepier/shared/react'
 import { mobileDataClient } from './data-client'
 
 type LeagueCacheValue = {
