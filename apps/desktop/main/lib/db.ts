@@ -10,7 +10,9 @@ if (!DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: false,
+  ssl: DATABASE_URL.includes('localhost')
+    ? false
+    : { rejectUnauthorized: false },
   max: 5,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
