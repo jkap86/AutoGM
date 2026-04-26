@@ -32,6 +32,8 @@ export { fetchKtcLatest, fetchKtcByDate, fetchKtcHistory } from './db/ktc'
 export type { KtcData, KtcHistory, KtcHistoryRow } from './db/ktc'
 export { fetchAdp, fetchAdpStats } from './db/adp'
 export type { AdpFilters, AdpRow } from './db/adp'
+export { fetchOpponentDrafts } from './db/opponent-drafts'
+export type { OpponentDraftPick } from './db/opponent-drafts'
 
 // React hooks are in "@sleepier/shared/react" to avoid pulling React
 // into non-React environments (e.g. Electron main process).

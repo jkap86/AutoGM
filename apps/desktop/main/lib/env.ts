@@ -1,8 +1,8 @@
 // In production, these are replaced by DefinePlugin at build time.
 // In dev, they fall through to process.env (loaded by dotenv).
 
-export const DATABASE_URL: string =
-  process.env.DATABASE_URL ?? "";
+export const API_URL: string =
+  process.env.API_URL ?? "";
 
 export const ALLOWLIST_URL: string =
   process.env.ALLOWLIST_URL ?? "";
