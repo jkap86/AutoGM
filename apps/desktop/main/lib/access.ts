@@ -2,12 +2,8 @@ import createLogger from "./logger";
 
 const log = createLogger("access");
 
-function getAllowlistUrl(): string {
-  const url = process.env.ALLOWLIST_URL;
-  if (!url) {
-    throw new Error("[access] ALLOWLIST_URL is not set. See .env.example");
-  }
-  return url;
+function getAllowlistUrl(): string | null {
+  return process.env.ALLOWLIST_URL || null;
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -19,8 +15,8 @@ type AllowlistCache = {
 
 let cache: AllowlistCache | null = null;
 
-async function fetchAllowlist(): Promise<Set<string>> {
-  const res = await fetch(getAllowlistUrl());
+async function fetchAllowlist(url: string): Promise<Set<string>> {
+  const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Allowlist fetch failed: ${res.status}`);
   }
@@ -31,6 +27,12 @@ async function fetchAllowlist(): Promise<Set<string>> {
 export async function checkAccess(
   userId: string,
 ): Promise<{ allowed: boolean }> {
+  const url = getAllowlistUrl();
+  if (!url) {
+    // No allowlist configured — allow all users
+    return { allowed: true };
+  }
+
   const now = Date.now();
 
   if (cache && now - cache.fetchedAt < CACHE_TTL_MS) {
@@ -38,7 +40,7 @@ export async function checkAccess(
   }
 
   try {
-    const userIds = await fetchAllowlist();
+    const userIds = await fetchAllowlist(url);
     cache = { userIds, fetchedAt: now };
     const allowed = userIds.has(userId);
     log.info(`user ${userId} access=${allowed} (${userIds.size} on allowlist)`);

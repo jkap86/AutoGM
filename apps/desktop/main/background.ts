@@ -1,5 +1,15 @@
-import "dotenv/config";
 import path from "path";
+import dotenv from "dotenv";
+
+// In production, .env lives next to the executable, not in the asar
+dotenv.config({
+  path: path.join(
+    process.env.NODE_ENV === "production"
+      ? path.dirname(process.execPath)
+      : __dirname,
+    ".env",
+  ),
+});
 import { app, ipcMain } from "electron";
 import serve from "electron-serve";
 import { createWindow } from "./helpers/create-window";
