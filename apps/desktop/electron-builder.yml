@@ -9,5 +9,4 @@ files:
     filter:
       - package.json
       - app
-      - node_modules
 publish: null
