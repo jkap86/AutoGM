@@ -1,9 +1,10 @@
+import { ALLOWLIST_URL } from "./env";
 import createLogger from "./logger";
 
 const log = createLogger("access");
 
 function getAllowlistUrl(): string | null {
-  return process.env.ALLOWLIST_URL || null;
+  return ALLOWLIST_URL || null;
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes

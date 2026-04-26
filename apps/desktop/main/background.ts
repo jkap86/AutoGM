@@ -1,16 +1,12 @@
 import path from "path";
-import dotenv from "dotenv";
 
-// In production, .env lives next to the executable.
-// In dev, .env lives in the desktop app root (parent of main/).
-dotenv.config({
-  path: path.join(
-    process.env.NODE_ENV === "production"
-      ? path.dirname(process.execPath)
-      : path.join(__dirname, ".."),
-    ".env",
-  ),
-});
+// In dev, load .env from the desktop app root.
+// In production, env vars are baked in at build time via DefinePlugin.
+if (process.env.NODE_ENV !== "production") {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+}
+
 import { app, ipcMain } from "electron";
 import serve from "electron-serve";
 import { createWindow } from "./helpers/create-window";
