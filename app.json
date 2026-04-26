@@ -1,0 +1,18 @@
+{
+  "name": "AutoGM Web",
+  "description": "AutoGM landing page and KTC/ADP API",
+  "buildpacks": [
+    { "url": "https://buildpack-registry.s3.amazonaws.com/buildpacks/heroku-community/cli.tgz" },
+    { "url": "heroku/nodejs" }
+  ],
+  "env": {
+    "DATABASE_URL": {
+      "description": "PostgreSQL connection string",
+      "required": true
+    },
+    "ALLOWLIST_URL": {
+      "description": "URL returning JSON allowlist of user IDs",
+      "required": false
+    }
+  }
+}
