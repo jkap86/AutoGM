@@ -23,7 +23,7 @@ export async function launchPersistent(): Promise<Page> {
     ],
   })
 
-  const loginUrl = process.env.LOGIN_URL ?? 'https://sleeper.com/login'
+  const loginUrl = process.env.LOGIN_URL || 'https://sleeper.com/login'
   const page = await context.newPage()
   await page.goto(loginUrl, { waitUntil: 'domcontentloaded' })
 

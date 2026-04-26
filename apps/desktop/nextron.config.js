@@ -8,16 +8,15 @@ const env = dotenv.config({ path: path.join(__dirname, '.env') }).parsed || {};
 module.exports = {
   webpack: (config) => {
     // Inject env vars as build-time constants for production.
-    // In dev, dotenv loads at runtime; in production, these are baked in.
-    config.plugins.push(
-      new webpack.DefinePlugin({
-        'process.env.API_URL': JSON.stringify(env.API_URL || ''),
-        'process.env.ALLOWLIST_URL': JSON.stringify(env.ALLOWLIST_URL || ''),
-        'process.env.LOG_LEVEL': JSON.stringify(env.LOG_LEVEL || 'info'),
-        'process.env.PW_CHANNEL': JSON.stringify(env.PW_CHANNEL || ''),
-        'process.env.LOGIN_URL': JSON.stringify(env.LOGIN_URL || ''),
-      }),
-    );
+    // Only inject non-empty values so that || fallbacks still work
+    // for optional vars like LOGIN_URL and PW_CHANNEL.
+    const defines = {};
+    for (const [key, val] of Object.entries(env)) {
+      if (val) {
+        defines[`process.env.${key}`] = JSON.stringify(val);
+      }
+    }
+    config.plugins.push(new webpack.DefinePlugin(defines));
 
     return config;
   },
