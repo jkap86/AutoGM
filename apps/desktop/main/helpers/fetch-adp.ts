@@ -1,4 +1,4 @@
-import pool from '../lib/db'
+import getPool from '../lib/db'
 import {
   fetchAdp as _fetchAdp,
   fetchAdpStats as _fetchAdpStats,
@@ -6,5 +6,5 @@ import {
 
 export type { AdpFilters, AdpRow } from '@sleepier/shared'
 
-export const fetchAdp = (filters = {}) => _fetchAdp(pool, filters)
-export const fetchAdpStats = (filters = {}) => _fetchAdpStats(pool, filters)
+export const fetchAdp = (filters = {}) => _fetchAdp(getPool(), filters)
+export const fetchAdpStats = (filters = {}) => _fetchAdpStats(getPool(), filters)

@@ -1,4 +1,4 @@
-import pool from '../lib/db'
+import getPool from '../lib/db'
 
 export type OpponentDraftPick = {
   player_id: string
@@ -33,6 +33,6 @@ export async function fetchOpponentDrafts(userId: string): Promise<OpponentDraft
     ORDER BY d.season DESC, dp.pick_no ASC
     LIMIT 200
   `
-  const result = await pool.query(query, [userId])
+  const result = await getPool().query(query, [userId])
   return result.rows
 }

@@ -1,4 +1,4 @@
-import pool from '../lib/db'
+import getPool from '../lib/db'
 import {
   fetchKtcLatest as _fetchKtcLatest,
   fetchKtcByDate as _fetchKtcByDate,
@@ -7,7 +7,7 @@ import {
 
 export type { KtcData, KtcHistory } from '@sleepier/shared'
 
-export const fetchKtcLatest = () => _fetchKtcLatest(pool)
-export const fetchKtcByDate = (date: string) => _fetchKtcByDate(pool, date)
+export const fetchKtcLatest = () => _fetchKtcLatest(getPool())
+export const fetchKtcByDate = (date: string) => _fetchKtcByDate(getPool(), date)
 export const fetchKtcHistory = (playerIds: string[], days?: number) =>
-  _fetchKtcHistory(pool, playerIds, days)
+  _fetchKtcHistory(getPool(), playerIds, days)
