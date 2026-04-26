@@ -228,8 +228,12 @@ export function PotentialTrades({
         const pickItem = (pickId: string, source: typeof userRoster.draftpicks): TradeItem | null => {
           const pick = source.find((d) => getPickId(d) === pickId);
           if (!pick) return null;
+          const specificKey = pick.order && pick.order > 0
+            ? `${pick.season} ${pick.round}.${String(pick.order).padStart(2, '0')}`
+            : null;
           const ktcName = getPickKtcName(pick.season, pick.round, pick.order);
-          return { type: "pick", label: getPickId(pick), value: valueLookup[ktcName] ?? 0 };
+          const value = (specificKey && valueLookup[specificKey] != null ? valueLookup[specificKey] : valueLookup[ktcName]) ?? 0;
+          return { type: "pick", label: getPickId(pick), value };
         };
         // Things moving from user → partner. Sender is user, receiver is partner.
         const userGiving: TradeItem[] = [

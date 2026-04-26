@@ -386,19 +386,22 @@ function TradeCards({
             }
             return null;
           };
-          const receivingPickKtcNames = parsedPicks
-            .filter((dp) => dp.owner_id === rid)
-            .map((dp) => getPickKtcName(dp.season, dp.round, findPickOrder(trade.league_id, dp.roster_id, dp.season, dp.round)));
-          const givingPickKtcNames = parsedPicks
-            .filter((dp) => dp.previous_owner_id === rid)
-            .map((dp) => getPickKtcName(dp.season, dp.round, findPickOrder(trade.league_id, dp.roster_id, dp.season, dp.round)));
+          const pickValue = (dp: typeof parsedPicks[0], ownerId: number | string) => {
+            const order = findPickOrder(trade.league_id, dp.roster_id, dp.season, dp.round);
+            if (order && order > 0) {
+              const specificKey = `${dp.season} ${dp.round}.${String(order).padStart(2, '0')}`;
+              if (lookup && lookup[specificKey] != null) return lookup[specificKey];
+            }
+            const ktcName = getPickKtcName(dp.season, dp.round, order);
+            return lookup ? (lookup[ktcName] ?? 0) : 0;
+          };
           const vReceiving = lookup
             ? receivingPids.reduce((sum, pid) => sum + (lookup[pid] ?? 0), 0)
-              + receivingPickKtcNames.reduce((sum, name) => sum + (lookup[name] ?? 0), 0)
+              + parsedPicks.filter((dp) => dp.owner_id === rid).reduce((sum, dp) => sum + pickValue(dp, rid), 0)
             : 0;
           const vGiving = lookup
             ? givingPids.reduce((sum, pid) => sum + (lookup[pid] ?? 0), 0)
-              + givingPickKtcNames.reduce((sum, name) => sum + (lookup[name] ?? 0), 0)
+              + parsedPicks.filter((dp) => dp.previous_owner_id === rid).reduce((sum, dp) => sum + pickValue(dp, rid), 0)
             : 0;
           const teamValue = filter ? filter.getValue(trade.league_id, rid) : null;
           const teamRank = filter ? filter.getRank(trade.league_id, rid) : null;

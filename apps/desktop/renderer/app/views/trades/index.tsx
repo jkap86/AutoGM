@@ -38,8 +38,27 @@ function pickIdToKtcName(pickId: string): string {
   return `${season} ${type} ${round}${suffix(round)}`;
 }
 
+// Get the specific pick key for precise valuation (e.g., "2026 1.08")
+function pickIdToSpecificKey(pickId: string): string | null {
+  const [season, rest] = pickId.split(" ", 2);
+  if (!season || !rest) return null;
+  if (rest === "Round") return null;
+  const [roundStr, orderStr] = rest.split(".");
+  const round = parseInt(roundStr, 10);
+  const order = orderStr ? parseInt(orderStr, 10) : 0;
+  if (!order) return null;
+  return `${season} ${round}.${String(order).padStart(2, '0')}`;
+}
+
 function suffix(round: number): string {
   return round === 1 ? "st" : round === 2 ? "nd" : round === 3 ? "rd" : "th";
+}
+
+// Look up pick value: try specific key first, fall back to grouped KTC name
+function getPickValue(pickId: string, ktc: Record<string, number>): number {
+  const specific = pickIdToSpecificKey(pickId);
+  if (specific && ktc[specific] != null) return ktc[specific];
+  return ktc[pickIdToKtcName(pickId)] ?? 0;
 }
 
 export default function TradesView({
@@ -582,14 +601,14 @@ export default function TradesView({
                 );
               })}
               {picksToGive.map((pick_id) => {
-                const value = ktc[pickIdToKtcName(pick_id)] ?? 0;
+                const value = getPickValue(pick_id, valueFilter.valueLookup);
                 return (
                   <span
                     key={pick_id}
                     className="inline-flex items-center gap-1 rounded-full bg-red-900/30 border border-red-800/50 px-2.5 py-1 text-xs text-red-300"
                   >
                     {pick_id}
-                    {value > 0 && <span className="text-red-400/70 text-xs">{value}</span>}
+                    {value > 0 && <span className="text-red-400/70 text-xs">{valueFilter.formatValue(value)}</span>}
                     <button
                       onClick={() =>
                         setPicksToGive((prev) =>
@@ -607,12 +626,12 @@ export default function TradesView({
           )}
           {(playersToGive.length > 0 || picksToGive.length > 0) && (
             <div className="flex justify-between items-center border-t border-gray-700/50 pt-2 mt-1">
-              <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total KTC</span>
+              <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total {valueFilter.valueLabel}</span>
               <span className="text-sm font-semibold text-red-400">
-                {(
-                  playersToGive.reduce((sum, pid) => sum + (ktc[pid] ?? 0), 0) +
-                  picksToGive.reduce((sum, pid) => sum + (ktc[pickIdToKtcName(pid)] ?? 0), 0)
-                ).toLocaleString()}
+                {valueFilter.formatValue(
+                  playersToGive.reduce((sum, pid) => sum + (valueFilter.valueLookup[pid] ?? 0), 0) +
+                  picksToGive.reduce((sum, pid) => sum + getPickValue(pid, valueFilter.valueLookup), 0)
+                )}
               </span>
             </div>
           )}
@@ -672,14 +691,14 @@ export default function TradesView({
                 );
               })}
               {picksToReceive.map((pick_id) => {
-                const value = ktc[pickIdToKtcName(pick_id)] ?? 0;
+                const value = getPickValue(pick_id, valueFilter.valueLookup);
                 return (
                   <span
                     key={pick_id}
                     className="inline-flex items-center gap-1 rounded-full bg-green-900/30 border border-green-800/50 px-2.5 py-1 text-xs text-green-300"
                   >
                     {pick_id}
-                    {value > 0 && <span className="text-green-400/70 text-xs">{value}</span>}
+                    {value > 0 && <span className="text-green-400/70 text-xs">{valueFilter.formatValue(value)}</span>}
                     <button
                       onClick={() =>
                         setPicksToReceive((prev) =>
@@ -697,12 +716,12 @@ export default function TradesView({
           )}
           {(playersToReceive.length > 0 || picksToReceive.length > 0) && (
             <div className="flex justify-between items-center border-t border-gray-700/50 pt-2 mt-1">
-              <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total KTC</span>
+              <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total {valueFilter.valueLabel}</span>
               <span className="text-sm font-semibold text-green-400">
-                {(
-                  playersToReceive.reduce((sum, pid) => sum + (ktc[pid] ?? 0), 0) +
-                  picksToReceive.reduce((sum, pid) => sum + (ktc[pickIdToKtcName(pid)] ?? 0), 0)
-                ).toLocaleString()}
+                {valueFilter.formatValue(
+                  playersToReceive.reduce((sum, pid) => sum + (valueFilter.valueLookup[pid] ?? 0), 0) +
+                  picksToReceive.reduce((sum, pid) => sum + getPickValue(pid, valueFilter.valueLookup), 0)
+                )}
               </span>
             </div>
           )}

@@ -157,7 +157,11 @@ export function RosterColumn({
             {sortedPicks.map((pick) => {
               const pickId = getPickId(pick);
               const isPickHl = hlPickSet.has(pickId);
+              const specificKey = pick.order && pick.order > 0
+                ? `${pick.season} ${pick.round}.${String(pick.order).padStart(2, '0')}`
+                : null;
               const ktcName = getPickKtcName(pick.season, pick.round, pick.order);
+              const pickValueKey = (specificKey && valueLookup && valueLookup[specificKey] != null) ? specificKey : ktcName;
               return (
                 <div
                   key={`${pick.season}-${pick.round}-${pick.roster_id}`}
@@ -168,7 +172,7 @@ export function RosterColumn({
                     PK
                   </span>
                   <span title={pickId} className={`min-w-0 truncate ${isPickHl ? "text-gray-100 font-medium" : ""}`}>{pickId}</span>
-                  {renderValueCell(ktcName)}
+                  {renderValueCell(pickValueKey)}
                 </div>
               );
             })}

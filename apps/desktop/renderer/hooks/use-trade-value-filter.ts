@@ -29,6 +29,96 @@ function adpToValue(adp: number): number {
   return 1000 * Math.exp(-(adp - 1) / 50)
 }
 
+/** Generate a specific pick key like "2026 1.08" for precise lookup */
+function specificPickKey(season: string, round: number, order: number): string {
+  return `${season} ${round}.${String(order).padStart(2, '0')}`
+}
+
+/**
+ * Compute pick values for ADP/auction modes based on rookie rankings.
+ * For current year: pick N in round R → value of the Nth-ranked rookie in that round's range.
+ * For future years: apply a discount ratio derived from KTC current vs future pick values.
+ */
+function computePickValues(
+  adpRows: { player_id: string; adp: number; avg_pct: number | null }[],
+  allplayers: { [id: string]: Allplayer },
+  valueType: 'adp' | 'auction',
+  ktc: Record<string, number>,
+  currentSeason: string,
+): Record<string, number> {
+  const out: Record<string, number> = {}
+
+  // Filter to rookies only (years_exp === 0) and sort by ADP
+  const rookies = adpRows
+    .filter((r) => {
+      const p = allplayers[r.player_id]
+      return p && p.years_exp === 0
+    })
+    .sort((a, b) => a.adp - b.adp)
+
+  if (rookies.length === 0) return out
+
+  // Get value for a rookie at a given rank (0-indexed)
+  const rookieValue = (idx: number): number => {
+    if (idx >= rookies.length) idx = rookies.length - 1
+    const r = rookies[idx]
+    if (valueType === 'auction') return (r.avg_pct ?? 0) * 100
+    return adpToValue(r.adp)
+  }
+
+  // Determine how many rounds we should generate (up to 5)
+  const maxRounds = 5
+  // Assume ~12 picks per round (standard league size)
+  const picksPerRound = 12
+
+  // Populate current season picks
+  for (let round = 1; round <= maxRounds; round++) {
+    const sfx = round === 1 ? 'st' : round === 2 ? 'nd' : round === 3 ? 'rd' : 'th'
+    const baseIdx = (round - 1) * picksPerRound
+
+    // Specific pick keys (e.g., "2026 1.08")
+    for (let order = 1; order <= picksPerRound; order++) {
+      const idx = baseIdx + order - 1
+      const val = rookieValue(idx)
+      out[specificPickKey(currentSeason, round, order)] = val
+    }
+
+    // Grouped keys (Early/Mid/Late averages)
+    const earlyAvg = [1, 2, 3, 4].reduce((s, o) => s + rookieValue(baseIdx + o - 1), 0) / 4
+    const midAvg = [5, 6, 7, 8].reduce((s, o) => s + rookieValue(baseIdx + o - 1), 0) / 4
+    const lateAvg = [9, 10, 11, 12].reduce((s, o) => s + rookieValue(baseIdx + o - 1), 0) / 4
+
+    out[`${currentSeason} Early ${round}${sfx}`] = earlyAvg
+    out[`${currentSeason} Mid ${round}${sfx}`] = midAvg
+    out[`${currentSeason} Late ${round}${sfx}`] = lateAvg
+  }
+
+  // Future year picks: use KTC ratios to discount
+  const currentYear = parseInt(currentSeason, 10)
+  for (let yearOffset = 1; yearOffset <= 3; yearOffset++) {
+    const futureSeason = String(currentYear + yearOffset)
+    for (let round = 1; round <= maxRounds; round++) {
+      const sfx = round === 1 ? 'st' : round === 2 ? 'nd' : round === 3 ? 'rd' : 'th'
+      const currentKtcKey = `${currentSeason} Mid ${round}${sfx}`
+      const futureKtcKey = `${futureSeason} Mid ${round}${sfx}`
+      const currentKtcVal = ktc[currentKtcKey] || 0
+      const futureKtcVal = ktc[futureKtcKey] || 0
+      const ratio = currentKtcVal > 0 ? futureKtcVal / currentKtcVal : 0.5
+
+      // Future picks are all "Mid" (order unknown), so use mid value * ratio
+      const currentMidVal = out[`${currentSeason} Mid ${round}${sfx}`] ?? 0
+      const futureVal = currentMidVal * ratio
+
+      // Only grouped keys for future (order not determined)
+      out[`${futureSeason} Early ${round}${sfx}`] = futureVal
+      out[`${futureSeason} Mid ${round}${sfx}`] = futureVal
+      out[`${futureSeason} Late ${round}${sfx}`] = futureVal
+    }
+  }
+
+  return out
+}
+
 // Re-export from single source of truth
 export { getPickKtcName } from '../lib/trade-utils'
 import { getPickKtcName } from '../lib/trade-utils'
@@ -52,8 +142,17 @@ function computeRosterValues(
   if (filter === 'ALL' || filter === 'PICKS' || filter === 'PLAYERS+CUR') {
     for (const pick of roster.draftpicks ?? []) {
       if (filter === 'PLAYERS+CUR' && pick.season !== currentSeason) continue
-      const name = getPickKtcName(pick.season, pick.round, pick.order)
-      values.push(valueLookup[name] ?? 0)
+      // Try specific key first (e.g., "2026 1.08") for precise valuation
+      let val: number | undefined
+      if (pick.order && pick.order > 0) {
+        val = valueLookup[specificPickKey(pick.season, pick.round, pick.order)]
+      }
+      // Fall back to grouped name (Early/Mid/Late)
+      if (val == null) {
+        const name = getPickKtcName(pick.season, pick.round, pick.order)
+        val = valueLookup[name] ?? 0
+      }
+      values.push(val)
     }
   }
   return values.sort((a, b) => b - a)
@@ -108,6 +207,13 @@ export function useTradeValueFilter({
     adpEnabled,
   )
 
+  // Determine current season from leagues (pick the most common / latest)
+  const currentSeason = useMemo(() => {
+    const seasons = Object.values(leagues).map((l) => l.season)
+    if (seasons.length === 0) return String(new Date().getFullYear())
+    return seasons.sort().pop()!
+  }, [leagues])
+
   const valueLookup = useMemo<Record<string, number>>(() => {
     if (valueType === 'ktc') {
       return ktcDate !== today ? ktcHistorical : ktc
@@ -120,8 +226,11 @@ export function useTradeValueFilter({
         if (r.avg_pct != null) out[r.player_id] = r.avg_pct * 100
       }
     }
+    // Add pick values based on rookie ADP/auction rankings
+    const pickValues = computePickValues(adpRows, allplayers, valueType, ktc, currentSeason)
+    Object.assign(out, pickValues)
     return out
-  }, [valueType, ktcDate, today, ktc, ktcHistorical, adpRows])
+  }, [valueType, ktcDate, today, ktc, ktcHistorical, adpRows, allplayers, currentSeason])
 
   const valueLabel = valueType === 'ktc' ? 'KTC' : valueType === 'adp' ? 'ADP' : 'Auction'
 
