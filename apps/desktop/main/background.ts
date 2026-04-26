@@ -1,12 +1,13 @@
 import path from "path";
 import dotenv from "dotenv";
 
-// In production, .env lives next to the executable, not in the asar
+// In production, .env lives next to the executable.
+// In dev, .env lives in the desktop app root (parent of main/).
 dotenv.config({
   path: path.join(
     process.env.NODE_ENV === "production"
       ? path.dirname(process.execPath)
-      : __dirname,
+      : path.join(__dirname, ".."),
     ".env",
   ),
 });
