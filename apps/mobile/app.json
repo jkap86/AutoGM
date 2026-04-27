@@ -19,7 +19,7 @@
     "ios": {
       "bundleIdentifier": "com.jkap86.autogm",
       "appleTeamId": "FK8K2ZKZT5",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

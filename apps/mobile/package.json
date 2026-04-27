@@ -9,6 +9,7 @@
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/ app/",
+    "eas-build-pre-install": "cd ../.. && pnpm --filter @autogm/shared build",
     "build:ios": "eas build --platform ios --profile preview",
     "build:ios:prod": "eas build --platform ios --profile production",
     "submit:ios": "eas submit --platform ios"
@@ -17,6 +18,8 @@
     "@autogm/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "~2.1.2",
     "expo": "~53.0.0",
+    "expo-constants": "^55.0.15",
+    "expo-linking": "^55.0.14",
     "expo-router": "~5.1.11",
     "expo-secure-store": "~14.2.3",
     "expo-status-bar": "~2.2.3",
