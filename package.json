@@ -38,7 +38,10 @@
       "electron-winstaller"
     ],
     "overrides": {
-      "metro-cache": "0.82.5"
+      "metro": "0.82.5",
+      "metro-cache": "0.82.5",
+      "metro-config": "0.82.5",
+      "metro-resolver": "0.82.5"
     }
   }
 }
