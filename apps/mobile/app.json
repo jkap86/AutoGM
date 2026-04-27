@@ -5,7 +5,32 @@
     "version": "1.0.0",
     "scheme": "autogm",
     "platforms": ["ios", "android"],
+    "orientation": "portrait",
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0a"
+    },
+    "ios": {
+      "bundleIdentifier": "com.jkap86.autogm",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.jkap86.autogm",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a0a"
+      }
+    },
     "plugins": ["expo-router", "expo-secure-store"]
   }
 }
