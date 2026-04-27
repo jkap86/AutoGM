@@ -4,7 +4,10 @@
     "slug": "autogm-mobile",
     "version": "1.0.0",
     "scheme": "autogm",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "orientation": "portrait",
     "newArchEnabled": true,
     "icon": "./assets/icon.png",
@@ -15,9 +18,11 @@
     },
     "ios": {
       "bundleIdentifier": "com.jkap86.autogm",
+      "appleTeamId": "FK8K2ZKZT5",
       "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
@@ -31,6 +36,16 @@
         "backgroundColor": "#0a0a0a"
       }
     },
-    "plugins": ["expo-router", "expo-secure-store"]
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3ab15deb-1643-4bfc-9686-165b91a6e5a1"
+      }
+    },
+    "owner": "jkap86"
   }
 }

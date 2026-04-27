@@ -36,6 +36,9 @@
       "sharp",
       "core-js-pure",
       "electron-winstaller"
-    ]
+    ],
+    "overrides": {
+      "metro-cache": "0.82.5"
+    }
   }
 }

@@ -14,21 +14,22 @@
     "submit:ios": "eas submit --platform ios"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "~2.1.2",
     "@autogm/shared": "workspace:*",
+    "@react-native-async-storage/async-storage": "~2.1.2",
     "expo": "~53.0.0",
-    "expo-router": "~5.0.0",
+    "expo-router": "~5.1.11",
     "expo-secure-store": "~14.2.3",
     "expo-status-bar": "~2.2.3",
     "react": "^19.0.0",
-    "react-native": "~0.79.2",
+    "react-native": "~0.79.6",
+    "react-native-get-random-values": "~1.11.0",
     "react-native-safe-area-context": "~5.4.0",
     "react-native-screens": "~4.11.1",
-    "react-native-get-random-values": "~1.11.0",
-    "react-native-webview": "~13.12.5"
+    "react-native-webview": "~13.13.5"
   },
   "devDependencies": {
-    "@types/react": "^19.2.14",
-    "typescript": "^5.7.3"
+    "@types/react": "^19.0.14",
+    "metro-cache": "0.82.5",
+    "typescript": "^5.8.3"
   }
 }
