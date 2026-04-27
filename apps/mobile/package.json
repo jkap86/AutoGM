@@ -9,7 +9,7 @@
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/ app/",
-    "eas-build-pre-install": "cd ../.. && pnpm --filter @autogm/shared build",
+    "eas-build-post-install": "cd ../.. && pnpm --filter @autogm/shared build",
     "build:ios": "eas build --platform ios --profile preview",
     "build:ios:prod": "eas build --platform ios --profile production",
     "submit:ios": "eas submit --platform ios"
