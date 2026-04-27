@@ -8,6 +8,7 @@ import TradesView from "../views/trades";
 import { useAllPlayers } from "../../hooks/use-allplayers";
 import PollsView from "../views/polls-view";
 import AdpView from "../views/adp-view";
+import { LeagueChatsPanel } from "../views/trades/league-chats-panel";
 import { LeagueFilterBar, useLeagueFilter } from "../components/league-filter";
 import { useKtc } from "../../hooks/use-ktc";
 import { useLeaguePlayers } from "../../hooks/use-league-players";
@@ -15,7 +16,7 @@ import { CURRENT_SEASON } from "@autogm/shared";
 
 const SEASON = CURRENT_SEASON;
 
-type View = "trades" | "polls" | "adp" | null;
+type View = "trades" | "polls" | "adp" | "chats" | null;
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function DashboardPage() {
 
   const { interestByLeague, tradeBlockByLeague } = useLeaguePlayers(leagues);
 
-  const views = ["trades", "polls", "adp"];
+  const views = ["trades", "polls", "adp", "chats"];
 
   useEffect(() => {
     if (restoring) return;
@@ -110,6 +111,11 @@ export default function DashboardPage() {
         <PollsView leagues={filteredLeagues} />
       ) : view === "adp" ? (
         <AdpView allplayers={allplayers ?? {}} />
+      ) : view === "chats" ? (
+        <LeagueChatsPanel
+          leagues={filteredLeagues}
+          userId={session.user_id}
+        />
       ) : (
         <p className="text-gray-400">Select a view above.</p>
       )}
