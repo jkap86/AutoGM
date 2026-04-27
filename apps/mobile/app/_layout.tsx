@@ -1,10 +1,12 @@
 import 'react-native-get-random-values'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { View, Text, ScrollView } from 'react-native'
 import { Slot } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SecureStore from 'expo-secure-store'
 import { setSession } from '@autogm/shared'
 import { AuthProvider, useAuth } from '@autogm/shared/react'
+import { ErrorBoundary } from '../src/error-boundary'
 
 function HydrateSession() {
   const { setSession: setAuthSession, setRestoring } = useAuth()
@@ -30,10 +32,36 @@ function HydrateSession() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <HydrateSession />
-      <StatusBar style="light" />
-      <Slot />
-    </AuthProvider>
+    <CrashCatcher>
+      <AuthProvider>
+        <HydrateSession />
+        <StatusBar style="light" />
+        <Slot />
+      </AuthProvider>
+    </CrashCatcher>
   )
+}
+
+function CrashCatcher({ children }: { children: React.ReactNode }) {
+  const [error, setError] = useState<Error | null>(null)
+
+  if (error) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#111', padding: 40, paddingTop: 80 }}>
+        <Text style={{ color: '#f55', fontSize: 18, fontWeight: '700', marginBottom: 12 }}>
+          App Crashed
+        </Text>
+        <ScrollView>
+          <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'monospace' }}>
+            {error.message}
+          </Text>
+          <Text style={{ color: '#888', fontSize: 10, fontFamily: 'monospace', marginTop: 8 }}>
+            {error.stack}
+          </Text>
+        </ScrollView>
+      </View>
+    )
+  }
+
+  return <ErrorBoundary onError={setError}>{children}</ErrorBoundary>
 }
