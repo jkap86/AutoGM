@@ -25,10 +25,12 @@ export function LeaguesPanel({
   leagues,
   userId,
   filter,
+  topNByCategory,
 }: {
   leagues: { [league_id: string]: LeagueDetailed };
   userId: string;
   filter: TradeValueFilter;
+  topNByCategory?: Record<string, number>;
 }) {
   const { getValue, getRank, formatValue } = filter;
   const leagueList = Object.values(leagues);
@@ -99,8 +101,9 @@ export function LeaguesPanel({
             <div className="px-4 py-3">
               <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${RANK_CATEGORIES.length}, minmax(0, 1fr))` }}>
                 {RANK_CATEGORIES.map(({ label, filter: posFilter }) => {
-                  const rank = getRank(league.league_id, userRoster.roster_id, posFilter);
-                  const value = getValue(league.league_id, userRoster.roster_id, posFilter);
+                  const n = topNByCategory?.[posFilter] ?? 0;
+                  const rank = getRank(league.league_id, userRoster.roster_id, posFilter, n || undefined);
+                  const value = getValue(league.league_id, userRoster.roster_id, posFilter, n || undefined);
 
                   return (
                     <div
@@ -131,6 +134,7 @@ export function LeaguesPanel({
                 sortCol={sortCol}
                 sortAsc={sortAsc}
                 onSort={handleSort}
+                topNByCategory={topNByCategory}
               />
             )}
           </div>
@@ -149,15 +153,17 @@ function ExpandedTable({
   sortCol,
   sortAsc,
   onSort,
+  topNByCategory,
 }: {
   league: LeagueDetailed;
   userId: string;
-  getValue: (leagueId: string, rosterId: number, filter?: PositionFilter) => number;
-  getRank: (leagueId: string, rosterId: number, filter?: PositionFilter) => number | null;
+  getValue: (leagueId: string, rosterId: number, filter?: PositionFilter, n?: number) => number;
+  getRank: (leagueId: string, rosterId: number, filter?: PositionFilter, n?: number) => number | null;
   formatValue: (n: number) => string;
   sortCol: PositionFilter;
   sortAsc: boolean;
   onSort: (col: PositionFilter) => void;
+  topNByCategory?: Record<string, number>;
 }) {
   const totalTeams = league.rosters.length;
 
@@ -166,8 +172,9 @@ function ExpandedTable({
       const values: Record<string, number> = {};
       const ranks: Record<string, number | null> = {};
       for (const { filter } of RANK_CATEGORIES) {
-        values[filter] = getValue(league.league_id, roster.roster_id, filter);
-        ranks[filter] = getRank(league.league_id, roster.roster_id, filter);
+        const n = topNByCategory?.[filter] ?? 0;
+        values[filter] = getValue(league.league_id, roster.roster_id, filter, n || undefined);
+        ranks[filter] = getRank(league.league_id, roster.roster_id, filter, n || undefined);
       }
       return { roster, values, ranks };
     });
@@ -179,7 +186,7 @@ function ExpandedTable({
     });
 
     return data;
-  }, [league, getValue, getRank, sortCol, sortAsc]);
+  }, [league, getValue, getRank, sortCol, sortAsc, topNByCategory]);
 
   return (
     <div className="border-t border-gray-700/40 overflow-x-auto">

@@ -255,18 +255,19 @@ export function useTradeValueFilter({
   const sumTopN = (values: number[], n: number) =>
     (n > 0 ? values.slice(0, n) : values).reduce((a, b) => a + b, 0)
 
-  const getValue = (leagueId: string, rosterId: number, filter?: PositionFilter): number => {
+  const getValue = (leagueId: string, rosterId: number, filter?: PositionFilter, n?: number): number => {
     const values = rawByLeague[leagueId]?.[filter ?? positionFilter]?.[rosterId]
     if (!values) return 0
-    return sumTopN(values, topN)
+    return sumTopN(values, n ?? topN)
   }
 
-  const getRank = (leagueId: string, rosterId: number, filter?: PositionFilter): number | null => {
+  const getRank = (leagueId: string, rosterId: number, filter?: PositionFilter, n?: number): number | null => {
     const perRoster = rawByLeague[leagueId]?.[filter ?? positionFilter]
     if (!perRoster) return null
+    const effectiveN = n ?? topN
     const totals = Object.entries(perRoster).map(([rid, vals]) => ({
       rid: Number(rid),
-      total: sumTopN(vals, topN),
+      total: sumTopN(vals, effectiveN),
     }))
     totals.sort((a, b) => b.total - a.total)
     const idx = totals.findIndex((t) => t.rid === rosterId)
