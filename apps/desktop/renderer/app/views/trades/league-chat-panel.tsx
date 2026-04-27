@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Message, MessagesResult, CreateMessageResult } from "@autogm/shared";
 import { formatTime } from "../../../lib/trade-utils";
 
@@ -28,6 +28,10 @@ export function LeagueChatPanel({
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const sendingRef = useRef(sending);
+  sendingRef.current = sending;
 
   const fetchMessages = useCallback(async () => {
     setLoading(true);
@@ -50,8 +54,8 @@ export function LeagueChatPanel({
   }, [fetchMessages]);
 
   const sendMessage = useCallback(async () => {
-    const text = draft.trim();
-    if (!text || sending) return;
+    const text = draftRef.current.trim();
+    if (!text || sendingRef.current) return;
     setSending(true);
     setError(null);
     try {
@@ -66,9 +70,9 @@ export function LeagueChatPanel({
     } finally {
       setSending(false);
     }
-  }, [draft, sending, leagueId, fetchMessages]);
+  }, [leagueId, fetchMessages]);
 
-  const sorted = [...messages].sort((a, b) => a.created - b.created);
+  const sorted = useMemo(() => [...messages].sort((a, b) => a.created - b.created), [messages]);
 
   return (
     <div className="flex flex-col">
