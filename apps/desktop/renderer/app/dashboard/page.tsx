@@ -8,15 +8,16 @@ import TradesView from "../views/trades";
 import { useAllPlayers } from "../../hooks/use-allplayers";
 import PollsView from "../views/polls-view";
 import AdpView from "../views/adp-view";
-import { LeagueChatsPanel } from "../views/trades/league-chats-panel";
+import LeaguesView from "../views/leagues-view";
 import { LeagueFilterBar, useLeagueFilter } from "../components/league-filter";
 import { useKtc } from "../../hooks/use-ktc";
 import { useLeaguePlayers } from "../../hooks/use-league-players";
+import { useTradeValueFilter } from "../../hooks/use-trade-value-filter";
 import { CURRENT_SEASON } from "@autogm/shared";
 
 const SEASON = CURRENT_SEASON;
 
-type View = "trades" | "polls" | "adp" | "chats" | null;
+type View = "leagues" | "trades" | "polls" | "adp" | null;
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -43,8 +44,9 @@ export default function DashboardPage() {
   const { ktc } = useKtc();
 
   const { interestByLeague, tradeBlockByLeague } = useLeaguePlayers(leagues);
+  const valueFilter = useTradeValueFilter({ leagues: filteredLeagues, allplayers: allplayers ?? {}, ktc });
 
-  const views = ["trades", "polls", "adp", "chats"];
+  const views = ["leagues", "trades", "polls", "adp"];
 
   useEffect(() => {
     if (restoring) return;
@@ -95,7 +97,13 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {view === "trades" ? (
+      {view === "leagues" ? (
+        <LeaguesView
+          leagues={filteredLeagues}
+          userId={session.user_id}
+          filter={valueFilter}
+        />
+      ) : view === "trades" ? (
         <TradesView
           allplayers={allplayers ?? {}}
           leagues={filteredLeagues}
@@ -111,11 +119,6 @@ export default function DashboardPage() {
         <PollsView leagues={filteredLeagues} />
       ) : view === "adp" ? (
         <AdpView allplayers={allplayers ?? {}} />
-      ) : view === "chats" ? (
-        <LeagueChatsPanel
-          leagues={filteredLeagues}
-          userId={session.user_id}
-        />
       ) : (
         <p className="text-gray-400">Select a view above.</p>
       )}

@@ -16,9 +16,7 @@ import { TradesPanel } from "./trades-panel";
 import { PotentialTrades } from "./potential-trades";
 import { PlayerCombobox } from "../../components/player-combobox";
 import { TradeFilterBar } from "../../components/trade-filter-bar";
-import { LeaguesPanel } from "./leagues-panel";
-
-type TradesTab = "create" | "pending" | "completed" | "rejected" | "leagues";
+type TradesTab = "create" | "pending" | "completed" | "rejected";
 
 // Convert a UI pick_id like "2026 1.03" or "2026 Round 2" into the KTC-compatible name
 // like "2026 Early 1st" / "2026 Mid 2nd" / etc.
@@ -455,20 +453,17 @@ export default function TradesView({
     <div className="flex flex-col flex-1 items-center w-full gap-6 p-6">
       {/* Tabs */}
       <div className="flex w-full max-w-3xl border-b border-gray-700 overflow-x-auto">
-        {(["create", "pending", "completed", "rejected", "leagues"] as TradesTab[]).map((t) => {
+        {(["create", "pending", "completed", "rejected"] as TradesTab[]).map((t) => {
           const count = t === "pending" ? pendingTrades.length
             : t === "completed" ? completedTrades.length
             : t === "rejected" ? rejectedTrades.length
-            : t === "leagues" ? Object.keys(leagues).length
             : 0;
           const label = t === "create" ? "Create Trade"
             : t === "pending" ? "Pending"
             : t === "completed" ? "Completed"
-            : t === "rejected" ? "Rejected"
-            : "Leagues";
+            : "Rejected";
           const badgeColor = t === "pending" ? "bg-yellow-500/20 text-yellow-400"
             : t === "completed" ? "bg-green-500/20 text-green-400"
-            : t === "leagues" ? "bg-blue-500/20 text-blue-400"
             : "bg-red-500/20 text-red-400";
           return (
             <button
@@ -572,12 +567,6 @@ export default function TradesView({
           filter={valueFilter}
           statusLabel="Rejected"
           emptyMessage="No rejected trades across your leagues."
-        />
-      ) : tab === "leagues" ? (
-        <LeaguesPanel
-          leagues={leagues}
-          userId={userId}
-          filter={valueFilter}
         />
       ) : (
       <>
