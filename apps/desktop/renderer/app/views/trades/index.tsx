@@ -86,6 +86,12 @@ export default function TradesView({
   const [playersToReceive, setPlayersToReceive] = useState<string[]>([]);
   const [picksToGive, setPicksToGive] = useState<string[]>([]);
   const [picksToReceive, setPicksToReceive] = useState<string[]>([]);
+  // Roster filters: narrow results by player ownership (not part of the trade itself)
+  const [userOwnsFilter, setUserOwnsFilter] = useState<string[]>([]);
+  const [userLacksFilter, setUserLacksFilter] = useState<string[]>([]);
+  const [partnerOwnsFilter, setPartnerOwnsFilter] = useState<string[]>([]);
+  const [partnerLacksFilter, setPartnerLacksFilter] = useState<string[]>([]);
+
   const [selectedProposals, setSelectedProposals] = useState<
     (ProposeTradeVars & { user_id: string; _effective?: { playersToGive: string[]; playersToReceive: string[]; picksToGive: string[]; picksToReceive: string[] } })[]
   >([]);
@@ -295,6 +301,8 @@ export default function TradesView({
     picksToReceive,
   ]);
 
+  const allPlayerIds = useMemo(() => Object.keys(allplayers), [allplayers]);
+
   const ownedPlayers = useMemo(
     () =>
       Object.keys(playerShares).filter(
@@ -333,6 +341,7 @@ export default function TradesView({
     playersToReceive: string[],
     picksToGive: string[],
     picksToReceive: string[],
+    rosterFilters: { userOwns: string[]; userLacks: string[]; partnerOwns: string[]; partnerLacks: string[] },
   ) => {
     return leagues.filter((league) => {
       const hasPlayersToGive = playersToGive.every((player_id) =>
@@ -342,30 +351,54 @@ export default function TradesView({
         league.user_roster.draftpicks.some((p) => getPickId(p) === pick_id),
       );
 
-      const hasPlayerToReceive = league.rosters
-        .filter((roster) => roster.roster_id !== league.user_roster.roster_id)
-        .some((roster) =>
-          playersToReceive.every((player_id) =>
-            roster.players.includes(player_id),
-          ),
-        );
+      // Roster filters on user's roster
+      const userOwnsOk = rosterFilters.userOwns.every((pid) =>
+        league.user_roster.players.includes(pid),
+      );
+      const userLacksOk = rosterFilters.userLacks.every((pid) =>
+        !league.user_roster.players.includes(pid),
+      );
+      if (!userOwnsOk || !userLacksOk) return false;
 
-      const hasPicksToReceive = league.rosters
-        .filter((roster) => roster.roster_id !== league.user_roster.roster_id)
-        .some((roster) =>
-          picksToReceive.every((pick_id) =>
-            roster.draftpicks.some((p) => getPickId(p) === pick_id),
-          ),
-        );
+      const otherRosters = league.rosters.filter(
+        (roster) => roster.roster_id !== league.user_roster.roster_id,
+      );
+
+      const hasPlayerToReceive = otherRosters.some((roster) =>
+        playersToReceive.every((player_id) =>
+          roster.players.includes(player_id),
+        ),
+      );
+
+      const hasPicksToReceive = otherRosters.some((roster) =>
+        picksToReceive.every((pick_id) =>
+          roster.draftpicks.some((p) => getPickId(p) === pick_id),
+        ),
+      );
+
+      // Partner roster filters: at least one valid trading partner must match
+      const partnerFilterActive = rosterFilters.partnerOwns.length > 0 || rosterFilters.partnerLacks.length > 0;
+      const partnerFilterOk = !partnerFilterActive || otherRosters.some((roster) =>
+        rosterFilters.partnerOwns.every((pid) => roster.players.includes(pid)) &&
+        rosterFilters.partnerLacks.every((pid) => !roster.players.includes(pid)),
+      );
 
       return (
         hasPlayersToGive &&
         hasPicksToGive &&
         hasPlayerToReceive &&
-        hasPicksToReceive
+        hasPicksToReceive &&
+        partnerFilterOk
       );
     });
   };
+
+  const rosterFilters = useMemo(() => ({
+    userOwns: userOwnsFilter,
+    userLacks: userLacksFilter,
+    partnerOwns: partnerOwnsFilter,
+    partnerLacks: partnerLacksFilter,
+  }), [userOwnsFilter, userLacksFilter, partnerOwnsFilter, partnerLacksFilter]);
 
   const filteredLeagues = useMemo(
     () =>
@@ -375,6 +408,7 @@ export default function TradesView({
         playersToReceive,
         picksToGive,
         picksToReceive,
+        rosterFilters,
       ).map((league) => {
         const tradingWith = league.rosters.filter(
           (roster) =>
@@ -382,11 +416,13 @@ export default function TradesView({
             playersToReceive.every((p) => roster.players.includes(p)) &&
             picksToReceive.every((p) =>
               roster.draftpicks.some((d) => getPickId(d) === p),
-            ),
+            ) &&
+            partnerOwnsFilter.every((pid) => roster.players.includes(pid)) &&
+            partnerLacksFilter.every((pid) => !roster.players.includes(pid)),
         );
         return { ...league, tradingWith };
       }),
-    [leagues, playersToGive, playersToReceive, picksToGive, picksToReceive],
+    [leagues, playersToGive, playersToReceive, picksToGive, picksToReceive, rosterFilters, partnerOwnsFilter, partnerLacksFilter],
   );
 
   const tradeCount = useMemo(
@@ -723,6 +759,90 @@ export default function TradesView({
                   picksToReceive.reduce((sum, pid) => sum + getPickValue(pid, valueFilter.valueLookup), 0)
                 )}
               </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Roster filters — narrow by ownership without adding to trade */}
+      <div className="flex gap-4 w-full max-w-3xl">
+        <div className="flex-1 flex flex-col gap-2 rounded-lg border border-gray-700/60 bg-gray-800/50 p-3">
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">You own (filter)</h4>
+          <PlayerCombobox
+            id="filter-user-owns"
+            playerIds={allPlayerIds}
+            allplayers={allplayers}
+            selected={[...userOwnsFilter, ...userLacksFilter, ...partnerOwnsFilter, ...partnerLacksFilter]}
+            onSelect={(pid) => setUserOwnsFilter((prev) => prev.includes(pid) ? prev : [...prev, pid])}
+            placeholder="Must own..."
+          />
+          {userOwnsFilter.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {userOwnsFilter.map((pid) => (
+                <span key={pid} className="inline-flex items-center gap-1 rounded-full bg-blue-900/20 border border-blue-800/40 px-2 py-0.5 text-[11px] text-blue-300">
+                  {allplayers[pid]?.full_name || pid}
+                  <button onClick={() => setUserOwnsFilter((p) => p.filter((x) => x !== pid))} className="text-blue-400 hover:text-blue-300">&times;</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mt-1">You don't own (filter)</h4>
+          <PlayerCombobox
+            id="filter-user-lacks"
+            playerIds={allPlayerIds}
+            allplayers={allplayers}
+            selected={[...userOwnsFilter, ...userLacksFilter, ...partnerOwnsFilter, ...partnerLacksFilter]}
+            onSelect={(pid) => setUserLacksFilter((prev) => prev.includes(pid) ? prev : [...prev, pid])}
+            placeholder="Must NOT own..."
+          />
+          {userLacksFilter.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {userLacksFilter.map((pid) => (
+                <span key={pid} className="inline-flex items-center gap-1 rounded-full bg-orange-900/20 border border-orange-800/40 px-2 py-0.5 text-[11px] text-orange-300">
+                  {allplayers[pid]?.full_name || pid}
+                  <button onClick={() => setUserLacksFilter((p) => p.filter((x) => x !== pid))} className="text-orange-400 hover:text-orange-300">&times;</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex-1 flex flex-col gap-2 rounded-lg border border-gray-700/60 bg-gray-800/50 p-3">
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Partner owns (filter)</h4>
+          <PlayerCombobox
+            id="filter-partner-owns"
+            playerIds={allPlayerIds}
+            allplayers={allplayers}
+            selected={[...userOwnsFilter, ...userLacksFilter, ...partnerOwnsFilter, ...partnerLacksFilter]}
+            onSelect={(pid) => setPartnerOwnsFilter((prev) => prev.includes(pid) ? prev : [...prev, pid])}
+            placeholder="Partner must own..."
+          />
+          {partnerOwnsFilter.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {partnerOwnsFilter.map((pid) => (
+                <span key={pid} className="inline-flex items-center gap-1 rounded-full bg-blue-900/20 border border-blue-800/40 px-2 py-0.5 text-[11px] text-blue-300">
+                  {allplayers[pid]?.full_name || pid}
+                  <button onClick={() => setPartnerOwnsFilter((p) => p.filter((x) => x !== pid))} className="text-blue-400 hover:text-blue-300">&times;</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mt-1">Partner doesn't own (filter)</h4>
+          <PlayerCombobox
+            id="filter-partner-lacks"
+            playerIds={allPlayerIds}
+            allplayers={allplayers}
+            selected={[...userOwnsFilter, ...userLacksFilter, ...partnerOwnsFilter, ...partnerLacksFilter]}
+            onSelect={(pid) => setPartnerLacksFilter((prev) => prev.includes(pid) ? prev : [...prev, pid])}
+            placeholder="Partner must NOT own..."
+          />
+          {partnerLacksFilter.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {partnerLacksFilter.map((pid) => (
+                <span key={pid} className="inline-flex items-center gap-1 rounded-full bg-orange-900/20 border border-orange-800/40 px-2 py-0.5 text-[11px] text-orange-300">
+                  {allplayers[pid]?.full_name || pid}
+                  <button onClick={() => setPartnerLacksFilter((p) => p.filter((x) => x !== pid))} className="text-orange-400 hover:text-orange-300">&times;</button>
+                </span>
+              ))}
             </div>
           )}
         </div>
