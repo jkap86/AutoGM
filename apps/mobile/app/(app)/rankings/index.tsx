@@ -1,11 +1,13 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, ScrollView } from 'react-native'
-import type { LeagueDetailed, Roster, Allplayer } from '@autogm/shared'
+import type { LeagueDetailed, Roster, Allplayer, AdpRow } from '@autogm/shared'
 import { useLeagueCache } from '../../../src/league-cache'
 import { useKtc } from '../../../src/hooks/use-ktc'
+import { useAdp } from '../../../src/hooks/use-adp'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { colors } from '../../../src/theme'
 
+type ValueType = 'ktc' | 'adp' | 'auction'
 type PositionFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
 
 function getPickKtcName(season: string, round: number, order: number | null): string {
@@ -15,10 +17,31 @@ function getPickKtcName(season: string, round: number, order: number | null): st
   return `${season} ${type} ${round}${suffix}`
 }
 
+function adpToValue(adp: number): number {
+  return 1000 * Math.exp(-(adp - 1) / 50)
+}
+
+function buildValueLookup(
+  valueType: ValueType,
+  ktc: Record<string, number>,
+  adpRows: AdpRow[],
+): Record<string, number> {
+  if (valueType === 'ktc') return ktc
+  const out: Record<string, number> = {}
+  if (valueType === 'adp') {
+    for (const r of adpRows) out[r.player_id] = adpToValue(r.adp)
+  } else {
+    for (const r of adpRows) {
+      if (r.avg_pct != null) out[r.player_id] = r.avg_pct * 100
+    }
+  }
+  return out
+}
+
 function computeRosterValue(
   roster: Roster,
   filter: PositionFilter,
-  ktc: Record<string, number>,
+  values: Record<string, number>,
   allplayers: Record<string, Allplayer>,
 ): number {
   let total = 0
@@ -27,13 +50,13 @@ function computeRosterValue(
       const player = allplayers[pid]
       if (!player) continue
       if (filter !== 'ALL' && player.position !== filter) continue
-      total += ktc[pid] ?? 0
+      total += values[pid] ?? 0
     }
   }
   if (filter === 'ALL' || filter === 'PICKS') {
     for (const pick of roster.draftpicks ?? []) {
       const name = getPickKtcName(pick.season, pick.round, pick.order)
-      total += ktc[name] ?? 0
+      total += values[name] ?? 0
     }
   }
   return total
@@ -46,27 +69,30 @@ function rankColor(rank: number, total: number): string {
   return colors.text
 }
 
+function formatValue(n: number, valueType: ValueType): string {
+  if (valueType === 'auction') return `${n.toFixed(1)}%`
+  return Math.round(n).toLocaleString()
+}
+
 function LeagueRankCard({
-  league,
-  ktc,
-  allplayers,
-  posFilter,
+  league, values, allplayers, posFilter, valueType,
 }: {
   league: LeagueDetailed
-  ktc: Record<string, number>
+  values: Record<string, number>
   allplayers: Record<string, Allplayer>
   posFilter: PositionFilter
+  valueType: ValueType
 }) {
   const [expanded, setExpanded] = useState(false)
 
   const ranked = useMemo(() => {
     const data = league.rosters.map((r) => ({
       roster: r,
-      value: computeRosterValue(r, posFilter, ktc, allplayers),
+      value: computeRosterValue(r, posFilter, values, allplayers),
     }))
     data.sort((a, b) => b.value - a.value)
     return data.map((d, i) => ({ ...d, rank: i + 1 }))
-  }, [league, ktc, allplayers, posFilter])
+  }, [league, values, allplayers, posFilter])
 
   const userEntry = ranked.find((r) => r.roster.roster_id === league.user_roster.roster_id)
 
@@ -75,16 +101,14 @@ function LeagueRankCard({
       <TouchableOpacity onPress={() => setExpanded((p) => !p)} style={s.cardHeader}>
         <View style={{ flex: 1 }}>
           <Text style={s.leagueName}>{league.name}</Text>
-          <Text style={s.subtext}>
-            {league.rosters.length} teams
-          </Text>
+          <Text style={s.subtext}>{league.rosters.length} teams</Text>
         </View>
         {userEntry && (
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={[s.rank, { color: rankColor(userEntry.rank, league.rosters.length) }]}>
               #{userEntry.rank}
             </Text>
-            <Text style={s.value}>{Math.round(userEntry.value).toLocaleString()}</Text>
+            <Text style={s.value}>{formatValue(userEntry.value, valueType)}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -101,7 +125,7 @@ function LeagueRankCard({
                 <Text style={[s.rankName, isUser && { color: colors.blueLight }]} numberOfLines={1}>
                   {roster.username}
                 </Text>
-                <Text style={s.rankValue}>{Math.round(value).toLocaleString()}</Text>
+                <Text style={s.rankValue}>{formatValue(value, valueType)}</Text>
               </View>
             )
           })}
@@ -114,12 +138,28 @@ function LeagueRankCard({
 export default function RankingsScreen() {
   const { leagues, loading: leaguesLoading } = useLeagueCache()
   const { ktc, loading: ktcLoading } = useKtc()
-  const { allplayers: allplayersMap, loading: apLoading } = useAllPlayers()
+  const { allplayers, loading: apLoading } = useAllPlayers()
+  const [valueType, setValueType] = useState<ValueType>('ktc')
   const [posFilter, setPosFilter] = useState<PositionFilter>('ALL')
 
-  const leagueList = useMemo(() => (leagues ? Object.values(leagues) : []), [leagues])
-  const loading = leaguesLoading || ktcLoading || apLoading
+  const isAdp = valueType === 'adp' || valueType === 'auction'
+  const defaultStart = useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10)
+  }, [])
+  const { data: adpRows, stats: adpStats, loading: adpLoading } = useAdp(
+    { startDate: defaultStart, endDate: new Date().toISOString().slice(0, 10), minDrafts: 2 },
+    isAdp,
+  )
 
+  const valueLookup = useMemo(
+    () => buildValueLookup(valueType, ktc, adpRows),
+    [valueType, ktc, adpRows],
+  )
+
+  const leagueList = useMemo(() => (leagues ? Object.values(leagues) : []), [leagues])
+  const loading = leaguesLoading || ktcLoading || apLoading || (isAdp && adpLoading)
+
+  const valueTypes: ValueType[] = ['ktc', 'adp', 'auction']
   const filters: PositionFilter[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'PICKS']
 
   if (loading && leagueList.length === 0) {
@@ -133,6 +173,26 @@ export default function RankingsScreen() {
 
   return (
     <View style={s.container}>
+      {/* Value type toggle */}
+      <View style={s.controlBar}>
+        <View style={s.segmented}>
+          {valueTypes.map((v) => (
+            <TouchableOpacity
+              key={v}
+              onPress={() => setValueType(v)}
+              style={[s.segBtn, valueType === v && s.segBtnActive]}
+            >
+              <Text style={[s.segText, valueType === v && s.segTextActive]}>{v.toUpperCase()}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {isAdp && adpStats && !adpLoading && (
+          <Text style={s.statsText}>{adpStats.n_drafts.toLocaleString()} drafts</Text>
+        )}
+        {loading && <ActivityIndicator size="small" color={colors.blueLight} style={{ marginLeft: 8 }} />}
+      </View>
+
+      {/* Position filter */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ gap: 6, paddingHorizontal: 16 }}>
         {filters.map((f) => (
           <TouchableOpacity
@@ -144,11 +204,18 @@ export default function RankingsScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
       <FlatList
         data={leagueList}
         keyExtractor={(l) => l.league_id}
         renderItem={({ item }) => (
-          <LeagueRankCard league={item} ktc={ktc} allplayers={allplayersMap} posFilter={posFilter} />
+          <LeagueRankCard
+            league={item}
+            values={valueLookup}
+            allplayers={allplayers}
+            posFilter={posFilter}
+            valueType={valueType}
+          />
         )}
         contentContainerStyle={{ padding: 16 }}
       />
@@ -159,6 +226,13 @@ export default function RankingsScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  controlBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.card },
+  segmented: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 8, padding: 2 },
+  segBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 6 },
+  segBtnActive: { backgroundColor: colors.blue },
+  segText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  segTextActive: { color: colors.white },
+  statsText: { color: colors.textMuted, fontSize: 11, marginLeft: 12 },
   card: { backgroundColor: colors.card, borderRadius: 12, marginBottom: 12, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
   leagueName: { color: colors.white, fontWeight: '600', fontSize: 15 },

@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, TextInput, Alert,
   ActivityIndicator, StyleSheet, ScrollView, Modal,
 } from 'react-native'
-import type { LeagueDetailed, Roster, Allplayer, DraftpickDetailed } from '@autogm/shared'
+import type { LeagueDetailed, Roster, Allplayer } from '@autogm/shared'
 import { getPickId } from '@autogm/shared'
 import { useAuth } from '@autogm/shared/react'
 import { useLeagueCache } from '../../../src/league-cache'
@@ -11,8 +11,6 @@ import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { useKtc } from '../../../src/hooks/use-ktc'
 import { mobileDataClient } from '../../../src/data-client'
 import { colors } from '../../../src/theme'
-
-type Step = 'league' | 'partner' | 'assets' | 'review'
 
 function PlayerSearchModal({
   visible,
@@ -53,7 +51,7 @@ function PlayerSearchModal({
       <View style={s.modalContainer}>
         <View style={s.modalHeader}>
           <Text style={s.modalTitle}>{title}</Text>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity onPress={() => { onClose(); setQuery('') }}>
             <Text style={{ color: colors.blueLight, fontSize: 15 }}>Done</Text>
           </TouchableOpacity>
         </View>
@@ -87,114 +85,141 @@ function PlayerSearchModal({
   )
 }
 
-function PickSelector({
-  picks,
-  selected,
-  onToggle,
-  ktc,
-}: {
-  picks: DraftpickDetailed[]
-  selected: string[]
-  onToggle: (id: string) => void
-  ktc: Record<string, number>
-}) {
-  if (picks.length === 0) return <Text style={s.dimText}>No picks available</Text>
-
-  return (
-    <View style={{ gap: 4 }}>
-      {picks.map((pick) => {
-        const id = getPickId(pick)
-        const isSelected = selected.includes(id)
-        const suffix = pick.round === 1 ? 'st' : pick.round === 2 ? 'nd' : pick.round === 3 ? 'rd' : 'th'
-        const orderStr = pick.order ? `.${String(pick.order).padStart(2, '0')}` : ''
-        const label = `${pick.season} ${pick.round}${suffix}${orderStr}`
-        const ktcName = `${pick.season} Mid ${pick.round}${suffix}`
-        const value = ktc[ktcName] ?? 0
-        return (
-          <TouchableOpacity
-            key={id}
-            onPress={() => onToggle(id)}
-            style={[s.pickRow, isSelected && s.pickRowSelected]}
-          >
-            <Text style={[s.pickLabel, isSelected && { color: colors.white }]}>{label}</Text>
-            {value > 0 && <Text style={s.pickKtc}>{value}</Text>}
-          </TouchableOpacity>
-        )
-      })}
-    </View>
-  )
-}
-
-function AssetChip({
-  label,
-  value,
-  color: chipColor,
-  onRemove,
-}: {
-  label: string
-  value?: number
-  color: string
-  onRemove: () => void
-}) {
+function Chip({ label, value, chipColor, onRemove }: { label: string; value?: number; chipColor: string; onRemove: () => void }) {
   return (
     <View style={[s.chip, { borderColor: chipColor + '60', backgroundColor: chipColor + '15' }]}>
       <Text style={[s.chipText, { color: chipColor }]}>{label}</Text>
       {value != null && value > 0 && <Text style={[s.chipValue, { color: chipColor + 'AA' }]}>{value}</Text>}
-      <TouchableOpacity onPress={onRemove}>
+      <TouchableOpacity onPress={onRemove} hitSlop={8}>
         <Text style={{ color: chipColor, fontSize: 16, marginLeft: 4 }}>x</Text>
       </TouchableOpacity>
     </View>
   )
 }
 
+function TradeMatchCard({
+  league,
+  partner,
+  playersToGive,
+  playersToReceive,
+  picksToGive,
+  picksToReceive,
+  allplayers,
+  ktc,
+  onSend,
+  sending,
+}: {
+  league: LeagueDetailed
+  partner: Roster
+  playersToGive: string[]
+  playersToReceive: string[]
+  picksToGive: string[]
+  picksToReceive: string[]
+  allplayers: Record<string, Allplayer>
+  ktc: Record<string, number>
+  onSend: () => void
+  sending: boolean
+}) {
+  const giveTotal = playersToGive.reduce((s, id) => s + (ktc[id] ?? 0), 0)
+  const receiveTotal = playersToReceive.reduce((s, id) => s + (ktc[id] ?? 0), 0)
+
+  return (
+    <View style={s.matchCard}>
+      <View style={s.matchHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.matchLeague}>{league.name}</Text>
+          <Text style={s.matchPartner}>with {partner.username} ({partner.wins}-{partner.losses})</Text>
+        </View>
+        <TouchableOpacity
+          style={[s.sendBtn, sending && { opacity: 0.5 }]}
+          onPress={onSend}
+          disabled={sending}
+        >
+          <Text style={s.sendBtnText}>{sending ? '...' : 'Send'}</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={s.matchSummary}>
+        <View style={{ flex: 1 }}>
+          <Text style={[s.matchLabel, { color: colors.red }]}>Give ({giveTotal.toLocaleString()})</Text>
+          {playersToGive.map((id) => (
+            <Text key={id} style={s.matchItem} numberOfLines={1}>{allplayers[id]?.full_name || id}</Text>
+          ))}
+          {picksToGive.map((id) => <Text key={id} style={s.matchItem}>{id}</Text>)}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[s.matchLabel, { color: colors.green }]}>Get ({receiveTotal.toLocaleString()})</Text>
+          {playersToReceive.map((id) => (
+            <Text key={id} style={s.matchItem} numberOfLines={1}>{allplayers[id]?.full_name || id}</Text>
+          ))}
+          {picksToReceive.map((id) => <Text key={id} style={s.matchItem}>{id}</Text>)}
+        </View>
+      </View>
+    </View>
+  )
+}
+
 export default function CreateTradeScreen() {
   const { session } = useAuth()
-  const { leagues, loading: leaguesLoading } = useLeagueCache()
+  const { leagues, playerShares, pickShares, loading: leaguesLoading } = useLeagueCache()
   const { allplayers } = useAllPlayers()
   const { ktc } = useKtc()
 
-  const [step, setStep] = useState<Step>('league')
-  const [selectedLeague, setSelectedLeague] = useState<LeagueDetailed | null>(null)
-  const [selectedPartner, setSelectedPartner] = useState<Roster | null>(null)
   const [playersToGive, setPlayersToGive] = useState<string[]>([])
   const [playersToReceive, setPlayersToReceive] = useState<string[]>([])
   const [picksToGive, setPicksToGive] = useState<string[]>([])
   const [picksToReceive, setPicksToReceive] = useState<string[]>([])
   const [showGiveSearch, setShowGiveSearch] = useState(false)
   const [showReceiveSearch, setShowReceiveSearch] = useState(false)
-  const [sending, setSending] = useState(false)
+  const [showGivePicks, setShowGivePicks] = useState(false)
+  const [showReceivePicks, setShowReceivePicks] = useState(false)
+  const [sendingKey, setSendingKey] = useState<string | null>(null)
 
-  const leagueList = useMemo(() => (leagues ? Object.values(leagues) : []), [leagues])
-
-  const reset = useCallback(() => {
-    setStep('league')
-    setSelectedLeague(null)
-    setSelectedPartner(null)
-    setPlayersToGive([])
-    setPlayersToReceive([])
-    setPicksToGive([])
-    setPicksToReceive([])
-  }, [])
-
-  const giveTotal = useMemo(
-    () => playersToGive.reduce((s, id) => s + (ktc[id] ?? 0), 0) +
-          picksToGive.reduce((s, id) => s + 0, 0), // picks value approximation
-    [playersToGive, picksToGive, ktc],
+  const ownedPlayers = useMemo(
+    () => Object.keys(playerShares).filter((id) => playerShares[id].owned.length > 0),
+    [playerShares],
   )
-  const receiveTotal = useMemo(
-    () => playersToReceive.reduce((s, id) => s + (ktc[id] ?? 0), 0),
-    [playersToReceive, ktc],
+  const takenPlayers = useMemo(
+    () => Object.keys(playerShares).filter((id) => playerShares[id].taken.length > 0),
+    [playerShares],
+  )
+  const ownedPicks = useMemo(
+    () => Object.keys(pickShares).filter((id) => pickShares[id].owned.length > 0),
+    [pickShares],
+  )
+  const takenPicks = useMemo(
+    () => Object.keys(pickShares).filter((id) => pickShares[id].taken.length > 0),
+    [pickShares],
   )
 
-  const sendTrade = useCallback(async () => {
-    if (!selectedLeague || !selectedPartner) return
-    const userRoster = selectedLeague.user_roster
-    const partner = selectedPartner
+  // Filter leagues to those matching selected assets
+  const filteredMatches = useMemo(() => {
+    if (!leagues) return []
+    const hasAnything = playersToGive.length + playersToReceive.length + picksToGive.length + picksToReceive.length > 0
+    if (!hasAnything) return []
 
-    setSending(true)
+    return Object.values(leagues).flatMap((league) => {
+      const userRoster = league.user_roster
+      const hasPlayersToGive = playersToGive.every((pid) => userRoster.players.includes(pid))
+      const hasPicksToGive = picksToGive.every((pid) => userRoster.draftpicks.some((d) => getPickId(d) === pid))
+      if (!hasPlayersToGive || !hasPicksToGive) return []
+
+      return league.rosters
+        .filter((r) => r.roster_id !== userRoster.roster_id)
+        .filter((r) =>
+          playersToReceive.every((pid) => r.players.includes(pid)) &&
+          picksToReceive.every((pid) => r.draftpicks.some((d) => getPickId(d) === pid)),
+        )
+        .map((partner) => ({ league, partner }))
+    })
+  }, [leagues, playersToGive, playersToReceive, picksToGive, picksToReceive])
+
+  const sendTrade = useCallback(async (league: LeagueDetailed, partner: Roster) => {
+    const key = `${league.league_id}-${partner.roster_id}`
+    setSendingKey(key)
     try {
+      const userRoster = league.user_roster
       await mobileDataClient.graphql('proposeTrade', {
-        league_id: selectedLeague.league_id,
+        league_id: league.league_id,
         k_adds: [...playersToGive, ...playersToReceive],
         v_adds: [
           ...playersToGive.map(() => partner.roster_id),
@@ -219,248 +244,181 @@ export default function CreateTradeScreen() {
         ],
         waiver_budget: [],
       })
-      Alert.alert('Trade Sent', 'Your trade proposal has been sent.', [
-        { text: 'OK', onPress: reset },
-      ])
+      Alert.alert('Sent', `Trade sent to ${partner.username} in ${league.name}`)
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e))
     } finally {
-      setSending(false)
+      setSendingKey(null)
     }
-  }, [selectedLeague, selectedPartner, playersToGive, playersToReceive, picksToGive, picksToReceive, reset])
+  }, [playersToGive, playersToReceive, picksToGive, picksToReceive])
+
+  const giveTotal = playersToGive.reduce((s, id) => s + (ktc[id] ?? 0), 0)
+  const receiveTotal = playersToReceive.reduce((s, id) => s + (ktc[id] ?? 0), 0)
 
   if (leaguesLoading) {
     return <View style={s.center}><ActivityIndicator size="large" color={colors.blueLight} /></View>
   }
 
-  // Step 1: Select league
-  if (step === 'league') {
-    return (
-      <View style={s.container}>
-        <Text style={s.stepTitle}>Select a League</Text>
-        <FlatList
-          data={leagueList}
-          keyExtractor={(l) => l.league_id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={s.selectCard}
-              onPress={() => { setSelectedLeague(item); setStep('partner') }}
-            >
-              <Text style={s.selectName}>{item.name}</Text>
-              <Text style={s.selectDetail}>{item.rosters.length} teams</Text>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={{ padding: 16 }}
-        />
-      </View>
-    )
-  }
-
-  // Step 2: Select partner
-  if (step === 'partner' && selectedLeague) {
-    const opponents = selectedLeague.rosters.filter(
-      (r) => r.roster_id !== selectedLeague.user_roster.roster_id,
-    )
-    return (
-      <View style={s.container}>
-        <TouchableOpacity onPress={() => setStep('league')} style={s.backBtn}>
-          <Text style={s.backText}>Back</Text>
-        </TouchableOpacity>
-        <Text style={s.stepTitle}>Trade Partner in {selectedLeague.name}</Text>
-        <FlatList
-          data={opponents}
-          keyExtractor={(r) => String(r.roster_id)}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={s.selectCard}
-              onPress={() => { setSelectedPartner(item); setStep('assets') }}
-            >
-              <Text style={s.selectName}>{item.username}</Text>
-              <Text style={s.selectDetail}>{item.wins}-{item.losses}</Text>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={{ padding: 16 }}
-        />
-      </View>
-    )
-  }
-
-  // Step 3: Select assets
-  if (step === 'assets' && selectedLeague && selectedPartner) {
-    const userRoster = selectedLeague.user_roster
-    const hasAssets = playersToGive.length + playersToReceive.length + picksToGive.length + picksToReceive.length > 0
-
-    return (
-      <ScrollView style={s.container} contentContainerStyle={{ padding: 16 }}>
-        <TouchableOpacity onPress={() => { setStep('partner'); setPlayersToGive([]); setPlayersToReceive([]); setPicksToGive([]); setPicksToReceive([]) }} style={s.backBtn}>
-          <Text style={s.backText}>Back</Text>
-        </TouchableOpacity>
-
-        <Text style={s.stepTitle}>{selectedLeague.name}</Text>
-        <Text style={s.dimText}>Trading with {selectedPartner.username}</Text>
-
-        {/* You give */}
-        <View style={s.section}>
-          <View style={s.sectionHeader}>
-            <Text style={[s.sectionTitle, { color: colors.red }]}>You Give</Text>
-            <Text style={s.sectionTotal}>{giveTotal.toLocaleString()} KTC</Text>
-          </View>
+  return (
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
+      {/* You Give */}
+      <View style={s.section}>
+        <View style={s.sectionHeader}>
+          <Text style={[s.sectionTitle, { color: colors.red }]}>You Give</Text>
+          {giveTotal > 0 && <Text style={s.sectionTotal}>{giveTotal.toLocaleString()}</Text>}
+        </View>
+        <View style={s.btnRow}>
           <TouchableOpacity style={s.addBtn} onPress={() => setShowGiveSearch(true)}>
-            <Text style={s.addBtnText}>+ Add Player</Text>
+            <Text style={s.addBtnText}>+ Player</Text>
           </TouchableOpacity>
-          {playersToGive.map((id) => (
-            <AssetChip
-              key={id}
-              label={allplayers[id]?.full_name || id}
-              value={ktc[id]}
-              color={colors.red}
-              onRemove={() => setPlayersToGive((p) => p.filter((x) => x !== id))}
-            />
-          ))}
-          <Text style={[s.dimText, { marginTop: 8 }]}>Picks</Text>
-          <PickSelector
-            picks={userRoster.draftpicks}
-            selected={picksToGive}
-            onToggle={(id) => setPicksToGive((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id])}
-            ktc={ktc}
-          />
+          <TouchableOpacity style={s.addBtn} onPress={() => setShowGivePicks(true)}>
+            <Text style={s.addBtnText}>+ Pick</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* You receive */}
-        <View style={s.section}>
-          <View style={s.sectionHeader}>
-            <Text style={[s.sectionTitle, { color: colors.green }]}>You Receive</Text>
-            <Text style={s.sectionTotal}>{receiveTotal.toLocaleString()} KTC</Text>
+        {playersToGive.length > 0 && (
+          <View style={s.chipWrap}>
+            {playersToGive.map((id) => (
+              <Chip key={id} label={allplayers[id]?.full_name || id} value={ktc[id]} chipColor={colors.red}
+                onRemove={() => setPlayersToGive((p) => p.filter((x) => x !== id))} />
+            ))}
           </View>
+        )}
+        {picksToGive.map((id) => (
+          <Chip key={id} label={id} chipColor={colors.red}
+            onRemove={() => setPicksToGive((p) => p.filter((x) => x !== id))} />
+        ))}
+      </View>
+
+      {/* You Receive */}
+      <View style={s.section}>
+        <View style={s.sectionHeader}>
+          <Text style={[s.sectionTitle, { color: colors.green }]}>You Receive</Text>
+          {receiveTotal > 0 && <Text style={s.sectionTotal}>{receiveTotal.toLocaleString()}</Text>}
+        </View>
+        <View style={s.btnRow}>
           <TouchableOpacity style={s.addBtn} onPress={() => setShowReceiveSearch(true)}>
-            <Text style={s.addBtnText}>+ Add Player</Text>
+            <Text style={s.addBtnText}>+ Player</Text>
           </TouchableOpacity>
-          {playersToReceive.map((id) => (
-            <AssetChip
-              key={id}
-              label={allplayers[id]?.full_name || id}
-              value={ktc[id]}
-              color={colors.green}
-              onRemove={() => setPlayersToReceive((p) => p.filter((x) => x !== id))}
+          <TouchableOpacity style={s.addBtn} onPress={() => setShowReceivePicks(true)}>
+            <Text style={s.addBtnText}>+ Pick</Text>
+          </TouchableOpacity>
+        </View>
+        {playersToReceive.length > 0 && (
+          <View style={s.chipWrap}>
+            {playersToReceive.map((id) => (
+              <Chip key={id} label={allplayers[id]?.full_name || id} value={ktc[id]} chipColor={colors.green}
+                onRemove={() => setPlayersToReceive((p) => p.filter((x) => x !== id))} />
+            ))}
+          </View>
+        )}
+        {picksToReceive.map((id) => (
+          <Chip key={id} label={id} chipColor={colors.green}
+            onRemove={() => setPicksToReceive((p) => p.filter((x) => x !== id))} />
+        ))}
+      </View>
+
+      {/* Potential Trades */}
+      {filteredMatches.length > 0 ? (
+        <View>
+          <Text style={s.matchesTitle}>
+            {filteredMatches.length} potential {filteredMatches.length === 1 ? 'trade' : 'trades'}
+          </Text>
+          {filteredMatches.map(({ league, partner }) => (
+            <TradeMatchCard
+              key={`${league.league_id}-${partner.roster_id}`}
+              league={league}
+              partner={partner}
+              playersToGive={playersToGive}
+              playersToReceive={playersToReceive}
+              picksToGive={picksToGive}
+              picksToReceive={picksToReceive}
+              allplayers={allplayers}
+              ktc={ktc}
+              sending={sendingKey === `${league.league_id}-${partner.roster_id}`}
+              onSend={() => Alert.alert(
+                'Send Trade?',
+                `Send to ${partner.username} in ${league.name}?`,
+                [{ text: 'Cancel', style: 'cancel' }, { text: 'Send', onPress: () => sendTrade(league, partner) }],
+              )}
             />
           ))}
-          <Text style={[s.dimText, { marginTop: 8 }]}>Picks</Text>
-          <PickSelector
-            picks={selectedPartner.draftpicks}
-            selected={picksToReceive}
-            onToggle={(id) => setPicksToReceive((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id])}
-            ktc={ktc}
-          />
         </View>
+      ) : (playersToGive.length + playersToReceive.length + picksToGive.length + picksToReceive.length > 0) ? (
+        <Text style={s.noMatches}>No matching leagues for these players/picks.</Text>
+      ) : (
+        <Text style={s.noMatches}>Select players or picks above to find trades.</Text>
+      )}
 
-        {hasAssets && (
-          <TouchableOpacity style={s.reviewBtn} onPress={() => setStep('review')}>
-            <Text style={s.reviewBtnText}>Review Trade</Text>
-          </TouchableOpacity>
-        )}
-
-        <PlayerSearchModal
-          visible={showGiveSearch}
-          playerIds={userRoster.players}
-          allplayers={allplayers}
-          ktc={ktc}
-          selected={[...playersToGive, ...playersToReceive]}
-          onSelect={(id) => setPlayersToGive((p) => [...p, id])}
-          onClose={() => setShowGiveSearch(false)}
-          title="Your Players"
-        />
-        <PlayerSearchModal
-          visible={showReceiveSearch}
-          playerIds={selectedPartner.players}
-          allplayers={allplayers}
-          ktc={ktc}
-          selected={[...playersToGive, ...playersToReceive]}
-          onSelect={(id) => setPlayersToReceive((p) => [...p, id])}
-          onClose={() => setShowReceiveSearch(false)}
-          title={`${selectedPartner.username}'s Players`}
-        />
-      </ScrollView>
-    )
-  }
-
-  // Step 4: Review and send
-  if (step === 'review' && selectedLeague && selectedPartner) {
-    return (
-      <ScrollView style={s.container} contentContainerStyle={{ padding: 16 }}>
-        <TouchableOpacity onPress={() => setStep('assets')} style={s.backBtn}>
-          <Text style={s.backText}>Back</Text>
-        </TouchableOpacity>
-
-        <Text style={s.stepTitle}>Review Trade</Text>
-        <Text style={s.dimText}>{selectedLeague.name} - with {selectedPartner.username}</Text>
-
-        <View style={[s.section, { borderLeftWidth: 3, borderLeftColor: colors.red }]}>
-          <Text style={[s.sectionTitle, { color: colors.red }]}>You Give ({giveTotal.toLocaleString()})</Text>
-          {playersToGive.map((id) => (
-            <Text key={id} style={s.reviewItem}>- {allplayers[id]?.full_name || id} {ktc[id] ? `(${ktc[id]})` : ''}</Text>
-          ))}
-          {picksToGive.map((id) => <Text key={id} style={s.reviewItem}>- {id}</Text>)}
-        </View>
-
-        <View style={[s.section, { borderLeftWidth: 3, borderLeftColor: colors.green }]}>
-          <Text style={[s.sectionTitle, { color: colors.green }]}>You Receive ({receiveTotal.toLocaleString()})</Text>
-          {playersToReceive.map((id) => (
-            <Text key={id} style={s.reviewItem}>+ {allplayers[id]?.full_name || id} {ktc[id] ? `(${ktc[id]})` : ''}</Text>
-          ))}
-          {picksToReceive.map((id) => <Text key={id} style={s.reviewItem}>+ {id}</Text>)}
-        </View>
-
-        <TouchableOpacity
-          style={[s.sendBtn, sending && { opacity: 0.5 }]}
-          onPress={() => Alert.alert('Send Trade?', `Send this trade to ${selectedPartner.username}?`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Send', onPress: sendTrade },
-          ])}
-          disabled={sending}
-        >
-          <Text style={s.sendBtnText}>{sending ? 'Sending...' : 'Send Trade Proposal'}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.cancelBtn} onPress={reset}>
-          <Text style={s.cancelBtnText}>Cancel</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    )
-  }
-
-  return null
+      {/* Modals */}
+      <PlayerSearchModal
+        visible={showGiveSearch}
+        playerIds={ownedPlayers}
+        allplayers={allplayers}
+        ktc={ktc}
+        selected={[...playersToGive, ...playersToReceive]}
+        onSelect={(id) => setPlayersToGive((p) => [...p, id])}
+        onClose={() => setShowGiveSearch(false)}
+        title="Your Players"
+      />
+      <PlayerSearchModal
+        visible={showReceiveSearch}
+        playerIds={takenPlayers}
+        allplayers={allplayers}
+        ktc={ktc}
+        selected={[...playersToGive, ...playersToReceive]}
+        onSelect={(id) => setPlayersToReceive((p) => [...p, id])}
+        onClose={() => setShowReceiveSearch(false)}
+        title="Players to Receive"
+      />
+      <PlayerSearchModal
+        visible={showGivePicks}
+        playerIds={ownedPicks}
+        allplayers={allplayers}
+        ktc={ktc}
+        selected={[...picksToGive, ...picksToReceive]}
+        onSelect={(id) => setPicksToGive((p) => [...p, id])}
+        onClose={() => setShowGivePicks(false)}
+        title="Your Picks"
+      />
+      <PlayerSearchModal
+        visible={showReceivePicks}
+        playerIds={takenPicks}
+        allplayers={allplayers}
+        ktc={ktc}
+        selected={[...picksToGive, ...picksToReceive]}
+        onSelect={(id) => setPicksToReceive((p) => [...p, id])}
+        onClose={() => setShowReceivePicks(false)}
+        title="Picks to Receive"
+      />
+    </ScrollView>
+  )
 }
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  stepTitle: { color: colors.white, fontSize: 18, fontWeight: '700', marginBottom: 4 },
-  dimText: { color: colors.textMuted, fontSize: 13, marginBottom: 12 },
-  backBtn: { marginBottom: 12 },
-  backText: { color: colors.blueLight, fontSize: 14 },
-  selectCard: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  selectName: { color: colors.white, fontSize: 15, fontWeight: '600' },
-  selectDetail: { color: colors.textMuted, fontSize: 13 },
-  section: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 12 },
+  section: { backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 12 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  sectionTitle: { fontSize: 14, fontWeight: '700' },
+  sectionTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
   sectionTotal: { color: colors.textMuted, fontSize: 12 },
-  addBtn: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', borderRadius: 8, padding: 10, alignItems: 'center', marginBottom: 8 },
-  addBtnText: { color: colors.textMuted, fontSize: 13 },
+  btnRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  addBtn: { flex: 1, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, alignItems: 'center' },
+  addBtnText: { color: colors.textMuted, fontSize: 13, fontWeight: '500' },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   chip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 4 },
-  chipText: { fontSize: 13, fontWeight: '500' },
-  chipValue: { fontSize: 11, marginLeft: 6 },
-  pickRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.bg, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 4, borderWidth: 1, borderColor: colors.border },
-  pickRowSelected: { backgroundColor: colors.blue + '30', borderColor: colors.blueLight },
-  pickLabel: { color: colors.textSecondary, fontSize: 13 },
-  pickKtc: { color: colors.textMuted, fontSize: 11 },
-  reviewItem: { color: colors.text, fontSize: 14, marginTop: 4 },
-  reviewBtn: { backgroundColor: colors.blue, borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 8 },
-  reviewBtnText: { color: colors.white, fontSize: 15, fontWeight: '700' },
-  sendBtn: { backgroundColor: colors.green + '30', borderWidth: 1, borderColor: colors.green + '60', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 16 },
-  sendBtnText: { color: colors.green, fontSize: 15, fontWeight: '700' },
-  cancelBtn: { padding: 14, alignItems: 'center', marginTop: 8 },
-  cancelBtnText: { color: colors.textMuted, fontSize: 14 },
+  chipText: { fontSize: 12, fontWeight: '500' },
+  chipValue: { fontSize: 10, marginLeft: 4 },
+  matchesTitle: { color: colors.textSecondary, fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 4 },
+  noMatches: { color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 24 },
+  matchCard: { backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 8 },
+  matchHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  matchLeague: { color: colors.white, fontSize: 14, fontWeight: '600' },
+  matchPartner: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  matchSummary: { flexDirection: 'row', gap: 12 },
+  matchLabel: { fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  matchItem: { color: colors.text, fontSize: 12, marginBottom: 1 },
+  sendBtn: { backgroundColor: colors.blue, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
+  sendBtnText: { color: colors.white, fontSize: 13, fontWeight: '600' },
   // Modal
   modalContainer: { flex: 1, backgroundColor: colors.bg },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },

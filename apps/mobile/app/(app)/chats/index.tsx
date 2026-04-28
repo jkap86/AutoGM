@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator,
-  StyleSheet, KeyboardAvoidingView, Platform,
+  StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native'
 import type { LeagueDetailed, Message, MessagesResult, CreateMessageResult } from '@autogm/shared'
 import { useLeagueCache } from '../../../src/league-cache'
@@ -14,7 +14,7 @@ function formatTime(ms: number): string {
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
-function LeagueChatCard({ league, userId }: { league: LeagueDetailed; userId: string }) {
+function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetailed; userId: string; onLastMessage?: (leagueId: string, time: number) => void }) {
   const [expanded, setExpanded] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
@@ -28,7 +28,12 @@ function LeagueChatCard({ league, userId }: { league: LeagueDetailed; userId: st
     setLoading(true)
     try {
       const result = await mobileDataClient.graphql('messages', { parent_id: league.league_id })
-      setMessages((result as MessagesResult).messages ?? [])
+      const msgs = (result as MessagesResult).messages ?? []
+      setMessages(msgs)
+      if (msgs.length > 0 && onLastMessage) {
+        const latest = Math.max(...msgs.map((m) => m.created))
+        onLastMessage(league.league_id, latest)
+      }
     } catch (e) {
       console.warn('Chat fetch failed:', e)
     } finally {
@@ -139,10 +144,28 @@ function LeagueChatCard({ league, userId }: { league: LeagueDetailed; userId: st
   )
 }
 
+type SortMode = 'original' | 'alpha' | 'recent'
+
 export default function ChatsScreen() {
   const { leagues, loading } = useLeagueCache()
   const { session } = useAuth()
+  const [sortMode, setSortMode] = useState<SortMode>('original')
+  const [lastMsgTimes, setLastMsgTimes] = useState<Record<string, number>>({})
+
   const leagueList = useMemo(() => (leagues ? Object.values(leagues) : []), [leagues])
+
+  const sortedLeagues = useMemo(() => {
+    const list = [...leagueList]
+    switch (sortMode) {
+      case 'alpha': return list.sort((a, b) => a.name.localeCompare(b.name))
+      case 'recent': return list.sort((a, b) => (lastMsgTimes[b.league_id] ?? 0) - (lastMsgTimes[a.league_id] ?? 0))
+      default: return list
+    }
+  }, [leagueList, sortMode, lastMsgTimes])
+
+  const updateLastMsg = useCallback((leagueId: string, time: number) => {
+    setLastMsgTimes((prev) => prev[leagueId] === time ? prev : { ...prev, [leagueId]: time })
+  }, [])
 
   if (loading && leagueList.length === 0) {
     return (
@@ -152,20 +175,45 @@ export default function ChatsScreen() {
     )
   }
 
+  const sorts: { mode: SortMode; label: string }[] = [
+    { mode: 'original', label: 'Default' },
+    { mode: 'alpha', label: 'A-Z' },
+    { mode: 'recent', label: 'Recent' },
+  ]
+
   return (
-    <FlatList
-      data={leagueList}
-      keyExtractor={(l) => l.league_id}
-      renderItem={({ item }) => (
-        <LeagueChatCard league={item} userId={session?.user_id ?? ''} />
-      )}
-      contentContainerStyle={{ padding: 16, backgroundColor: colors.bg }}
-      style={{ backgroundColor: colors.bg }}
-    />
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.sortBar} contentContainerStyle={{ gap: 6, paddingHorizontal: 16 }}>
+        <Text style={s.sortLabel}>Sort</Text>
+        {sorts.map((st) => (
+          <TouchableOpacity
+            key={st.mode}
+            onPress={() => setSortMode(st.mode)}
+            style={[s.sortBtn, sortMode === st.mode && s.sortBtnActive]}
+          >
+            <Text style={[s.sortText, sortMode === st.mode && s.sortTextActive]}>{st.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <FlatList
+        data={sortedLeagues}
+        keyExtractor={(l) => l.league_id}
+        renderItem={({ item }) => (
+          <LeagueChatCard league={item} userId={session?.user_id ?? ''} onLastMessage={updateLastMsg} />
+        )}
+        contentContainerStyle={{ padding: 16 }}
+      />
+    </View>
   )
 }
 
 const s = StyleSheet.create({
+  sortBar: { borderBottomWidth: 1, borderBottomColor: colors.card, paddingVertical: 10 },
+  sortLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, alignSelf: 'center', marginRight: 4 },
+  sortBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.card },
+  sortBtnActive: { backgroundColor: colors.blue },
+  sortText: { color: colors.textMuted, fontSize: 12, fontWeight: '500' },
+  sortTextActive: { color: colors.white },
   center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { backgroundColor: colors.card, borderRadius: 12, marginBottom: 12, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
