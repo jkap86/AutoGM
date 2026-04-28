@@ -19,6 +19,11 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&nbsp;/g, " ");
 }
 
+// Module-level cache so previews survive tab switches
+const previewCache: Record<string, Message> = {};
+const timeCache: Record<string, number> = {};
+const fetchedLeagues = new Set<string>();
+
 export function LeagueChatsPanel({
   leagues,
   userId,
@@ -27,39 +32,53 @@ export function LeagueChatsPanel({
   userId: string;
 }) {
   const [sortMode, setSortMode] = useState<SortMode>("original");
-  const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, number>>({});
-  const [previews, setPreviews] = useState<Record<string, Message>>({});
+  const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, number>>(timeCache);
+  const [previews, setPreviews] = useState<Record<string, Message>>(previewCache);
 
   const leagueList = useMemo(() => Object.values(leagues), [leagues]);
 
-  // Staggered preview fetch — one league at a time with a small delay
+  // Fetch previews for leagues not yet cached, in batches of 4
   useEffect(() => {
+    const unfetched = leagueList.filter((l) => !fetchedLeagues.has(l.league_id));
+    if (unfetched.length === 0) return;
+
     let cancelled = false;
     (async () => {
-      for (const league of leagueList) {
+      const batch = 4;
+      for (let i = 0; i < unfetched.length; i += batch) {
         if (cancelled) break;
-        try {
-          const result = await window.ipc.invoke<MessagesResult>("graphql", {
-            name: "messages",
-            vars: { parent_id: league.league_id },
-          });
-          const msgs = result.messages ?? [];
-          if (msgs.length > 0) {
-            const latest = msgs.reduce((a, b) => (a.created > b.created ? a : b));
-            setPreviews((prev) => ({ ...prev, [league.league_id]: latest }));
-            setLastMessageTimes((prev) => ({ ...prev, [league.league_id]: latest.created }));
-          }
-        } catch {
-          // Skip this league's preview — non-critical
+        const chunk = unfetched.slice(i, i + batch);
+        const results = await Promise.allSettled(
+          chunk.map((league) =>
+            window.ipc.invoke<MessagesResult>("graphql", {
+              name: "messages",
+              vars: { parent_id: league.league_id },
+            }).then((r) => ({ league_id: league.league_id, messages: r.messages ?? [] }))
+          ),
+        );
+        if (cancelled) break;
+        const newPreviews: Record<string, Message> = {};
+        const newTimes: Record<string, number> = {};
+        for (const r of results) {
+          if (r.status !== "fulfilled") continue;
+          fetchedLeagues.add(r.value.league_id);
+          if (r.value.messages.length === 0) continue;
+          const latest = r.value.messages.reduce((a, b) => (a.created > b.created ? a : b));
+          newPreviews[r.value.league_id] = latest;
+          newTimes[r.value.league_id] = latest.created;
+          previewCache[r.value.league_id] = latest;
+          timeCache[r.value.league_id] = latest.created;
         }
-        // Small delay between requests to avoid rate limiting
-        if (!cancelled) await new Promise((r) => setTimeout(r, 150));
+        setPreviews((prev) => ({ ...prev, ...newPreviews }));
+        setLastMessageTimes((prev) => ({ ...prev, ...newTimes }));
       }
     })();
     return () => { cancelled = true; };
   }, [leagueList]);
 
-  const sortedLeagues = useMemo(() => {
+  const [expandedLeagueId, setExpandedLeagueId] = useState<string | null>(null);
+
+  const computedSort = useMemo(() => {
     const list = [...leagueList];
     switch (sortMode) {
       case "alpha":
@@ -70,6 +89,11 @@ export function LeagueChatsPanel({
         return list;
     }
   }, [leagueList, sortMode, lastMessageTimes]);
+
+  // Freeze sort order while a card is expanded
+  const frozenRef = useRef(computedSort);
+  if (!expandedLeagueId) frozenRef.current = computedSort;
+  const sortedLeagues = expandedLeagueId ? frozenRef.current : computedSort;
 
   const updateLastMessage = useCallback((leagueId: string, time: number) => {
     setLastMessageTimes((prev) => {
@@ -114,6 +138,8 @@ export function LeagueChatsPanel({
           userId={userId}
           onLastMessage={updateLastMessage}
           previewMessage={previews[league.league_id] ?? null}
+          expanded={expandedLeagueId === league.league_id}
+          onToggleExpand={() => setExpandedLeagueId((prev) => prev === league.league_id ? null : league.league_id)}
         />
       ))}
     </div>
@@ -252,13 +278,16 @@ function LeagueChatCard({
   userId,
   onLastMessage,
   previewMessage,
+  expanded,
+  onToggleExpand,
 }: {
   league: LeagueDetailed;
   userId: string;
   onLastMessage: (leagueId: string, time: number) => void;
   previewMessage: Message | null;
+  expanded: boolean;
+  onToggleExpand: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -387,7 +416,7 @@ function LeagueChatCard({
       {/* Header */}
       <div
         className="flex items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-gray-700/30 transition"
-        onClick={() => setExpanded((p) => !p)}
+        onClick={onToggleExpand}
       >
         <Avatar hash={league.avatar} alt={league.name} size={24} />
         <div className="flex flex-col min-w-0 flex-1">
