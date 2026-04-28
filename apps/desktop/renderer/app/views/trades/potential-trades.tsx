@@ -11,6 +11,7 @@ import { RosterColumn } from "../../components/roster-column";
 import { DmPanel } from "./trades-panel";
 import { LeagueChatPanel } from "./league-chat-panel";
 import { OpponentPanel } from "./opponent-panel";
+import { LeagueSettingsPanel } from "./league-settings-panel";
 import {
   getPickKtcName,
   passThreshold,
@@ -298,15 +299,15 @@ export function PotentialTrades({
         return (
           <div
             key={cardKey}
-            className={`rounded-xl border overflow-hidden transition cursor-pointer ${
+            className={`rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer ${
               isSelected
-                ? "border-yellow-500 bg-yellow-500/5 shadow-md shadow-yellow-500/10"
-                : "border-gray-700/80 bg-gray-800 hover:border-gray-600/80"
+                ? "border-yellow-500 bg-gradient-to-b from-yellow-500/5 to-gray-800 shadow-xl shadow-yellow-500/15 -translate-y-0.5"
+                : "border-gray-700/80 bg-gradient-to-b from-gray-800 to-gray-850 shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-black/40 hover:border-gray-600/80 hover:-translate-y-0.5"
             }`}
             onClick={toggleSelect}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700/40">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700/40 bg-gray-900/30">
               <div className="flex items-center gap-2.5 min-w-0">
                 <Avatar hash={league.avatar} alt={league.name} size={20} />
                 <span title={league.name} className="text-sm font-medium text-gray-200 truncate">{league.name}</span>
@@ -336,10 +337,9 @@ export function PotentialTrades({
             </div>
 
             {/* Body: two sides */}
-            <div className="flex flex-col sm:flex-row items-stretch relative">
+            <div className="flex flex-col sm:flex-row items-stretch divide-x divide-gray-700/40">
               {sides.map((side, i) => (
-                <div key={side.roster_id} className="flex-1 flex flex-col min-w-0 relative">
-                  {i > 0 && <div className="hidden sm:block absolute inset-y-0 left-0 w-px bg-gray-700/50" />}
+                <div key={side.roster_id} className="flex-1 flex flex-col min-w-0">
                   {i > 0 && <div className="sm:hidden border-t border-gray-700/50" />}
                   <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
                     <Avatar hash={side.roster.avatar} alt={side.roster.username} size={28} />
@@ -361,8 +361,10 @@ export function PotentialTrades({
                     </div>
                     {side.delta !== 0 && (
                       <span
-                        className={`ml-auto text-xs font-semibold ${
-                          side.delta > 0 ? "text-green-400" : "text-red-400"
+                        className={`ml-auto text-xs font-bold rounded-md px-1.5 py-0.5 ${
+                          side.delta > 0
+                            ? "text-green-400 bg-green-500/10 shadow-sm shadow-green-900/20"
+                            : "text-red-400 bg-red-500/10 shadow-sm shadow-red-900/20"
                         }`}
                       >
                         {side.delta > 0 ? "+" : ""}
@@ -387,7 +389,7 @@ export function PotentialTrades({
                                     ? "bg-pink-500/15 text-pink-200 ring-1 ring-pink-400/50"
                                     : item.isOtb
                                       ? "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/50"
-                                      : "bg-green-500/10 text-green-300"
+                                      : "bg-green-500/10 text-green-300 border border-green-500/20 shadow-sm shadow-green-900/20"
                                 }`}
                               >
                                 {item.position && (
@@ -418,7 +420,7 @@ export function PotentialTrades({
                               className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${
                                 item.isOtb
                                   ? "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/50"
-                                  : "bg-red-500/10 text-red-300"
+                                  : "bg-red-500/10 text-red-300 border border-red-500/20 shadow-sm shadow-red-900/20"
                               }`}
                             >
                               {item.position && (
@@ -438,7 +440,7 @@ export function PotentialTrades({
 
             {/* Expanded section with tabs */}
             {isExpanded && (() => {
-              const tabs = ["Rosters", "DM", "League Chat", "Opponent"];
+              const tabs = ["Rosters", "DM", "League Chat", "Opponent", "Settings"];
               const activeTab = expandedTab[cardKey] || "Rosters";
               return (
                 <div className="border-t border-gray-700/40" onClick={(e) => e.stopPropagation()}>
@@ -547,6 +549,10 @@ export function PotentialTrades({
                       leagues={leagues}
                       involvedPlayerIds={[...effective.playersToGive, ...effective.playersToReceive]}
                     />
+                  )}
+
+                  {activeTab === "Settings" && (
+                    <LeagueSettingsPanel league={league} />
                   )}
                 </div>
               );

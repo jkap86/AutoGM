@@ -73,16 +73,52 @@ const IGNORE_EVENTS = new Set([
   'player_picked',
 ])
 
+// Module-level cache keyed by status
+const tradeCache: Record<string, TradeWithLeague[]> = {}
+
+function filterTrades(
+  trades: TradeWithLeague[],
+  status: string,
+  leagues: { [league_id: string]: LeagueDetailed },
+): TradeWithLeague[] {
+  const nowMs = Date.now()
+  return trades
+    .filter((tx) => {
+      const rawExpires = (tx.settings as Record<string, unknown>)?.expires_at
+      const expiresMs = typeof rawExpires === 'number'
+        ? (rawExpires < 10_000_000_000 ? rawExpires * 1000 : rawExpires)
+        : null
+      const isExpired = expiresMs !== null && expiresMs <= nowMs
+
+      if (status === 'proposed') {
+        if (isExpired) return false
+      }
+      if (status === 'expired') {
+        if (!isExpired) return false
+      }
+      if (status === 'complete') {
+        const league = leagues[tx.league_id]
+        if (league && !tx.roster_ids.includes(league.user_roster.roster_id)) return false
+      }
+      if (status === 'rejected') {
+        if (isExpired) return false
+      }
+      return true
+    })
+    .sort((a, b) => b.status_updated - a.status_updated)
+}
+
 export function useTradesByStatus(
   leagues: { [league_id: string]: LeagueDetailed },
   status: string,
   limit?: number,
   userId?: string,
 ) {
-  const [state, setState] = useState<State>({
-    trades: [],
-    loading: false,
-    error: null,
+  const [state, setState] = useState<State>(() => {
+    const cached = tradeCache[status]
+    return cached
+      ? { trades: filterTrades(cached, status, leagues), loading: false, error: null }
+      : { trades: [], loading: false, error: null }
   })
 
   const fetchFn = useCallback(async () => {
@@ -111,32 +147,9 @@ export function useTradesByStatus(
         },
       )
 
-      const nowMs = Date.now()
-      const trades = results.flat()
-        .filter((tx) => {
-          const rawExpires = (tx.settings as Record<string, unknown>)?.expires_at
-          // Sleeper stores expires_at in seconds; convert to ms for comparison
-          const expiresMs = typeof rawExpires === 'number'
-            ? (rawExpires < 10_000_000_000 ? rawExpires * 1000 : rawExpires)
-            : null
-          const isExpired = expiresMs !== null && expiresMs <= nowMs
-
-          if (status === 'proposed') {
-            if (isExpired) return false
-          }
-          if (status === 'expired') {
-            if (!isExpired) return false
-          }
-          if (status === 'complete') {
-            const league = leagues[tx.league_id]
-            if (league && !tx.roster_ids.includes(league.user_roster.roster_id)) return false
-          }
-          if (status === 'rejected') {
-            if (isExpired) return false
-          }
-          return true
-        })
-        .sort((a, b) => b.status_updated - a.status_updated)
+      const allTrades = results.flat()
+      tradeCache[status] = allTrades
+      const trades = filterTrades(allTrades, status, leagues)
       setState({ trades, loading: false, error: null })
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e)
@@ -144,8 +157,13 @@ export function useTradesByStatus(
     }
   }, [leagues, status, limit])
 
-  // Initial fetch
+  // Initial fetch — skip if we have cached data
+  const hasFetched = useRef(!!tradeCache[status])
   useEffect(() => {
+    if (hasFetched.current) {
+      hasFetched.current = false
+      return
+    }
     fetchFn()
   }, [fetchFn])
 

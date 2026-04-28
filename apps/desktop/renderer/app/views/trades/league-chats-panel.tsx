@@ -339,9 +339,9 @@ function LeagueChatCard({
         const p = payload as MessageCreatedPayload;
         setMessages((prev) => {
           if (prev.some((m) => m.message_id === p.message_id)) return prev;
-          onLastMessage(league.league_id, p.created);
           return [...prev, messageFromSocket(p)];
         });
+        onLastMessage(league.league_id, p.created);
       }
     }, [league.league_id, onLastMessage]),
   );

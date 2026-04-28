@@ -1,11 +1,51 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   Allplayer,
   LeagueDetailed,
   Roster,
 } from "@autogm/shared";
+import { CURRENT_SEASON } from "@autogm/shared";
 import { Avatar } from "../../components/avatar";
 import { formatRecord, formatTime } from "../../../lib/trade-utils";
+
+// ── Fetch all player shares for a user across all their leagues ──────
+
+type PartnerShares = Record<string, { count: number; leagueNames: string[] }>;
+const partnerSharesCache: Record<string, PartnerShares> = {};
+
+async function fetchPartnerShares(userId: string): Promise<PartnerShares> {
+  if (partnerSharesCache[userId]) return partnerSharesCache[userId];
+
+  const leagueList: { league_id: string; name: string }[] = await fetch(
+    `https://api.sleeper.app/v1/user/${userId}/leagues/nfl/${CURRENT_SEASON}`,
+  ).then((r) => r.json()).catch(() => []);
+
+  const counts: PartnerShares = {};
+  const BATCH = 6;
+  for (let i = 0; i < leagueList.length; i += BATCH) {
+    const chunk = leagueList.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      chunk.map(async (lg) => {
+        const rosters: { owner_id: string; players: string[] | null }[] = await fetch(
+          `https://api.sleeper.app/v1/league/${lg.league_id}/rosters`,
+        ).then((r) => r.json());
+        const theirs = rosters.find((r) => r.owner_id === userId);
+        return { leagueName: lg.name, players: theirs?.players ?? [] };
+      }),
+    );
+    for (const r of results) {
+      if (r.status !== "fulfilled") continue;
+      for (const pid of r.value.players) {
+        if (!counts[pid]) counts[pid] = { count: 0, leagueNames: [] };
+        counts[pid].count++;
+        counts[pid].leagueNames.push(r.value.leagueName);
+      }
+    }
+  }
+
+  partnerSharesCache[userId] = counts;
+  return counts;
+}
 
 type DraftPick = {
   player_id: string;
@@ -48,10 +88,10 @@ export function OpponentPanel({
   return (
     <div className="flex flex-col">
       {/* Opponent header */}
-      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-gray-700/40">
-        <Avatar hash={partner.avatar} alt={partner.username} size={32} />
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-700/40 bg-gray-900/20">
+        <Avatar hash={partner.avatar} alt={partner.username} size={36} />
         <div className="flex flex-col min-w-0">
-          <span className="text-sm font-medium text-gray-100 truncate" title={partner.username}>
+          <span className="text-sm font-semibold text-gray-100 truncate" title={partner.username}>
             {partner.username}
           </span>
           <span className="text-xs text-gray-500">
@@ -61,7 +101,7 @@ export function OpponentPanel({
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex border-b border-gray-700/40 px-4">
+      <div className="flex border-b border-gray-700/40 px-4 bg-gray-900/10">
         {([
           { key: "roster" as const, label: "Player Shares" },
           { key: "trades" as const, label: "Recent Trades" },
@@ -72,7 +112,7 @@ export function OpponentPanel({
             onClick={() => setTab(t.key)}
             role="tab"
             aria-selected={tab === t.key}
-            className={`px-3 py-1.5 text-xs font-medium transition ${
+            className={`px-3 py-2 text-xs font-medium transition ${
               tab === t.key
                 ? "text-gray-100 border-b-2 border-blue-500"
                 : "text-gray-500 hover:text-gray-300"
@@ -83,12 +123,11 @@ export function OpponentPanel({
         ))}
       </div>
 
-      <div className="px-4 py-3 max-h-80 overflow-y-auto">
+      <div className="px-4 py-4 max-h-96 overflow-y-auto">
         {tab === "roster" && (
           <PlayerSharesSection
             partner={partner}
             allplayers={allplayers}
-            leagues={leagues}
           />
         )}
         {tab === "trades" && (
@@ -115,60 +154,89 @@ export function OpponentPanel({
 function PlayerSharesSection({
   partner,
   allplayers,
-  leagues,
 }: {
   partner: Roster;
   allplayers: { [id: string]: Allplayer };
-  leagues: { [league_id: string]: LeagueDetailed };
 }) {
-  const shares = useMemo(() => {
-    // Count how many leagues the opponent rosters each player
-    const counts: Record<string, { count: number; leagueNames: string[] }> = {};
-    for (const lg of Object.values(leagues)) {
-      const opponentRoster = lg.rosters.find((r) => r.user_id === partner.user_id);
-      if (!opponentRoster) continue;
-      for (const pid of opponentRoster.players ?? []) {
-        if (!counts[pid]) counts[pid] = { count: 0, leagueNames: [] };
-        counts[pid].count++;
-        counts[pid].leagueNames.push(lg.name);
-      }
-    }
+  const [shares, setShares] = useState<{ player_id: string; name: string; position: string; team: string; count: number; leagueNames: string[] }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const fetchedRef = useRef<string | null>(null);
 
-    return Object.entries(counts)
-      .map(([player_id, { count, leagueNames }]) => {
-        const p = allplayers[player_id];
-        return {
-          player_id,
-          name: p?.full_name ?? player_id,
-          position: p?.position ?? "?",
-          team: p?.team ?? "",
-          count,
-          leagueNames,
-        };
-      })
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  }, [partner.user_id, allplayers, leagues]);
+  useEffect(() => {
+    if (fetchedRef.current === partner.user_id) return;
+    let cancelled = false;
+    setLoading(true);
+    fetchPartnerShares(partner.user_id).then((counts) => {
+      if (cancelled) return;
+      fetchedRef.current = partner.user_id;
+      const list = Object.entries(counts)
+        .map(([player_id, { count, leagueNames }]) => {
+          const p = allplayers[player_id];
+          return {
+            player_id,
+            name: p?.full_name ?? player_id,
+            position: p?.position ?? "?",
+            team: p?.team ?? "",
+            count,
+            leagueNames,
+          };
+        })
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+      setShares(list);
+      setLoading(false);
+    }).catch(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [partner.user_id, allplayers]);
 
-  if (shares.length === 0) {
-    return <p className="text-xs text-gray-500 text-center py-4">No shared leagues with this opponent</p>;
+  if (loading) {
+    return <p className="text-xs text-gray-500 text-center py-4">Loading player shares...</p>;
   }
 
+  if (shares.length === 0) {
+    return <p className="text-xs text-gray-500 text-center py-4">No players found</p>;
+  }
+
+  const totalLeagues = new Set(shares.flatMap((s) => s.leagueNames)).size;
+  const maxCount = shares.length > 0 ? shares[0].count : 1;
+
   return (
-    <div className="flex flex-col gap-0.5">
-      <p className="text-xs text-gray-500 mb-1">
-        {shares.length} players across {new Set(shares.flatMap((s) => s.leagueNames)).size} leagues
-      </p>
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-gray-400">
+          {shares.length} players
+        </span>
+        <span className="text-[10px] text-gray-500">
+          across {totalLeagues} league{totalLeagues !== 1 ? "s" : ""}
+        </span>
+      </div>
       {shares.map((s) => (
-        <div key={s.player_id} className="flex items-center gap-1.5 py-0.5 text-xs">
-          <span className="w-6 shrink-0 text-center font-semibold text-gray-500">{s.position}</span>
-          <span className="text-gray-200 truncate min-w-0" title={s.name}>{s.name}</span>
-          {s.team && <span className="shrink-0 text-gray-600 text-xs">{s.team}</span>}
-          <span
-            className="ml-auto shrink-0 text-xs text-gray-500 cursor-help"
-            title={s.leagueNames.join(", ")}
-          >
-            {s.count} lg{s.count !== 1 ? "s" : ""}
-          </span>
+        <div
+          key={s.player_id}
+          className="flex items-center gap-2 rounded-md px-2.5 py-1.5 hover:bg-gray-700/30 transition group"
+          title={s.leagueNames.join(", ")}
+        >
+          <span className={`w-7 shrink-0 text-center text-[10px] font-bold rounded py-0.5 ${
+            s.position === "QB" ? "text-red-400 bg-red-500/10" :
+            s.position === "RB" ? "text-green-400 bg-green-500/10" :
+            s.position === "WR" ? "text-blue-400 bg-blue-500/10" :
+            s.position === "TE" ? "text-orange-400 bg-orange-500/10" :
+            "text-gray-400 bg-gray-500/10"
+          }`}>{s.position}</span>
+          <span className="text-xs text-gray-200 truncate min-w-0 font-medium">{s.name}</span>
+          {s.team && <span className="shrink-0 text-[10px] text-gray-600">{s.team}</span>}
+          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            <div className="w-16 h-1.5 rounded-full bg-gray-700/50 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-blue-500/60"
+                style={{ width: `${(s.count / maxCount) * 100}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-semibold text-gray-400 w-6 text-right tabular-nums">
+              {s.count}
+            </span>
+          </div>
         </div>
       ))}
     </div>
@@ -244,43 +312,70 @@ function RecentTradesSection({
 
   const involvedSet = new Set(involvedPlayerIds);
 
+  const leagueCount = new Set(trades.map((t) => t.league_name)).size;
+
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs text-gray-500 mb-1">
-        {trades.length} trade{trades.length !== 1 ? "s" : ""} involving selected players across {new Set(trades.map((t) => t.league_name)).size} league{new Set(trades.map((t) => t.league_name)).size !== 1 ? "s" : ""}
-      </p>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-gray-400">
+          {trades.length} trade{trades.length !== 1 ? "s" : ""}
+        </span>
+        <span className="text-[10px] text-gray-500">
+          across {leagueCount} league{leagueCount !== 1 ? "s" : ""}
+        </span>
+      </div>
       {trades.map((tx) => {
         const rosterIds = tx.roster_ids;
         return (
-          <div key={tx.transaction_id} className="rounded bg-gray-900/40 px-2.5 py-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">{formatTime(tx.status_updated)}</span>
-              <span className="text-xs text-gray-600 truncate" title={tx.league_name}>{tx.league_name}</span>
+          <div key={tx.transaction_id} className="rounded-lg bg-gray-900/40 border border-gray-700/30 overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-900/30 border-b border-gray-700/20">
+              <span className="text-[10px] font-medium text-gray-400">{formatTime(tx.status_updated)}</span>
+              <span className="text-[10px] text-gray-600 truncate" title={tx.league_name}>{tx.league_name}</span>
             </div>
-            <div className="flex gap-4 mt-1">
+            <div className="flex divide-x divide-gray-700/30">
               {rosterIds.map((rid) => {
                 const got = Object.entries(tx.adds ?? {})
                   .filter(([, r]) => r === rid)
-                  .map(([pid]) => ({ pid, name: allplayers[pid]?.full_name ?? pid, involved: involvedSet.has(pid) }));
+                  .map(([pid]) => ({ pid, name: allplayers[pid]?.full_name ?? pid, pos: allplayers[pid]?.position, involved: involvedSet.has(pid) }));
                 const gave = Object.entries(tx.drops ?? {})
                   .filter(([, r]) => r === rid)
-                  .map(([pid]) => ({ pid, name: allplayers[pid]?.full_name ?? pid, involved: involvedSet.has(pid) }));
+                  .map(([pid]) => ({ pid, name: allplayers[pid]?.full_name ?? pid, pos: allplayers[pid]?.position, involved: involvedSet.has(pid) }));
                 if (got.length === 0 && gave.length === 0) return null;
                 const rosterUser = leagues[tx.league_id]?.rosters.find((r) => r.roster_id === rid);
                 const rosterName = rosterUser?.username ?? `Roster ${rid}`;
                 return (
-                  <div key={rid} className="min-w-0">
-                    <span className="text-xs font-semibold text-gray-400">{rosterName}</span>
-                    {got.map((p, i) => (
-                      <div key={`g${i}`} className={`text-xs ${p.involved ? "text-green-300 font-medium" : "text-green-400/60"}`}>
-                        + {p.name}
-                      </div>
-                    ))}
-                    {gave.map((p, i) => (
-                      <div key={`s${i}`} className={`text-xs ${p.involved ? "text-red-300 font-medium" : "text-red-400/60"}`}>
-                        - {p.name}
-                      </div>
-                    ))}
+                  <div key={rid} className="flex-1 min-w-0 px-3 py-2">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{rosterName}</span>
+                    <div className="flex flex-col gap-0.5 mt-1">
+                      {got.map((p, i) => (
+                        <span
+                          key={`g${i}`}
+                          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
+                            p.involved
+                              ? "bg-green-500/15 text-green-300 font-medium border border-green-500/20"
+                              : "text-green-400/60"
+                          }`}
+                        >
+                          <span className="text-green-500/70">+</span>
+                          {p.pos && <span className="text-[10px] font-semibold opacity-60">{p.pos}</span>}
+                          <span className="truncate">{p.name}</span>
+                        </span>
+                      ))}
+                      {gave.map((p, i) => (
+                        <span
+                          key={`s${i}`}
+                          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
+                            p.involved
+                              ? "bg-red-500/15 text-red-300 font-medium border border-red-500/20"
+                              : "text-red-400/60"
+                          }`}
+                        >
+                          <span className="text-red-500/70">-</span>
+                          {p.pos && <span className="text-[10px] font-semibold opacity-60">{p.pos}</span>}
+                          <span className="truncate">{p.name}</span>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 );
               })}
@@ -346,32 +441,41 @@ function DraftHistorySection({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {grouped.map((draft) => (
-        <div key={draft.draft_id}>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
+        <div key={draft.draft_id} className="rounded-lg bg-gray-900/40 border border-gray-700/30 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 bg-gray-900/30 border-b border-gray-700/20">
+            <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
               {draft.season} {draft.type}
             </span>
-            <span className="text-xs text-gray-600">{draft.picks.length} picks</span>
+            <span className="text-[10px] text-gray-500 font-medium">{draft.picks.length} picks</span>
           </div>
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col divide-y divide-gray-700/15">
             {draft.picks.map((pick) => {
               const p = allplayers[pick.player_id];
               return (
-                <div key={`${pick.draft_id}-${pick.pick_no}`} className="flex items-center gap-1.5 text-xs py-0.5">
-                  <span className="w-8 shrink-0 text-right text-gray-600 text-xs">
+                <div
+                  key={`${pick.draft_id}-${pick.pick_no}`}
+                  className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-700/20 transition"
+                >
+                  <span className="w-9 shrink-0 text-right text-[11px] font-bold font-[family-name:var(--font-heading)] text-gray-500 tabular-nums">
                     {formatDraftPick(pick)}
                   </span>
-                  <span className="w-6 shrink-0 text-center font-semibold text-gray-500">
+                  <span className={`w-7 shrink-0 text-center text-[10px] font-bold rounded py-0.5 ${
+                    p?.position === "QB" ? "text-red-400 bg-red-500/10" :
+                    p?.position === "RB" ? "text-green-400 bg-green-500/10" :
+                    p?.position === "WR" ? "text-blue-400 bg-blue-500/10" :
+                    p?.position === "TE" ? "text-orange-400 bg-orange-500/10" :
+                    "text-gray-400 bg-gray-500/10"
+                  }`}>
                     {p?.position ?? "?"}
                   </span>
-                  <span className="text-gray-200 truncate min-w-0" title={p?.full_name ?? pick.player_id}>
+                  <span className="text-xs text-gray-200 font-medium truncate min-w-0" title={p?.full_name ?? pick.player_id}>
                     {p?.full_name ?? pick.player_id}
                   </span>
-                  {p?.team && <span className="shrink-0 text-gray-600 text-xs">{p.team}</span>}
+                  {p?.team && <span className="shrink-0 text-[10px] text-gray-600">{p.team}</span>}
                   {pick.amount != null && (
-                    <span className="ml-auto shrink-0 text-xs text-green-400">${pick.amount}</span>
+                    <span className="ml-auto shrink-0 text-xs font-semibold text-green-400 bg-green-500/10 rounded px-1.5 py-0.5">${pick.amount}</span>
                   )}
                 </div>
               );

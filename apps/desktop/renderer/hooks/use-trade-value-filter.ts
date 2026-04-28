@@ -93,26 +93,33 @@ function computePickValues(
     out[`${currentSeason} Late ${round}${sfx}`] = lateAvg
   }
 
-  // Future year picks: use KTC ratios to discount
+  // Future year picks: use KTC ratios to discount each tier separately
   const currentYear = parseInt(currentSeason, 10)
   for (let yearOffset = 1; yearOffset <= 3; yearOffset++) {
     const futureSeason = String(currentYear + yearOffset)
     for (let round = 1; round <= maxRounds; round++) {
       const sfx = round === 1 ? 'st' : round === 2 ? 'nd' : round === 3 ? 'rd' : 'th'
-      const currentKtcKey = `${currentSeason} Mid ${round}${sfx}`
-      const futureKtcKey = `${futureSeason} Mid ${round}${sfx}`
-      const currentKtcVal = ktc[currentKtcKey] || 0
-      const futureKtcVal = ktc[futureKtcKey] || 0
-      const ratio = currentKtcVal > 0 ? futureKtcVal / currentKtcVal : 0.5
 
-      // Future picks are all "Mid" (order unknown), so use mid value * ratio
-      const currentMidVal = out[`${currentSeason} Mid ${round}${sfx}`] ?? 0
-      const futureVal = currentMidVal * ratio
+      for (const tier of ['Early', 'Mid', 'Late'] as const) {
+        const currentKtcKey = `${currentSeason} ${tier} ${round}${sfx}`
+        const futureKtcKey = `${futureSeason} ${tier} ${round}${sfx}`
+        const currentKtcVal = ktc[currentKtcKey] || ktc[`${currentSeason} Mid ${round}${sfx}`] || 0
+        const futureKtcVal = ktc[futureKtcKey] || ktc[`${futureSeason} Mid ${round}${sfx}`] || 0
+        const ratio = currentKtcVal > 0 ? futureKtcVal / currentKtcVal : 0.5
 
-      // Only grouped keys for future (order not determined)
-      out[`${futureSeason} Early ${round}${sfx}`] = futureVal
-      out[`${futureSeason} Mid ${round}${sfx}`] = futureVal
-      out[`${futureSeason} Late ${round}${sfx}`] = futureVal
+        const currentTierVal = out[`${currentSeason} ${tier} ${round}${sfx}`] ?? 0
+        out[`${futureSeason} ${tier} ${round}${sfx}`] = currentTierVal * ratio
+      }
+
+      // Also generate specific pick keys for future (e.g., "2027 1.08")
+      // using the same ratio approach per slot
+      const currentMidKtcVal = ktc[`${currentSeason} Mid ${round}${sfx}`] || 0
+      const futureMidKtcVal = ktc[`${futureSeason} Mid ${round}${sfx}`] || 0
+      const midRatio = currentMidKtcVal > 0 ? futureMidKtcVal / currentMidKtcVal : 0.5
+      for (let order = 1; order <= picksPerRound; order++) {
+        const currentVal = out[specificPickKey(currentSeason, round, order)] ?? 0
+        out[specificPickKey(futureSeason, round, order)] = currentVal * midRatio
+      }
     }
   }
 

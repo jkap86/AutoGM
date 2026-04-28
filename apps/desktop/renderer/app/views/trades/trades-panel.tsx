@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LeagueDetailed, Allplayer } from "@autogm/shared";
 import { ConfirmModal } from "../../components/confirm-modal";
 import type { TradeWithLeague } from "../../../hooks/use-trades-by-status";
@@ -16,6 +16,7 @@ import { formatRecord, formatTime } from "../../../lib/trade-utils";
 import { DmPanel } from "./dm-panel";
 import { LeagueChatPanel } from "./league-chat-panel";
 import { OpponentPanel } from "./opponent-panel";
+import { LeagueSettingsPanel } from "./league-settings-panel";
 export { DmPanel };
 
 export type TradeAction = (trade: TradeWithLeague) => Promise<void>;
@@ -90,9 +91,90 @@ export function TradesPanel({
   };
 
   const [dirFilter, setDirFilter] = useState<"all" | "received" | "outgoing">("all");
-  const dirFiltered = dirFilter === "all" ? trades
-    : dirFilter === "received" ? trades.filter((t) => t.creator !== userId)
-    : trades.filter((t) => t.creator === userId);
+  const [filterLeague, setFilterLeague] = useState<string>("all");
+  const [filterPartner, setFilterPartner] = useState<string>("all");
+  // Player filters: pid → "any" | "acquired" | "moved"
+  const [playerFilters, setPlayerFilters] = useState<Record<string, "any" | "acquired" | "moved">>({});
+
+  const addPlayerFilter = (pid: string) => {
+    if (playerFilters[pid]) return;
+    setPlayerFilters((p) => ({ ...p, [pid]: "any" }));
+  };
+  const removePlayerFilter = (pid: string) => {
+    setPlayerFilters((p) => { const { [pid]: _, ...rest } = p; return rest; });
+  };
+  const setPlayerFilterDir = (pid: string, dir: "any" | "acquired" | "moved") => {
+    setPlayerFilters((p) => ({ ...p, [pid]: dir }));
+  };
+
+  // Build unique filter options from the current trades
+  const filterOptions = useMemo(() => {
+    const leagueSet = new Map<string, string>();
+    const partnerSet = new Map<string, string>();
+    const playerSet = new Map<string, string>();
+
+    for (const t of trades) {
+      leagueSet.set(t.league_id, t.league_name);
+
+      const league = leagues[t.league_id];
+      if (league) {
+        const partnerRid = t.roster_ids.find((rid) => rid !== league.user_roster?.roster_id);
+        const partner = league.rosters.find((r) => r.roster_id === partnerRid);
+        if (partner) partnerSet.set(partner.user_id, partner.username);
+      }
+
+      for (const pid of [...Object.keys(t.adds ?? {}), ...Object.keys(t.drops ?? {})]) {
+        const name = allplayers[pid]?.full_name;
+        if (name) playerSet.set(pid, name);
+      }
+    }
+
+    return {
+      leagues: [...leagueSet.entries()].sort(([, a], [, b]) => a.localeCompare(b)),
+      partners: [...partnerSet.entries()].sort(([, a], [, b]) => a.localeCompare(b)),
+      players: [...playerSet.entries()].sort(([, a], [, b]) => a.localeCompare(b)),
+    };
+  }, [trades, leagues, allplayers]);
+
+  const dirFiltered = useMemo(() => {
+    let list = dirFilter === "all" ? trades
+      : dirFilter === "received" ? trades.filter((t) => t.creator !== userId)
+      : trades.filter((t) => t.creator === userId);
+
+    if (filterLeague !== "all") {
+      list = list.filter((t) => t.league_id === filterLeague);
+    }
+    if (filterPartner !== "all") {
+      list = list.filter((t) => {
+        const league = leagues[t.league_id];
+        if (!league) return false;
+        const partnerRid = t.roster_ids.find((rid) => rid !== league.user_roster?.roster_id);
+        const partner = league.rosters.find((r) => r.roster_id === partnerRid);
+        return partner?.user_id === filterPartner;
+      });
+    }
+    const pfEntries = Object.entries(playerFilters);
+    if (pfEntries.length > 0) {
+      list = list.filter((t) => {
+        const league = leagues[t.league_id];
+        const userRid = league?.user_roster?.roster_id;
+        return pfEntries.every(([pid, dir]) => {
+          const adds = t.adds ?? {};
+          const drops = t.drops ?? {};
+          const involved = pid in adds || pid in drops;
+          if (!involved) return false;
+          if (dir === "any") return true;
+          // "acquired" = user receives (adds to user roster)
+          if (dir === "acquired") return adds[pid] === userRid;
+          // "moved" = user sends away (drops from user roster)
+          if (dir === "moved") return drops[pid] === userRid;
+          return true;
+        });
+      });
+    }
+
+    return list;
+  }, [trades, dirFilter, filterLeague, filterPartner, playerFilters, userId, leagues]);
 
   if (loading) {
     return (
@@ -126,35 +208,147 @@ export function TradesPanel({
 
   return (
     <div className="w-full max-w-4xl">
-      <div className="mb-5 flex items-center gap-3">
-        <h2 className="text-lg font-semibold text-gray-100">
-          {statusLabel} Trades
-        </h2>
-        <span className="text-sm text-gray-500">
-          {dirFiltered.length} {dirFiltered.length === 1 ? "trade" : "trades"}
-        </span>
-        <div className="flex items-center gap-1 ml-auto rounded-lg bg-gray-900/60 p-0.5">
-          {(["all", "received", "outgoing"] as const).map((d) => (
-            <button
-              key={d}
-              onClick={() => setDirFilter(d)}
-              className={`rounded-md px-3 py-1 text-[11px] font-medium capitalize transition ${
-                dirFilter === d
-                  ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
-                  : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              {d}
-            </button>
-          ))}
-        </div>
-      </div>
+      {(() => {
+        const pfCount = Object.keys(playerFilters).length;
+        const hasFilters = filterLeague !== "all" || filterPartner !== "all" || pfCount > 0;
+        const activeCount = (filterLeague !== "all" ? 1 : 0) + (filterPartner !== "all" ? 1 : 0) + pfCount;
+        return (
+          <div className="mb-5 rounded-xl border border-gray-700/60 bg-gray-800/50 overflow-hidden">
+            {/* Top row: title + direction + count */}
+            <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-b from-gray-700/20 to-transparent">
+              <h2 className="text-lg font-bold font-[family-name:var(--font-heading)] text-gray-100">
+                {statusLabel}
+              </h2>
+              <span className="text-sm text-gray-500 font-medium tabular-nums">
+                {dirFiltered.length} {dirFiltered.length === 1 ? "trade" : "trades"}
+              </span>
+              <div className="flex items-center gap-0.5 ml-auto rounded-lg bg-gray-900/50 p-0.5">
+                {(["all", "received", "outgoing"] as const).map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setDirFilter(d)}
+                    className={`rounded-md px-3 py-1.5 text-[11px] font-semibold capitalize transition ${
+                      dirFilter === d
+                        ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
+                        : "text-gray-500 hover:text-gray-300"
+                    }`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Filter row */}
+            <div className="flex items-center gap-3 px-4 py-2.5 border-t border-gray-700/30 flex-wrap">
+              {/* League */}
+              <select
+                value={filterLeague}
+                onChange={(e) => setFilterLeague(e.target.value)}
+                className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition cursor-pointer ${
+                  filterLeague !== "all"
+                    ? "border-blue-500/40 bg-blue-500/10 text-blue-300"
+                    : "border-gray-700/50 bg-gray-900/50 text-gray-400 hover:border-gray-600/60"
+                } focus:border-blue-500/50 focus:outline-none`}
+              >
+                <option value="all">League: All ({filterOptions.leagues.length})</option>
+                {filterOptions.leagues.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+
+              {/* Partner */}
+              <select
+                value={filterPartner}
+                onChange={(e) => setFilterPartner(e.target.value)}
+                className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition cursor-pointer ${
+                  filterPartner !== "all"
+                    ? "border-blue-500/40 bg-blue-500/10 text-blue-300"
+                    : "border-gray-700/50 bg-gray-900/50 text-gray-400 hover:border-gray-600/60"
+                } focus:border-blue-500/50 focus:outline-none`}
+              >
+                <option value="all">Partner: All ({filterOptions.partners.length})</option>
+                {filterOptions.partners.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+
+              {/* Player add */}
+              <select
+                value=""
+                onChange={(e) => { if (e.target.value) addPlayerFilter(e.target.value); }}
+                className="rounded-lg border border-gray-700/50 bg-gray-900/50 px-2.5 py-1.5 text-xs font-medium text-gray-400 hover:border-gray-600/60 focus:border-blue-500/50 focus:outline-none transition cursor-pointer"
+              >
+                <option value="">+ Player / Pick ({filterOptions.players.length})</option>
+                {filterOptions.players
+                  .filter(([id]) => !playerFilters[id])
+                  .map(([id, name]) => (
+                    <option key={id} value={id}>{name}</option>
+                  ))}
+              </select>
+
+              {hasFilters && (
+                <button
+                  onClick={() => { setFilterLeague("all"); setFilterPartner("all"); setPlayerFilters({}); }}
+                  className="flex items-center gap-1 rounded-lg border border-gray-700/50 bg-gray-900/50 px-2.5 py-1.5 text-[11px] font-medium text-gray-500 hover:text-gray-300 hover:border-gray-600/60 transition"
+                >
+                  <span>&times;</span>
+                  Clear{activeCount > 1 ? ` (${activeCount})` : ""}
+                </button>
+              )}
+            </div>
+
+            {/* Active player filter chips */}
+            {pfCount > 0 && (
+              <div className="flex items-center gap-2 px-4 py-2 border-t border-gray-700/20 flex-wrap">
+                {Object.entries(playerFilters).map(([pid, dir]) => {
+                  const name = allplayers[pid]?.full_name ?? pid;
+                  const pos = allplayers[pid]?.position;
+                  return (
+                    <div
+                      key={pid}
+                      className="flex items-center gap-0.5 rounded-lg border border-blue-500/30 bg-blue-500/5 pl-2 pr-1 py-0.5"
+                    >
+                      {pos && <span className="text-[10px] font-bold text-blue-400/50">{pos}</span>}
+                      <span className="text-xs font-medium text-blue-300 truncate max-w-[120px]" title={name}>{name}</span>
+                      <div className="flex items-center gap-0 ml-1 rounded bg-gray-900/60 p-0.5">
+                        {(["any", "acquired", "moved"] as const).map((d) => (
+                          <button
+                            key={d}
+                            onClick={() => setPlayerFilterDir(pid, d)}
+                            className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider transition ${
+                              dir === d
+                                ? d === "acquired" ? "bg-green-600 text-white"
+                                  : d === "moved" ? "bg-red-600 text-white"
+                                  : "bg-blue-600 text-white"
+                                : "text-gray-500 hover:text-gray-300"
+                            }`}
+                          >
+                            {d === "any" ? "Both" : d === "acquired" ? "Got" : "Sent"}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => removePlayerFilter(pid)}
+                        className="text-gray-500 hover:text-gray-300 text-xs px-1"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <TradeCards
         trades={dirFiltered}
         leagues={leagues}
         allplayers={allplayers}
         userId={userId}
+        tabStatus={statusLabel}
         resolveRoster={resolveRoster}
         formatPick={formatPick}
         formatTime={formatTime}
@@ -175,6 +369,7 @@ function TradeCards({
   leagues,
   allplayers,
   userId,
+  tabStatus,
   resolveRoster,
   formatPick,
   formatTime,
@@ -190,6 +385,7 @@ function TradeCards({
   leagues: { [league_id: string]: LeagueDetailed };
   allplayers: { [player_id: string]: Allplayer };
   userId: string;
+  tabStatus: string;
   resolveRoster: (league_id: string, roster_id: number) => import("@autogm/shared").Roster | undefined;
   formatPick: (league_id: string, dp: { roster_id: number; season: string; round: number; previous_owner_id: number }) => string;
   formatTime: (epoch: number) => string;
@@ -367,18 +563,6 @@ function TradeCards({
           const roster = resolveRoster(trade.league_id, rid);
           const receivingPids = Object.entries(trade.adds ?? {}).filter(([, rId]) => rId === rid).map(([pid]) => pid);
           const givingPids = Object.entries(trade.drops ?? {}).filter(([, rId]) => rId === rid).map(([pid]) => pid);
-          const receiving = [
-            ...receivingPids.map((pid) => ({ type: 'player' as const, label: allplayers[pid]?.full_name ?? pid, position: allplayers[pid]?.position })),
-            ...parsedPicks
-              .filter((dp) => dp.owner_id === rid)
-              .map((dp) => ({ type: 'pick' as const, label: formatPick(trade.league_id, dp), position: undefined })),
-          ];
-          const giving = [
-            ...givingPids.map((pid) => ({ type: 'player' as const, label: allplayers[pid]?.full_name ?? pid, position: allplayers[pid]?.position })),
-            ...parsedPicks
-              .filter((dp) => dp.previous_owner_id === rid)
-              .map((dp) => ({ type: 'pick' as const, label: formatPick(trade.league_id, dp), position: undefined })),
-          ];
           const findPickOrder = (leagueId: string, rosterId: number, season: string, round: number) => {
             const lg = leagues[leagueId];
             if (!lg) return null;
@@ -399,6 +583,18 @@ function TradeCards({
             const ktcName = getPickKtcName(dp.season, dp.round, order);
             return lookup ? (lookup[ktcName] ?? 0) : 0;
           };
+          const receiving = [
+            ...receivingPids.map((pid) => ({ type: 'player' as const, label: allplayers[pid]?.full_name ?? pid, position: allplayers[pid]?.position, value: lookup?.[pid] ?? 0 })),
+            ...parsedPicks
+              .filter((dp) => dp.owner_id === rid)
+              .map((dp) => ({ type: 'pick' as const, label: formatPick(trade.league_id, dp), position: undefined, value: pickValue(dp, rid) })),
+          ];
+          const giving = [
+            ...givingPids.map((pid) => ({ type: 'player' as const, label: allplayers[pid]?.full_name ?? pid, position: allplayers[pid]?.position, value: lookup?.[pid] ?? 0 })),
+            ...parsedPicks
+              .filter((dp) => dp.previous_owner_id === rid)
+              .map((dp) => ({ type: 'pick' as const, label: formatPick(trade.league_id, dp), position: undefined, value: pickValue(dp, rid) })),
+          ];
           const vReceiving = lookup
             ? receivingPids.reduce((sum, pid) => sum + (lookup[pid] ?? 0), 0)
               + parsedPicks.filter((dp) => dp.owner_id === rid).reduce((sum, dp) => sum + pickValue(dp, rid), 0)
@@ -426,13 +622,13 @@ function TradeCards({
         return (
           <div
             key={trade.transaction_id}
-            className="rounded-xl border border-gray-700/80 bg-gray-800 overflow-hidden hover:border-gray-600/80 transition"
+            className="rounded-xl border border-gray-700/80 bg-gray-800 overflow-hidden shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-black/40 hover:border-gray-600/80 hover:-translate-y-0.5 transition-all duration-200"
           >
             {/* Countdown timer */}
-            <ExpirationTimer expiresAt={(trade.settings as Record<string, unknown>)?.expires_at} />
+            <ExpirationTimer expiresAt={(trade.settings as Record<string, unknown>)?.expires_at} tabStatus={tabStatus} />
 
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700/40">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700/40 bg-gradient-to-b from-gray-700/30 to-transparent">
               <div className="flex items-center gap-2.5">
                 {league && <Avatar hash={league.avatar} alt={league.name} size={20} />}
                 <span title={trade.league_name} className="text-sm font-medium text-gray-200 truncate">
@@ -470,42 +666,42 @@ function TradeCards({
             </div>
 
             {/* Trade body */}
-            <div className="flex flex-col sm:flex-row items-stretch">
+            <div className="flex flex-col sm:flex-row items-stretch divide-x divide-gray-700/40" style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)' }}>
               {sides.map((side, i) => (
                 <div key={side.roster_id} className="flex-1 flex flex-col">
-                  {i > 0 && (
-                    <div className="hidden sm:block absolute inset-y-0 left-0 w-px bg-gray-700/50" />
-                  )}
                   {i > 0 && <div className="sm:hidden border-t border-gray-700/50" />}
-                  <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
+                  {/* User info */}
+                  <div className="flex items-center gap-3 px-4 pt-3 pb-2">
                     <Avatar
                       hash={side.roster?.avatar}
                       alt={side.roster?.username ?? `Roster ${side.roster_id}`}
-                      size={28}
+                      size={32}
                     />
-                    <div className="flex flex-col min-w-0">
-                      <span title={side.roster?.username ?? `Roster ${side.roster_id}`} className="text-sm font-medium text-gray-100 truncate">
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span title={side.roster?.username ?? `Roster ${side.roster_id}`} className="text-sm font-semibold text-gray-100 truncate">
                         {side.roster?.username ?? `Roster ${side.roster_id}`}
                       </span>
-                      {side.roster && (side.teamValue != null || side.teamRank != null) && (
-                        <span className="text-xs text-gray-500 truncate">
-                          {formatRecord(side.roster)}
+                      {side.roster && (
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-gray-500 font-medium">{formatRecord(side.roster)}</span>
                           {side.teamRank != null && (
-                            <>
-                              {" · "}
-                              <span className="text-blue-400 font-semibold">
-                                {formatValue(side.teamValue ?? 0)}
-                              </span>
-                              {" "}
-                              {valueLabel} #{side.teamRank}/{totalTeams}
-                            </>
+                            <span className="text-[10px] font-semibold rounded px-1.5 py-0.5 bg-blue-500/10 text-blue-400">
+                              #{side.teamRank}/{totalTeams}
+                            </span>
                           )}
-                        </span>
+                          {side.teamValue != null && side.teamValue > 0 && (
+                            <span className="text-[10px] font-medium text-gray-500">
+                              {formatValue(side.teamValue)} {valueLabel}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                     {lookup && (side.vReceiving > 0 || side.vGiving > 0) && (
-                      <span className={`ml-auto text-xs font-semibold ${
-                        side.vReceiving >= side.vGiving ? "text-green-400" : "text-red-400"
+                      <span className={`shrink-0 text-sm font-bold font-[family-name:var(--font-heading)] rounded-lg px-2.5 py-1 ${
+                        side.vReceiving >= side.vGiving
+                          ? "text-green-400 bg-green-500/10 shadow-sm shadow-green-900/20"
+                          : "text-red-400 bg-red-500/10 shadow-sm shadow-red-900/20"
                       }`}>
                         {side.vReceiving >= side.vGiving ? "+" : ""}
                         {formatValue(side.vReceiving - side.vGiving)}
@@ -513,40 +709,51 @@ function TradeCards({
                     )}
                   </div>
 
-                  <div className="px-4 pb-3 flex gap-3">
+                  {/* Trade items */}
+                  <div className="px-4 pb-3 flex gap-4">
                     {side.receiving.length > 0 && (
-                      <div>
-                        <span className="text-xs uppercase tracking-wider text-green-500/70 font-semibold">Receives</span>
+                      <div className="flex-1">
+                        <span className="text-[10px] uppercase tracking-wider text-green-500/70 font-semibold">Receives</span>
                         <div className="flex flex-col gap-1 mt-1">
                           {side.receiving.map((item, j) => (
-                            <span
+                            <div
                               key={j}
-                              className="inline-flex items-center gap-1 rounded-md bg-green-500/10 px-2 py-1 text-xs text-green-300"
+                              className="flex items-center gap-1.5 rounded-md bg-green-500/10 border border-green-500/20 shadow-sm shadow-green-900/20 px-2 py-1"
                             >
                               {item.position && (
-                                <span className="text-xs text-green-500/60 font-semibold">{item.position}</span>
+                                <span className="text-[10px] text-green-500/60 font-bold">{item.position}</span>
                               )}
-                              {item.label}
-                            </span>
+                              <span className="text-xs text-green-300 truncate">{item.label}</span>
+                              {item.value > 0 && (
+                                <span className="ml-auto text-[10px] font-semibold text-green-400/60 tabular-nums shrink-0">
+                                  {formatValue(item.value)}
+                                </span>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
                     )}
 
                     {side.giving.length > 0 && (
-                      <div>
-                        <span className="text-xs uppercase tracking-wider text-red-500/70 font-semibold">Sends</span>
+                      <div className="flex-1">
+                        <span className="text-[10px] uppercase tracking-wider text-red-500/70 font-semibold">Sends</span>
                         <div className="flex flex-col gap-1 mt-1">
                           {side.giving.map((item, j) => (
-                            <span
+                            <div
                               key={j}
-                              className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-300"
+                              className="flex items-center gap-1.5 rounded-md bg-red-500/10 border border-red-500/20 shadow-sm shadow-red-900/20 px-2 py-1"
                             >
                               {item.position && (
-                                <span className="text-xs text-red-500/60 font-semibold">{item.position}</span>
+                                <span className="text-[10px] text-red-500/60 font-bold">{item.position}</span>
                               )}
-                              {item.label}
-                            </span>
+                              <span className="text-xs text-red-300 truncate">{item.label}</span>
+                              {item.value > 0 && (
+                                <span className="ml-auto text-[10px] font-semibold text-red-400/60 tabular-nums shrink-0">
+                                  {formatValue(item.value)}
+                                </span>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -558,10 +765,10 @@ function TradeCards({
 
             {/* Expanded section with tabs */}
             {(isExpanded || isCounter) && sides.length === 2 && sides[0].roster && sides[1].roster && (() => {
-              const tabs = ["Rosters", "DM", "League Chat", "Opponent"];
+              const tabs = ["Rosters", "DM", "League Chat", "Opponent", "Settings"];
               const activeTab = expandedTab[trade.transaction_id] || "Rosters";
               return (
-                <div className="border-t border-gray-700/40">
+                <div className="border-t border-gray-700/40" style={{ boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.25)' }}>
                   {/* Tab bar */}
                   <div className="flex border-b border-gray-700/40 px-4">
                     {tabs.map((tab) => (
@@ -646,13 +853,17 @@ function TradeCards({
                       />
                     );
                   })()}
+
+                  {activeTab === "Settings" && league && (
+                    <LeagueSettingsPanel league={league} />
+                  )}
                 </div>
               );
             })()}
 
             {/* Action buttons */}
             {isCounter ? (
-              <div className="flex flex-col border-t border-gray-700/40">
+              <div className="flex flex-col border-t border-gray-700/40" style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.15)' }}>
                 {/* Expiration row */}
                 <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-700/30">
                   <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Expires</span>
@@ -720,7 +931,7 @@ function TradeCards({
                 </div>
               </div>
             ) : isReceived && (onAccept || onReject || onCounter) ? (
-              <div className="flex justify-between px-4 py-2.5 border-t border-gray-700/40">
+              <div className="flex justify-between px-4 py-2.5 border-t border-gray-700/40" style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.15)' }}>
                 {onAccept && (
                   <button
                     onClick={() => setConfirmAction({ trade, action: "accept" })}
@@ -753,7 +964,7 @@ function TradeCards({
                 )}
               </div>
             ) : !isReceived && (onWithdraw || onModify) ? (
-              <div className="flex justify-between px-4 py-2.5 border-t border-gray-700/40">
+              <div className="flex justify-between px-4 py-2.5 border-t border-gray-700/40" style={{ boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.15)' }}>
                 {onModify && (
                   <button
                     onClick={() => enterCounter(trade, "modify")}
@@ -815,7 +1026,8 @@ function TradeCards({
   );
 }
 
-function ExpirationTimer({ expiresAt }: { expiresAt: unknown }) {
+function ExpirationTimer({ expiresAt, tabStatus }: { expiresAt: unknown; tabStatus: string }) {
+  const isPending = tabStatus === 'Pending';
   const [now, setNow] = useState(Date.now());
 
   const expiresMs = typeof expiresAt === 'number'
@@ -823,13 +1035,31 @@ function ExpirationTimer({ expiresAt }: { expiresAt: unknown }) {
     : null;
 
   useEffect(() => {
-    if (expiresMs === null) return;
+    if (expiresMs === null || !isPending) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [expiresMs]);
+  }, [expiresMs, isPending]);
 
   if (expiresMs === null) return null;
 
+  // Completed/rejected — no timer shown
+  if (tabStatus === 'Completed' || tabStatus === 'Rejected') return null;
+
+  // Expired tab — show the date/time it expired
+  if (tabStatus === 'Expired') {
+    const date = new Date(expiresMs);
+    const label = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+      + ' ' + date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    return (
+      <div className="flex justify-center py-1 bg-red-500/10">
+        <span className="text-xs font-medium text-red-400">
+          Expired {label}
+        </span>
+      </div>
+    );
+  }
+
+  // Pending — live countdown
   const diff = expiresMs - now;
   if (diff <= 0) {
     return (
