@@ -28,8 +28,36 @@ export function LeagueChatsPanel({
 }) {
   const [sortMode, setSortMode] = useState<SortMode>("original");
   const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, number>>({});
+  const [previews, setPreviews] = useState<Record<string, Message>>({});
 
   const leagueList = useMemo(() => Object.values(leagues), [leagues]);
+
+  // Staggered preview fetch — one league at a time with a small delay
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const league of leagueList) {
+        if (cancelled) break;
+        try {
+          const result = await window.ipc.invoke<MessagesResult>("graphql", {
+            name: "messages",
+            vars: { parent_id: league.league_id },
+          });
+          const msgs = result.messages ?? [];
+          if (msgs.length > 0) {
+            const latest = msgs.reduce((a, b) => (a.created > b.created ? a : b));
+            setPreviews((prev) => ({ ...prev, [league.league_id]: latest }));
+            setLastMessageTimes((prev) => ({ ...prev, [league.league_id]: latest.created }));
+          }
+        } catch {
+          // Skip this league's preview — non-critical
+        }
+        // Small delay between requests to avoid rate limiting
+        if (!cancelled) await new Promise((r) => setTimeout(r, 150));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [leagueList]);
 
   const sortedLeagues = useMemo(() => {
     const list = [...leagueList];
@@ -85,6 +113,7 @@ export function LeagueChatsPanel({
           league={league}
           userId={userId}
           onLastMessage={updateLastMessage}
+          previewMessage={previews[league.league_id] ?? null}
         />
       ))}
     </div>
@@ -222,10 +251,12 @@ function LeagueChatCard({
   league,
   userId,
   onLastMessage,
+  previewMessage,
 }: {
   league: LeagueDetailed;
   userId: string;
   onLastMessage: (leagueId: string, time: number) => void;
+  previewMessage: Message | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -262,9 +293,14 @@ function LeagueChatCard({
     }
   }, [league.league_id, onLastMessage]);
 
+  // Only fetch messages when the card is expanded (avoid stampeding all leagues at once)
+  const hasFetched = useRef(false);
   useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
+    if (expanded && !hasFetched.current) {
+      hasFetched.current = true;
+      fetchMessages();
+    }
+  }, [expanded, fetchMessages]);
 
   // Real-time: append new messages from the WebSocket
   useGatewayTopic(
@@ -344,7 +380,7 @@ function LeagueChatCard({
     : league.settings.type === 1 ? "Keeper"
     : "Redraft";
 
-  const lastMsg = sorted.length > 0 ? sorted[sorted.length - 1] : null;
+  const lastMsg = sorted.length > 0 ? sorted[sorted.length - 1] : previewMessage;
 
   return (
     <div className="rounded-xl border border-gray-700/80 bg-gray-800 overflow-hidden">
