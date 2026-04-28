@@ -9,6 +9,12 @@ import { useAuth } from '@autogm/shared/react'
 import { mobileDataClient } from '../../../src/data-client'
 import { colors } from '../../../src/theme'
 
+const EMOJI_CATEGORIES = [
+  { label: 'Smileys', emojis: ['😂', '🤣', '😭', '💀', '🔥', '❤️', '😤', '😈', '🥶', '🤡', '😎', '🤔', '😏', '🙄', '😬', '💯', '👀', '🤝', '👏', '🫠'] },
+  { label: 'Sports', emojis: ['🏈', '🏆', '🥇', '📈', '📉', '💰', '🎯', '⚡', '🚀', '💪', '🧠', '👑', '🐐', '🗑️', '💩', '🤮', '🫡', '🍻', '🥳', '🎉'] },
+  { label: 'Reactions', emojis: ['👍', '👎', '🤷', '🙏', '✅', '❌', '⚠️', '🚨', '📢', '🔔', '💤', '😢', '😡', '🤦', '💔', '🫣', '⁉️', '‼️', '🥴', '😮‍💨'] },
+]
+
 function formatTime(ms: number): string {
   const d = new Date(ms)
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -23,6 +29,11 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
   const draftRef = useRef(draft)
   draftRef.current = draft
   const flatListRef = useRef<FlatList>(null)
+  const [showEmoji, setShowEmoji] = useState(false)
+  const [showGif, setShowGif] = useState(false)
+  const [gifQuery, setGifQuery] = useState('')
+  const [gifResults, setGifResults] = useState<{ id: string; url: string; preview: string }[]>([])
+  const [gifSearching, setGifSearching] = useState(false)
 
   const fetchMessages = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -126,6 +137,14 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
             )}
           </View>
           <View style={s.inputRow}>
+            {/* Emoji */}
+            <TouchableOpacity onPress={() => { setShowEmoji((p) => !p); setShowGif(false) }} style={s.iconBtn}>
+              <Text style={{ fontSize: 18 }}>😊</Text>
+            </TouchableOpacity>
+            {/* GIF */}
+            <TouchableOpacity onPress={() => { setShowGif((p) => !p); setShowEmoji(false) }} style={s.gifBtn}>
+              <Text style={s.gifBtnText}>GIF</Text>
+            </TouchableOpacity>
             <TextInput
               value={draft}
               onChangeText={setDraft}
@@ -143,6 +162,74 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
               <Text style={s.sendText}>{sending ? '...' : 'Send'}</Text>
             </TouchableOpacity>
           </View>
+          {/* Emoji picker */}
+          {showEmoji && (
+            <View style={s.pickerPanel}>
+              <ScrollView horizontal={false} style={{ maxHeight: 160 }}>
+                {EMOJI_CATEGORIES.map((cat) => (
+                  <View key={cat.label} style={{ marginBottom: 8 }}>
+                    <Text style={{ color: colors.textMuted, fontSize: 10, marginBottom: 2 }}>{cat.label}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
+                      {cat.emojis.map((e) => (
+                        <TouchableOpacity key={e} onPress={() => { setDraft((p) => p + e); setShowEmoji(false) }} style={s.emojiBtn}>
+                          <Text style={{ fontSize: 18 }}>{e}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+          {/* GIF picker */}
+          {showGif && (
+            <View style={s.pickerPanel}>
+              <TextInput
+                value={gifQuery}
+                onChangeText={(q) => {
+                  setGifQuery(q)
+                  if (!q.trim()) { setGifResults([]); return }
+                  setGifSearching(true)
+                  fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=AIzaSyC-P6RbEhWxUhtjTAANbYz4WB-YGlavnD0&limit=12&media_filter=tinygif,tinymp4`)
+                    .then((r) => r.json())
+                    .then((d) => setGifResults((d.results ?? []).map((g: any) => ({
+                      id: g.id,
+                      url: g.media_formats?.tinymp4?.url ?? g.media_formats?.tinygif?.url ?? '',
+                      preview: g.media_formats?.tinygif?.url ?? '',
+                    }))))
+                    .finally(() => setGifSearching(false))
+                }}
+                placeholder="Search GIFs..."
+                placeholderTextColor={colors.textMuted}
+                style={[s.input, { marginBottom: 6 }]}
+              />
+              <ScrollView style={{ maxHeight: 140 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                  {gifResults.map((g) => (
+                    <TouchableOpacity key={g.id} onPress={async () => {
+                      setShowGif(false)
+                      setSending(true)
+                      try {
+                        await mobileDataClient.graphql('createLeagueMessage' as any, {
+                          parent_id: league.league_id,
+                          text: '',
+                          attachment_type: 'gif',
+                          k_attachment_data: ['original_mp4', 'original_still', 'fixed_height_mp4', 'fixed_height_still'],
+                          v_attachment_data: [g.url, g.preview, g.url, g.preview],
+                        } as any)
+                        await fetchMessages()
+                      } catch {} finally { setSending(false) }
+                    }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <View style={{ width: 80, height: 60, backgroundColor: colors.card, borderRadius: 6, overflow: 'hidden' }}>
+                        <Text style={{ color: colors.textMuted, fontSize: 8, textAlign: 'center', paddingTop: 20 }}>GIF</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          )}
         </KeyboardAvoidingView>
       )}
     </View>
@@ -236,6 +323,11 @@ const s = StyleSheet.create({
   msgText: { color: colors.text, fontSize: 13 },
   inputRow: { flexDirection: 'row', alignItems: 'center', padding: 8, borderTopWidth: 1, borderTopColor: colors.border },
   input: { flex: 1, backgroundColor: colors.bg, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: colors.text, fontSize: 13, borderWidth: 1, borderColor: colors.border },
+  iconBtn: { padding: 4 },
+  gifBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  gifBtnText: { color: colors.textMuted, fontSize: 10, fontWeight: '700' },
   sendBtn: { marginLeft: 8, backgroundColor: colors.blue, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
   sendText: { color: colors.white, fontSize: 13, fontWeight: '600' },
+  pickerPanel: { paddingHorizontal: 8, paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border },
+  emojiBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
 })

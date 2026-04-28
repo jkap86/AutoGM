@@ -119,6 +119,13 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="adp/index"
+        options={{
+          title: 'ADP',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📈</Text>,
+        }}
+      />
+      <Tabs.Screen
         name="polls/index"
         options={{
           title: 'Polls',
