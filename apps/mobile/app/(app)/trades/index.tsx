@@ -7,9 +7,12 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  Modal,
+  ScrollView,
 } from 'react-native'
 import { useAuth } from '@autogm/shared/react'
-import type { Allplayer, LeagueDetailed } from '@autogm/shared'
+import type { Allplayer, LeagueDetailed, Roster } from '@autogm/shared'
+import { getPickId } from '@autogm/shared'
 import { useLeagueCache } from '../../../src/league-cache'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { useKtc } from '../../../src/hooks/use-ktc'
@@ -20,6 +23,7 @@ import {
   TradeWithLeague,
 } from '../../../src/hooks/use-trades-by-status'
 import { useTradeAction } from '../../../src/hooks/use-trade-action'
+import { mobileDataClient } from '../../../src/data-client'
 import { ErrorBoundary } from '../../../src/components/error-boundary'
 import { colors } from '../../../src/theme'
 
@@ -99,10 +103,89 @@ function TradeCard({
   const showActions = isPending && isReceived && userRosterId != null
   const showWithdraw = isPending && !isReceived && userRosterId != null
   const [expanded, setExpanded] = useState(false)
+  const [counterOpen, setCounterOpen] = useState(false)
+  const [counterGive, setCounterGive] = useState<Set<string>>(new Set())
+  const [counterReceive, setCounterReceive] = useState<Set<string>>(new Set())
+  const [counterPicksGive, setCounterPicksGive] = useState<Set<string>>(new Set())
+  const [counterPicksReceive, setCounterPicksReceive] = useState<Set<string>>(new Set())
+  const [counterSending, setCounterSending] = useState(false)
 
   const partnerRid = trade.roster_ids.find((rid) => rid !== userRosterId)
   const partnerRoster = league?.rosters?.find((r) => r.roster_id === partnerRid)
   const userRoster = league?.user_roster
+
+  const openCounter = useCallback((mode: 'counter' | 'modify') => {
+    // Pre-populate from existing trade
+    const adds = trade.adds ?? {}
+    const give = new Set<string>()
+    const receive = new Set<string>()
+    for (const [pid, rid] of Object.entries(adds)) {
+      if (rid === partnerRid) give.add(pid) // user gives → partner receives
+      else receive.add(pid) // partner gives → user receives
+    }
+    setCounterGive(give)
+    setCounterReceive(receive)
+    // Pre-populate picks
+    const pGive = new Set<string>()
+    const pRecv = new Set<string>()
+    for (const str of trade.draft_picks ?? []) {
+      const [roster_id, season, round, owner_id, previous_owner_id] = str.split(',')
+      if (+previous_owner_id === userRosterId) {
+        const pick = userRoster?.draftpicks.find((d) => d.roster_id === +roster_id && d.season === season && d.round === +round)
+        if (pick) pGive.add(getPickId(pick))
+      } else {
+        const pick = partnerRoster?.draftpicks.find((d) => d.roster_id === +roster_id && d.season === season && d.round === +round)
+        if (pick) pRecv.add(getPickId(pick))
+      }
+    }
+    setCounterPicksGive(pGive)
+    setCounterPicksReceive(pRecv)
+    setCounterOpen(true)
+  }, [trade, partnerRid, userRosterId, userRoster, partnerRoster])
+
+  const sendCounter = useCallback(async () => {
+    if (!userRoster || !partnerRoster) return
+    setCounterSending(true)
+    try {
+      const playersToGive = [...counterGive]
+      const playersToReceive = [...counterReceive]
+      await mobileDataClient.graphql('proposeTrade', {
+        league_id: trade.league_id,
+        k_adds: [...playersToGive, ...playersToReceive],
+        v_adds: [
+          ...playersToGive.map(() => partnerRoster.roster_id),
+          ...playersToReceive.map(() => userRoster.roster_id),
+        ],
+        k_drops: [...playersToGive, ...playersToReceive],
+        v_drops: [
+          ...playersToGive.map(() => userRoster.roster_id),
+          ...playersToReceive.map(() => partnerRoster.roster_id),
+        ],
+        draft_picks: [
+          ...[...counterPicksGive].flatMap((pickId) => {
+            const pick = userRoster.draftpicks.find((d) => getPickId(d) === pickId)
+            if (!pick) return []
+            return [`${pick.roster_id},${pick.season},${pick.round},${partnerRoster.roster_id},${userRoster.roster_id}`]
+          }),
+          ...[...counterPicksReceive].flatMap((pickId) => {
+            const pick = partnerRoster.draftpicks.find((d) => getPickId(d) === pickId)
+            if (!pick) return []
+            return [`${pick.roster_id},${pick.season},${pick.round},${userRoster.roster_id},${partnerRoster.roster_id}`]
+          }),
+        ],
+        waiver_budget: [],
+        reject_transaction_id: trade.transaction_id,
+        reject_transaction_leg: trade.leg,
+      })
+      setCounterOpen(false)
+      Alert.alert('Sent', 'Counter offer sent')
+      onAction?.()
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : String(e))
+    } finally {
+      setCounterSending(false)
+    }
+  }, [trade, userRoster, partnerRoster, counterGive, counterReceive, counterPicksGive, counterPicksReceive, onAction])
 
   return (
     <View style={s.card}>
@@ -228,8 +311,19 @@ function TradeCard({
         </View>
       )}
 
+      {showActions && (
+        <View style={[s.actions, { marginTop: 4 }]}>
+          <TouchableOpacity onPress={() => openCounter('counter')} style={[s.actionBtn, { backgroundColor: colors.card }]}>
+            <Text style={[s.actionText, { color: colors.blueLight }]}>Counter</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {showWithdraw && (
         <View style={s.actions}>
+          <TouchableOpacity onPress={() => openCounter('modify')} style={[s.actionBtn, { backgroundColor: colors.card }]}>
+            <Text style={[s.actionText, { color: colors.blueLight }]}>Modify</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() =>
               Alert.alert('Withdraw Trade', 'Withdraw this trade proposal?', [
@@ -244,6 +338,97 @@ function TradeCard({
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Counter/Modify Modal */}
+      <Modal visible={counterOpen} animationType="slide" presentationStyle="pageSheet">
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <Text style={{ color: colors.white, fontSize: 17, fontWeight: '700' }}>Counter Offer</Text>
+            <TouchableOpacity onPress={() => setCounterOpen(false)}>
+              <Text style={{ color: colors.blueLight, fontSize: 15 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 12 }}>
+              Tap players/picks to toggle. Green = you receive, Red = you give.
+            </Text>
+            {userRoster && (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[s.rosterHeader, { color: colors.blueLight }]}>{userRoster.username} (You)</Text>
+                {userRoster.players.map((pid) => {
+                  const p = allplayers[pid]
+                  const isGiving = counterGive.has(pid)
+                  return (
+                    <TouchableOpacity key={pid} onPress={() => {
+                      setCounterGive((prev) => { const n = new Set(prev); isGiving ? n.delete(pid) : n.add(pid); return n })
+                      setCounterReceive((prev) => { const n = new Set(prev); n.delete(pid); return n })
+                    }} style={[s.rosterRow, isGiving && { backgroundColor: colors.redBg }]}>
+                      <Text style={s.rosterPos}>{p?.position ?? '?'}</Text>
+                      <Text style={[s.rosterName, isGiving && { color: colors.red }]} numberOfLines={1}>{p?.full_name || pid}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
+                {userRoster.draftpicks.map((pick) => {
+                  const id = getPickId(pick)
+                  const isGiving = counterPicksGive.has(id)
+                  const label = pick.order ? `${pick.season} ${pick.round}.${String(pick.order).padStart(2, '0')}` : `${pick.season} Rd ${pick.round}`
+                  return (
+                    <TouchableOpacity key={id} onPress={() => {
+                      setCounterPicksGive((prev) => { const n = new Set(prev); isGiving ? n.delete(id) : n.add(id); return n })
+                    }} style={[s.rosterRow, isGiving && { backgroundColor: colors.redBg }]}>
+                      <Text style={s.rosterPos}>PK</Text>
+                      <Text style={[s.rosterName, isGiving && { color: colors.red }]}>{label}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            )}
+            {partnerRoster && (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[s.rosterHeader, { color: colors.textSecondary }]}>{partnerRoster.username}</Text>
+                {partnerRoster.players.map((pid) => {
+                  const p = allplayers[pid]
+                  const isReceiving = counterReceive.has(pid)
+                  return (
+                    <TouchableOpacity key={pid} onPress={() => {
+                      setCounterReceive((prev) => { const n = new Set(prev); isReceiving ? n.delete(pid) : n.add(pid); return n })
+                      setCounterGive((prev) => { const n = new Set(prev); n.delete(pid); return n })
+                    }} style={[s.rosterRow, isReceiving && { backgroundColor: colors.greenBg }]}>
+                      <Text style={s.rosterPos}>{p?.position ?? '?'}</Text>
+                      <Text style={[s.rosterName, isReceiving && { color: colors.green }]} numberOfLines={1}>{p?.full_name || pid}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
+                {partnerRoster.draftpicks.map((pick) => {
+                  const id = getPickId(pick)
+                  const isReceiving = counterPicksReceive.has(id)
+                  const label = pick.order ? `${pick.season} ${pick.round}.${String(pick.order).padStart(2, '0')}` : `${pick.season} Rd ${pick.round}`
+                  return (
+                    <TouchableOpacity key={id} onPress={() => {
+                      setCounterPicksReceive((prev) => { const n = new Set(prev); isReceiving ? n.delete(id) : n.add(id); return n })
+                    }} style={[s.rosterRow, isReceiving && { backgroundColor: colors.greenBg }]}>
+                      <Text style={s.rosterPos}>PK</Text>
+                      <Text style={[s.rosterName, isReceiving && { color: colors.green }]}>{label}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            )}
+          </ScrollView>
+          <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
+            <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginBottom: 8 }}>
+              Give {counterGive.size + counterPicksGive.size} · Receive {counterReceive.size + counterPicksReceive.size}
+            </Text>
+            <TouchableOpacity
+              onPress={sendCounter}
+              disabled={counterSending || (counterGive.size + counterPicksGive.size + counterReceive.size + counterPicksReceive.size === 0)}
+              style={[s.sendCounterBtn, counterSending && { opacity: 0.5 }]}
+            >
+              <Text style={s.sendCounterText}>{counterSending ? 'Sending...' : 'Send Counter'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Expand/Collapse */}
       <TouchableOpacity onPress={() => setExpanded((p) => !p)} style={s.expandBtn}>
@@ -484,4 +669,6 @@ const s = StyleSheet.create({
   rosterPos: { width: 28, color: colors.textMuted, fontSize: 11, fontWeight: '600' },
   rosterName: { flex: 1, color: colors.text, fontSize: 12 },
   rosterVal: { color: colors.blueLight, fontSize: 11, fontWeight: '500', marginLeft: 4 },
+  sendCounterBtn: { backgroundColor: colors.blue, borderRadius: 12, padding: 14, alignItems: 'center' },
+  sendCounterText: { color: colors.white, fontSize: 15, fontWeight: '700' },
 })
