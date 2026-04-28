@@ -38,6 +38,7 @@ export type ProposeTradeVars = {
   draft_picks?: string[];
   reject_transaction_id?: string;
   reject_transaction_leg?: number;
+  expires_at?: number;
 };
 
 export type ProposeTradeResult = {

@@ -1,11 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   Transaction,
   LeagueTransactionsResult,
   LeagueDetailed,
 } from '@autogm/shared'
+import { SleeperTopics } from '@autogm/shared'
+import { useGatewayTopic } from '../contexts/socket-context'
 
 export type TradeWithLeague = Transaction & {
   league_name: string;
@@ -55,11 +57,21 @@ async function fetchWithRetry<T>(
   }
 }
 
+// Events to ignore (high-frequency, not trade-related)
+const IGNORE_EVENTS = new Set([
+  'phx_reply',
+  'presence_diff',
+  'presence_state',
+  'typing',
+  'read_receipt',
+  'heartbeat',
+])
+
 export function useTradesByStatus(
   leagues: { [league_id: string]: LeagueDetailed },
   status: string,
   limit?: number,
-  pollIntervalMs?: number,
+  userId?: string,
 ) {
   const [state, setState] = useState<State>({
     trades: [],
@@ -67,12 +79,10 @@ export function useTradesByStatus(
     error: null,
   })
 
-  const fetch = useCallback(async () => {
+  const fetchFn = useCallback(async () => {
     const leagueEntries = Object.entries(leagues)
     if (leagueEntries.length === 0) return
 
-    // Only show loading spinner on the initial fetch (no data yet).
-    // Poll/refresh updates happen silently in the background.
     setState((s) => ({ ...s, loading: s.trades.length === 0, error: null }))
     try {
       const results = await mapWithConcurrency(
@@ -84,7 +94,7 @@ export function useTradesByStatus(
               'graphql',
               {
                 name: 'leagueTransactions',
-                vars: { league_id, status, type: 'trade', ...(limit != null ? { limit } : {}) },
+                vars: { league_id, status: status === 'expired' ? 'proposed' : status, type: 'trade', ...(limit != null ? { limit } : {}) },
               },
             ),
           )
@@ -95,16 +105,28 @@ export function useTradesByStatus(
         },
       )
 
-      const now = Date.now()
+      const nowMs = Date.now()
       const trades = results.flat()
         .filter((tx) => {
+          const rawExpires = (tx.settings as Record<string, unknown>)?.expires_at
+          // Sleeper stores expires_at in seconds; convert to ms for comparison
+          const expiresMs = typeof rawExpires === 'number'
+            ? (rawExpires < 10_000_000_000 ? rawExpires * 1000 : rawExpires)
+            : null
+          const isExpired = expiresMs !== null && expiresMs <= nowMs
+
           if (status === 'proposed') {
-            const expires = (tx.settings as Record<string, unknown>)?.expires_at
-            if (typeof expires === 'number' && expires <= now) return false
+            if (isExpired) return false
+          }
+          if (status === 'expired') {
+            if (!isExpired) return false
           }
           if (status === 'complete') {
             const league = leagues[tx.league_id]
             if (league && !tx.roster_ids.includes(league.user_roster.roster_id)) return false
+          }
+          if (status === 'rejected') {
+            if (isExpired) return false
           }
           return true
         })
@@ -118,15 +140,21 @@ export function useTradesByStatus(
 
   // Initial fetch
   useEffect(() => {
-    fetch()
-  }, [fetch])
+    fetchFn()
+  }, [fetchFn])
 
-  // Polling
-  useEffect(() => {
-    if (!pollIntervalMs || pollIntervalMs <= 0) return
-    const id = setInterval(fetch, pollIntervalMs)
-    return () => clearInterval(id)
-  }, [fetch, pollIntervalMs])
+  // Refetch on trade-related WebSocket events from user channel
+  const fetchRef = useRef(fetchFn)
+  fetchRef.current = fetchFn
 
-  return { ...state, refetch: fetch }
+  useGatewayTopic(
+    userId ? SleeperTopics.user(userId) : null,
+    useCallback((event: string) => {
+      if (!IGNORE_EVENTS.has(event)) {
+        fetchRef.current()
+      }
+    }, []),
+  )
+
+  return { ...state, refetch: fetchFn }
 }

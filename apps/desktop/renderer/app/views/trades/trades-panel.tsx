@@ -26,13 +26,13 @@ export type CounterOffer = {
   playerIdsToReceive: string[];
   pickIdsToGive: string[];
   pickIdsToReceive: string[];
+  expiresAt?: number | null;
 };
 
 export function TradesPanel({
   trades,
   loading,
   error,
-  refetch,
   leagues,
   allplayers,
   userId,
@@ -49,7 +49,6 @@ export function TradesPanel({
   trades: TradeWithLeague[];
   loading: boolean;
   error: string | null;
-  refetch: () => void;
   leagues: { [league_id: string]: LeagueDetailed };
   allplayers: { [player_id: string]: Allplayer };
   userId: string;
@@ -90,6 +89,11 @@ export function TradesPanel({
     return `${dp.season} Round ${dp.round}${showOwner ? ` (${orig.username})` : ''}`;
   };
 
+  const [dirFilter, setDirFilter] = useState<"all" | "received" | "outgoing">("all");
+  const dirFiltered = dirFilter === "all" ? trades
+    : dirFilter === "received" ? trades.filter((t) => t.creator !== userId)
+    : trades.filter((t) => t.creator === userId);
+
   if (loading) {
     return (
       <div className="w-full max-w-4xl flex justify-center py-12">
@@ -108,12 +112,6 @@ export function TradesPanel({
     return (
       <div className="w-full max-w-4xl flex flex-col items-center py-12 gap-3">
         <p className="text-sm text-red-400">{error}</p>
-        <button
-          onClick={refetch}
-          className="rounded-lg bg-gray-800 border border-gray-700 px-4 py-1.5 text-sm text-gray-300 hover:bg-gray-700 transition"
-        >
-          Retry
-        </button>
       </div>
     );
   }
@@ -122,37 +120,38 @@ export function TradesPanel({
     return (
       <div className="w-full max-w-4xl flex flex-col items-center py-12 gap-3">
         <p className="text-gray-500 text-sm">{emptyMessage}</p>
-        <button
-          onClick={refetch}
-          className="rounded-lg bg-gray-800 border border-gray-700 px-4 py-1.5 text-sm text-gray-300 hover:bg-gray-700 transition"
-        >
-          Refresh
-        </button>
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-4xl">
-      <div className="mb-5 flex items-center justify-between">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-lg font-semibold text-gray-100">
-            {statusLabel} Trades
-          </h2>
-          <span className="text-sm text-gray-500">
-            {trades.length} {trades.length === 1 ? "trade" : "trades"}
-          </span>
+      <div className="mb-5 flex items-center gap-3">
+        <h2 className="text-lg font-semibold text-gray-100">
+          {statusLabel} Trades
+        </h2>
+        <span className="text-sm text-gray-500">
+          {dirFiltered.length} {dirFiltered.length === 1 ? "trade" : "trades"}
+        </span>
+        <div className="flex items-center gap-1 ml-auto rounded-lg bg-gray-900/60 p-0.5">
+          {(["all", "received", "outgoing"] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => setDirFilter(d)}
+              className={`rounded-md px-3 py-1 text-[11px] font-medium capitalize transition ${
+                dirFilter === d
+                  ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {d}
+            </button>
+          ))}
         </div>
-        <button
-          onClick={refetch}
-          className="rounded-lg bg-gray-800 border border-gray-700 px-3 py-1 text-xs text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition"
-        >
-          Refresh
-        </button>
       </div>
 
       <TradeCards
-        trades={trades}
+        trades={dirFiltered}
         leagues={leagues}
         allplayers={allplayers}
         userId={userId}
@@ -212,6 +211,7 @@ function TradeCards({
   const [counterReceive, setCounterReceive] = useState<Set<string>>(new Set());
   const [counterPicksGive, setCounterPicksGive] = useState<Set<string>>(new Set());
   const [counterPicksReceive, setCounterPicksReceive] = useState<Set<string>>(new Set());
+  const [counterExpiresAt, setCounterExpiresAt] = useState<number | null>(null);
   // Confirmation state: { tradeId, action } or null
   const [confirmAction, setConfirmAction] = useState<{ trade: TradeWithLeague; action: "accept" | "reject" | "withdraw" } | null>(null);
 
@@ -288,6 +288,8 @@ function TradeCards({
     setCounterReceive(receiving);
     setCounterPicksGive(pGive);
     setCounterPicksReceive(pRecv);
+    const rawExp = (trade.settings as Record<string, unknown>)?.expires_at;
+    setCounterExpiresAt(typeof rawExp === 'number' ? (rawExp < 10_000_000_000 ? rawExp * 1000 : rawExp) : null);
     setExpandedCards((prev) => new Set([...prev, trade.transaction_id]));
   };
 
@@ -297,6 +299,7 @@ function TradeCards({
     setCounterReceive(new Set());
     setCounterPicksGive(new Set());
     setCounterPicksReceive(new Set());
+    setCounterExpiresAt(null);
   };
 
   const sendCounter = async (trade: TradeWithLeague, mode: "counter" | "modify" = "counter") => {
@@ -311,6 +314,7 @@ function TradeCards({
         playerIdsToReceive: [...counterReceive],
         pickIdsToGive: [...counterPicksGive],
         pickIdsToReceive: [...counterPicksReceive],
+        expiresAt: counterExpiresAt,
       });
       cancelCounter();
     } catch (e) {
@@ -443,6 +447,34 @@ function TradeCards({
                 <span className="text-xs text-gray-500">
                   {formatTime(trade.status_updated)}
                 </span>
+                {(() => {
+                  const rawExp = (trade.settings as Record<string, unknown>)?.expires_at;
+                  if (typeof rawExp !== 'number') return null;
+                  const expiresMs = rawExp < 10_000_000_000 ? rawExp * 1000 : rawExp;
+                  const now = Date.now();
+                  const isExpired = expiresMs <= now;
+                  const diff = expiresMs - now;
+                  const hoursLeft = Math.floor(diff / 3600000);
+                  const daysLeft = Math.floor(diff / 86400000);
+                  const expiresLabel = isExpired
+                    ? "Expired"
+                    : daysLeft >= 1
+                    ? `Expires in ${daysLeft}d`
+                    : hoursLeft >= 1
+                    ? `Expires in ${hoursLeft}h`
+                    : `Expires in <1h`;
+                  return (
+                    <span className={`text-[10px] font-medium rounded px-1.5 py-0.5 ${
+                      isExpired
+                        ? "bg-red-500/15 text-red-400"
+                        : hoursLeft < 24
+                        ? "bg-orange-500/15 text-orange-400"
+                        : "bg-gray-500/15 text-gray-400"
+                    }`}>
+                      {expiresLabel}
+                    </span>
+                  );
+                })()}
                 <button
                   onClick={() => toggleExpand(trade.transaction_id)}
                   className="text-gray-500 hover:text-gray-300 transition"
@@ -645,30 +677,71 @@ function TradeCards({
 
             {/* Action buttons */}
             {isCounter ? (
-              <div className="flex items-center gap-2 px-4 py-2.5 border-t border-gray-700/40">
-                <span className="text-xs text-gray-400">
-                  Giving {counterGive.size + counterPicksGive.size} · Receiving {counterReceive.size + counterPicksReceive.size}
-                </span>
-                <div className="ml-auto flex items-center gap-2">
-                  {error && <span className="text-xs text-red-400">{error}</span>}
-                  <button
-                    onClick={cancelCounter}
-                    disabled={loadingAction === counterMode}
-                    className="rounded-md bg-gray-700 border border-gray-600 px-3 py-1 text-xs font-medium text-gray-200 transition hover:bg-gray-600 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => sendCounter(trade, counterMode)}
-                    disabled={loadingAction === counterMode || (counterGive.size + counterPicksGive.size + counterReceive.size + counterPicksReceive.size === 0)}
-                    className={`rounded-md px-3 py-1 text-xs font-medium text-white transition disabled:opacity-50 ${
-                      counterMode === "modify" ? "bg-blue-600 hover:bg-blue-500" : "bg-yellow-600 hover:bg-yellow-500"
-                    }`}
-                  >
-                    {loadingAction === counterMode
-                      ? counterMode === "modify" ? "Updating..." : "Sending..."
-                      : counterMode === "modify" ? "Update Trade" : "Send Counter"}
-                  </button>
+              <div className="flex flex-col border-t border-gray-700/40">
+                {/* Expiration row */}
+                <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-700/30">
+                  <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Expires</span>
+                  <div className="flex items-center gap-1">
+                    {[
+                      { label: "None", days: null },
+                      { label: "1d", days: 1 },
+                      { label: "2d", days: 2 },
+                      { label: "3d", days: 3 },
+                      { label: "7d", days: 7 },
+                    ].map((opt) => {
+                      const optMs = opt.days ? Date.now() + opt.days * 86400000 : null;
+                      const isSelected = opt.days === null
+                        ? counterExpiresAt === null
+                        : counterExpiresAt !== null && Math.abs(counterExpiresAt - (optMs ?? 0)) < 86400000;
+                      return (
+                        <button
+                          key={opt.label}
+                          onClick={() => setCounterExpiresAt(opt.days ? Date.now() + opt.days * 86400000 : null)}
+                          className={`rounded px-2 py-0.5 text-[10px] font-medium transition ${
+                            isSelected
+                              ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
+                              : "bg-gray-700/60 text-gray-500 hover:text-gray-300 hover:bg-gray-700"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={counterExpiresAt ? new Date(counterExpiresAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+                    min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                    onChange={(e) => setCounterExpiresAt(e.target.value ? new Date(e.target.value).getTime() : null)}
+                    className="rounded-md border border-gray-700/60 bg-gray-900/60 px-1.5 py-0.5 text-[11px] text-gray-300 focus:border-blue-500/50 focus:outline-none transition"
+                  />
+                </div>
+                {/* Actions row */}
+                <div className="flex items-center gap-2 px-4 py-2.5">
+                  <span className="text-xs text-gray-400">
+                    Giving {counterGive.size + counterPicksGive.size} · Receiving {counterReceive.size + counterPicksReceive.size}
+                  </span>
+                  <div className="ml-auto flex items-center gap-2">
+                    {error && <span className="text-xs text-red-400">{error}</span>}
+                    <button
+                      onClick={cancelCounter}
+                      disabled={loadingAction === counterMode}
+                      className="rounded-md bg-gray-700 border border-gray-600 px-3 py-1 text-xs font-medium text-gray-200 transition hover:bg-gray-600 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => sendCounter(trade, counterMode)}
+                      disabled={loadingAction === counterMode || (counterGive.size + counterPicksGive.size + counterReceive.size + counterPicksReceive.size === 0)}
+                      className={`rounded-md px-3 py-1 text-xs font-medium text-white transition disabled:opacity-50 ${
+                        counterMode === "modify" ? "bg-blue-600 hover:bg-blue-500" : "bg-yellow-600 hover:bg-yellow-500"
+                      }`}
+                    >
+                      {loadingAction === counterMode
+                        ? counterMode === "modify" ? "Updating..." : "Sending..."
+                        : counterMode === "modify" ? "Update Trade" : "Send Counter"}
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : isReceived && (onAccept || onReject || onCounter) ? (

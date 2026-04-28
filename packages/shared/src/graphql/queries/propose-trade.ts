@@ -11,7 +11,8 @@ const MUTATION = `
     $v_drops: [Int],
     $waiver_budget: [String]!,
     $reject_transaction_id: String,
-    $reject_transaction_leg: Int
+    $reject_transaction_leg: Int,
+    $expires_at: Int
   ) {
     propose_trade(
       league_id: $league_id,
@@ -22,7 +23,8 @@ const MUTATION = `
       v_drops: $v_drops,
       waiver_budget: $waiver_budget,
       reject_transaction_id: $reject_transaction_id,
-      reject_transaction_leg: $reject_transaction_leg
+      reject_transaction_leg: $reject_transaction_leg,
+      expires_at: $expires_at
     ) {
       transaction_id status league_id leg consenter_ids roster_ids
       adds drops draft_picks waiver_budget player_map metadata
@@ -46,6 +48,7 @@ export async function proposeTrade(
       waiver_budget: vars.waiver_budget ?? [],
       reject_transaction_id: vars.reject_transaction_id,
       reject_transaction_leg: vars.reject_transaction_leg,
+      expires_at: vars.expires_at,
     },
     {
       operationName: 'propose_trade',

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   Allplayer,
   LeagueDetailed,
@@ -16,7 +16,7 @@ import { TradesPanel } from "./trades-panel";
 import { PotentialTrades } from "./potential-trades";
 import { PlayerCombobox } from "../../components/player-combobox";
 import { TradeFilterBar } from "../../components/trade-filter-bar";
-type TradesTab = "create" | "pending" | "completed" | "rejected";
+type TradesTab = "create" | "pending" | "expired" | "completed" | "rejected";
 
 // Convert a UI pick_id like "2026 1.03" or "2026 Round 2" into the KTC-compatible name
 // like "2026 Early 1st" / "2026 Mid 2nd" / etc.
@@ -89,6 +89,8 @@ export default function TradesView({
   const [userLacksFilter, setUserLacksFilter] = useState<string[]>([]);
   const [partnerOwnsFilter, setPartnerOwnsFilter] = useState<string[]>([]);
   const [partnerLacksFilter, setPartnerLacksFilter] = useState<string[]>([]);
+
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
 
   const [selectedProposals, setSelectedProposals] = useState<
     (ProposeTradeVars & { user_id: string; _effective?: { playersToGive: string[]; playersToReceive: string[]; picksToGive: string[]; picksToReceive: string[] } })[]
@@ -199,7 +201,7 @@ export default function TradesView({
   }, [leagues, allplayers, userId, getDm, createDm, sendMessage]);
 
   const handleCounterOrModify = useCallback(async (
-    { trade, playerIdsToGive, playerIdsToReceive, pickIdsToGive, pickIdsToReceive }: import("./trades-panel").CounterOffer,
+    { trade, playerIdsToGive, playerIdsToReceive, pickIdsToGive, pickIdsToReceive, expiresAt: counterExpires }: import("./trades-panel").CounterOffer,
     action: string,
   ) => {
     const league = leagues[trade.league_id];
@@ -233,6 +235,7 @@ export default function TradesView({
       waiver_budget: [],
       reject_transaction_id: trade.transaction_id,
       reject_transaction_leg: trade.leg,
+      ...(counterExpires ? { expires_at: Math.floor(counterExpires / 1000) } : {}),
     });
     try {
       await sendTradeDm(
@@ -251,6 +254,9 @@ export default function TradesView({
     }
   }, [leagues, proposeTrade, sendTradeDm]);
 
+  // Ref so submitProposals can call refetchPending (defined later via hook)
+  const refetchPendingRef = useRef<() => void>(() => {});
+
   const submitProposals = useCallback(async () => {
     if (selectedProposals.length === 0) return;
     setSubmitting(true);
@@ -259,7 +265,7 @@ export default function TradesView({
       const { user_id, _effective, ...vars } = selectedProposals[i];
       const eff = _effective ?? { playersToGive, playersToReceive, picksToGive, picksToReceive };
       try {
-        const result = await proposeTrade(vars);
+        const result = await proposeTrade({ ...vars, ...(expiresAt ? { expires_at: Math.floor(expiresAt / 1000) } : {}) });
         const transaction = result.propose_trade;
         const league = leagues[vars.league_id];
 
@@ -288,6 +294,7 @@ export default function TradesView({
     }
     setSubmitting(false);
     setSelectedProposals([]);
+    refetchPendingRef.current();
   }, [
     selectedProposals,
     proposeTrade,
@@ -435,34 +442,41 @@ export default function TradesView({
     loading: pendingLoading,
     error: pendingError,
     refetch: refetchPending,
-  } = useTradesByStatus(leagues, "proposed", undefined, 30_000);
+  } = useTradesByStatus(leagues, "proposed", undefined, userId);
+  refetchPendingRef.current = refetchPending;
+  const {
+    trades: expiredTrades,
+    loading: expiredLoading,
+    error: expiredError,
+  } = useTradesByStatus(leagues, "expired", undefined, userId);
   const {
     trades: completedTrades,
     loading: completedLoading,
     error: completedError,
-    refetch: refetchCompleted,
-  } = useTradesByStatus(leagues, "complete");
+  } = useTradesByStatus(leagues, "complete", undefined, userId);
   const {
     trades: rejectedTrades,
     loading: rejectedLoading,
     error: rejectedError,
-    refetch: refetchRejected,
-  } = useTradesByStatus(leagues, "rejected");
+  } = useTradesByStatus(leagues, "rejected", undefined, userId);
 
   return (
     <div className="flex flex-col flex-1 items-center w-full gap-6 p-6">
       {/* Tabs */}
       <div className="flex w-full max-w-3xl border-b border-gray-700 overflow-x-auto">
-        {(["create", "pending", "completed", "rejected"] as TradesTab[]).map((t) => {
+        {(["create", "pending", "expired", "completed", "rejected"] as TradesTab[]).map((t) => {
           const count = t === "pending" ? pendingTrades.length
+            : t === "expired" ? expiredTrades.length
             : t === "completed" ? completedTrades.length
             : t === "rejected" ? rejectedTrades.length
             : 0;
           const label = t === "create" ? "Create Trade"
             : t === "pending" ? "Pending"
+            : t === "expired" ? "Expired"
             : t === "completed" ? "Completed"
             : "Rejected";
           const badgeColor = t === "pending" ? "bg-yellow-500/20 text-yellow-400"
+            : t === "expired" ? "bg-orange-500/20 text-orange-400"
             : t === "completed" ? "bg-green-500/20 text-green-400"
             : "bg-red-500/20 text-red-400";
           return (
@@ -499,7 +513,6 @@ export default function TradesView({
           trades={pendingTrades}
           loading={pendingLoading}
           error={pendingError}
-          refetch={refetchPending}
           leagues={leagues}
           allplayers={allplayers}
           userId={userId}
@@ -540,12 +553,24 @@ export default function TradesView({
             refetchPending();
           }}
         />
+      ) : tab === "expired" ? (
+        <TradesPanel
+          trades={expiredTrades}
+          loading={expiredLoading}
+          error={expiredError}
+          leagues={leagues}
+          allplayers={allplayers}
+          userId={userId}
+          ktc={ktc}
+          filter={valueFilter}
+          statusLabel="Expired"
+          emptyMessage="No expired trades across your leagues."
+        />
       ) : tab === "completed" ? (
         <TradesPanel
           trades={completedTrades}
           loading={completedLoading}
           error={completedError}
-          refetch={refetchCompleted}
           leagues={leagues}
           allplayers={allplayers}
           userId={userId}
@@ -559,7 +584,6 @@ export default function TradesView({
           trades={rejectedTrades}
           loading={rejectedLoading}
           error={rejectedError}
-          refetch={refetchRejected}
           leagues={leagues}
           allplayers={allplayers}
           userId={userId}
@@ -751,6 +775,54 @@ export default function TradesView({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Expiration picker */}
+      <div className="flex items-center gap-3 w-full max-w-3xl rounded-lg border border-gray-700/60 bg-gray-800/50 px-4 py-2.5">
+        <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold shrink-0">Expires</span>
+        <div className="flex items-center gap-2">
+          {[
+            { label: "None", value: null },
+            { label: "1 day", value: 1 },
+            { label: "2 days", value: 2 },
+            { label: "3 days", value: 3 },
+            { label: "7 days", value: 7 },
+          ].map((opt) => {
+            const optMs = opt.value ? Date.now() + opt.value * 86400000 : null;
+            const isSelected = opt.value === null
+              ? expiresAt === null
+              : expiresAt !== null && Math.abs(expiresAt - (optMs ?? 0)) < 86400000;
+            return (
+              <button
+                key={opt.label}
+                onClick={() => setExpiresAt(opt.value ? Date.now() + opt.value * 86400000 : null)}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+                  isSelected
+                    ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
+                    : "bg-gray-700/60 text-gray-500 hover:text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        <span className="text-[10px] text-gray-600 ml-1">or</span>
+        <input
+          type="datetime-local"
+          value={expiresAt ? new Date(expiresAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+          min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+          onChange={(e) => setExpiresAt(e.target.value ? new Date(e.target.value).getTime() : null)}
+          className="rounded-md border border-gray-700/60 bg-gray-900/60 px-2 py-1 text-[11px] text-gray-300 focus:border-blue-500/50 focus:outline-none transition"
+        />
+        {expiresAt && (
+          <button
+            onClick={() => setExpiresAt(null)}
+            className="text-[10px] text-red-400 hover:text-red-300 transition"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       {/* Roster filters — narrow by ownership without adding to trade */}
