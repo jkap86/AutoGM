@@ -23,7 +23,7 @@ function withTimeout<T>(promise: Promise<T>, ms = REQUEST_TIMEOUT_MS): Promise<T
   })
 }
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://autogm-web-3a44b2904498.herokuapp.com'
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://autogm-8d8d424e3286.herokuapp.com'
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const session = getSession()
