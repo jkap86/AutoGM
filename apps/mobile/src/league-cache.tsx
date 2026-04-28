@@ -3,6 +3,7 @@ import type { LeaguesPayload, LeagueDetailed, User, PlayerShares, Leaguemates, P
 import { deriveCollections, CURRENT_SEASON } from '@autogm/shared'
 import { useAuth } from '@autogm/shared/react'
 import { mobileDataClient } from './data-client'
+import { DEMO_LEAGUES_PAYLOAD, DEMO_SESSION } from './demo-data'
 
 type LeagueCacheValue = {
   user: User | null
@@ -24,8 +25,14 @@ export function LeagueCacheProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const isDemo = user_id === DEMO_SESSION.user_id
+
   const fetchLeagues = useCallback(async () => {
     if (!user_id) return
+    if (isDemo) {
+      setData(DEMO_LEAGUES_PAYLOAD)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -36,7 +43,7 @@ export function LeagueCacheProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }, [user_id])
+  }, [user_id, isDemo])
 
   useEffect(() => {
     fetchLeagues()

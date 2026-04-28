@@ -6,6 +6,7 @@ import { clearSession } from '@autogm/shared'
 import { useAuth } from '@autogm/shared/react'
 import { LeagueCacheProvider } from '../../src/league-cache'
 import { checkAccess } from '../../src/access'
+import { DEMO_SESSION } from '../../src/demo-data'
 import { colors } from '../../src/theme'
 
 export default function AppLayout() {
@@ -13,9 +14,13 @@ export default function AppLayout() {
   const router = useRouter()
   const [accessAllowed, setAccessAllowed] = useState<boolean | null>(null)
 
-  // Check allowlist after session is available
+  // Check allowlist after session is available (skip for demo)
   useEffect(() => {
     if (restoring || !session?.user_id) return
+    if (session.user_id === DEMO_SESSION.user_id) {
+      setAccessAllowed(true)
+      return
+    }
     checkAccess(session.user_id).then(setAccessAllowed)
   }, [restoring, session?.user_id])
 
