@@ -98,6 +98,11 @@ function TradeCard({
 
   const showActions = isPending && isReceived && userRosterId != null
   const showWithdraw = isPending && !isReceived && userRosterId != null
+  const [expanded, setExpanded] = useState(false)
+
+  const partnerRid = trade.roster_ids.find((rid) => rid !== userRosterId)
+  const partnerRoster = league?.rosters?.find((r) => r.roster_id === partnerRid)
+  const userRoster = league?.user_roster
 
   return (
     <View style={s.card}>
@@ -113,30 +118,9 @@ function TradeCard({
         </View>
       </View>
 
-      {Object.entries(sides).map(([rid, side]) => {
-        const roster = league?.rosters?.find((r) => r.roster_id === Number(rid))
-        const name = roster?.username ?? `Roster ${rid}`
-        return (
-          <View key={rid} style={{ marginTop: 8 }}>
-            <Text style={s.label}>{name} receives:</Text>
-            {side.gets.map((pid) => {
-              const p = allplayers[pid]
-              return (
-                <View key={pid} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8, marginBottom: 2 }}>
-                  <Text style={s.playerAdd}>
-                    + {p ? `${p.first_name} ${p.last_name}` : pid}
-                    {p ? ` (${p.position ?? '?'} - ${p.team ?? 'FA'})` : ''}
-                  </Text>
-                  {valueLookup[pid] ? <Text style={s.ktcValue}>{fmtValue(valueLookup[pid], valueType)}</Text> : null}
-                </View>
-              )
-            })}
-          </View>
-        )
-      })}
-
-      {(trade.draft_picks ?? []).length > 0 && (() => {
-        const parsed = trade.draft_picks!.map((str) => {
+      {(() => {
+        // Parse picks
+        const parsed = (trade.draft_picks ?? []).map((str) => {
           const [roster_id, season, round, owner_id, previous_owner_id] = str.split(',')
           return { roster_id: +roster_id, season, round: +round, owner_id: +owner_id, previous_owner_id: +previous_owner_id }
         })
@@ -148,29 +132,71 @@ function TradeCard({
           }
           return null
         }
-        return Object.entries(sides).map(([rid, _]) => {
-          const ridNum = Number(rid)
-          const roster = league?.rosters?.find((r) => r.roster_id === ridNum)
-          const receiving = parsed.filter((dp) => dp.owner_id === ridNum)
-          if (receiving.length === 0) return null
-          return (
-            <View key={`picks-${rid}`} style={{ marginTop: 4, marginLeft: 8 }}>
-              {receiving.map((dp, i) => {
-                const order = findOrder(dp.roster_id, dp.season, dp.round)
-                const suffix = dp.round === 1 ? 'st' : dp.round === 2 ? 'nd' : dp.round === 3 ? 'rd' : 'th'
-                const label = order ? `${dp.season} ${dp.round}.${String(order).padStart(2, '0')}` : `${dp.season} Round ${dp.round}`
-                const ktcName = getPickKtcName(dp.season, dp.round, order)
-                const val = valueLookup[ktcName] ?? 0
-                return (
-                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                    <Text style={s.pickText}>+ {label}</Text>
-                    {val > 0 && <Text style={s.ktcValue}>{fmtValue(val, valueType)}</Text>}
-                  </View>
-                )
-              })}
-            </View>
-          )
+
+        // Build per-side data
+        const rosterIds = [...new Set([...Object.values(adds), ...parsed.map((dp) => dp.owner_id)])]
+        const sideData = rosterIds.map((rid) => {
+          const roster = league?.rosters?.find((r) => r.roster_id === rid)
+          const name = roster?.username ?? `Roster ${rid}`
+          const isUser = rid === userRosterId
+          const receivingPids = Object.entries(adds).filter(([, r]) => r === rid).map(([pid]) => pid)
+          const receivingPicks = parsed.filter((dp) => dp.owner_id === rid)
+          let playerVal = receivingPids.reduce((s, pid) => s + (valueLookup[pid] ?? 0), 0)
+          let pickVal = receivingPicks.reduce((s, dp) => {
+            const order = findOrder(dp.roster_id, dp.season, dp.round)
+            return s + (valueLookup[getPickKtcName(dp.season, dp.round, order)] ?? 0)
+          }, 0)
+          return { rid, name, isUser, receivingPids, receivingPicks, total: playerVal + pickVal }
         })
+
+        const userSide = sideData.find((s) => s.isUser)
+        const partnerSide = sideData.find((s) => !s.isUser)
+        const netSwing = (userSide?.total ?? 0) - (partnerSide?.total ?? 0)
+
+        return (
+          <View>
+            {sideData.map((side) => (
+              <View key={side.rid} style={[s.tradeSide, side.isUser ? { borderLeftColor: colors.green } : { borderLeftColor: colors.red }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={[s.label, { fontWeight: '600', color: side.isUser ? colors.green : colors.red }]}>
+                    {side.name} receives
+                  </Text>
+                  {side.total > 0 && <Text style={[s.ktcValue, { fontWeight: '600' }]}>{fmtValue(side.total, valueType)}</Text>}
+                </View>
+                {side.receivingPids.map((pid) => {
+                  const p = allplayers[pid]
+                  return (
+                    <View key={pid} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                      <Text style={s.playerAdd}>
+                        {p ? `${p.first_name} ${p.last_name}` : pid}
+                        {p ? ` (${p.position ?? '?'} - ${p.team ?? 'FA'})` : ''}
+                      </Text>
+                      {valueLookup[pid] ? <Text style={s.ktcValue}>{fmtValue(valueLookup[pid], valueType)}</Text> : null}
+                    </View>
+                  )
+                })}
+                {side.receivingPicks.map((dp, i) => {
+                  const order = findOrder(dp.roster_id, dp.season, dp.round)
+                  const label = order ? `${dp.season} ${dp.round}.${String(order).padStart(2, '0')}` : `${dp.season} Round ${dp.round}`
+                  const val = valueLookup[getPickKtcName(dp.season, dp.round, order)] ?? 0
+                  return (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                      <Text style={s.pickText}>{label}</Text>
+                      {val > 0 && <Text style={s.ktcValue}>{fmtValue(val, valueType)}</Text>}
+                    </View>
+                  )
+                })}
+              </View>
+            ))}
+            {userSide && partnerSide && (
+              <View style={{ alignItems: 'center', paddingVertical: 4 }}>
+                <Text style={{ color: netSwing >= 0 ? colors.green : colors.red, fontWeight: '700', fontSize: 13 }}>
+                  {netSwing >= 0 ? '+' : ''}{fmtValue(netSwing, valueType)} net
+                </Text>
+              </View>
+            )}
+          </View>
+        )
       })()}
 
       {showActions && (
@@ -216,6 +242,83 @@ function TradeCard({
           >
             <Text style={[s.actionText, { color: colors.orange }]}>{acting ? '...' : 'Withdraw'}</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Expand/Collapse */}
+      <TouchableOpacity onPress={() => setExpanded((p) => !p)} style={s.expandBtn}>
+        <Text style={s.expandText}>{expanded ? 'Hide Rosters' : 'View Rosters'}</Text>
+      </TouchableOpacity>
+
+      {expanded && userRoster && partnerRoster && (
+        <View style={s.rosterSection}>
+          {[userRoster, partnerRoster].map((roster) => {
+            const isUser = roster.roster_id === userRosterId
+            const starters = roster.starters.filter((id) => id !== '0')
+            const taxi = roster.taxi ?? []
+            const reserve = roster.reserve ?? []
+            const bench = roster.players.filter(
+              (id) => !starters.includes(id) && !taxi.includes(id) && !reserve.includes(id),
+            )
+            return (
+              <View key={roster.roster_id} style={s.rosterCol}>
+                <Text style={[s.rosterHeader, { color: isUser ? colors.blueLight : colors.textSecondary }]}>
+                  {roster.username}
+                </Text>
+                <Text style={s.rosterGroupLabel}>Starters</Text>
+                {starters.map((pid) => {
+                  const p = allplayers[pid]
+                  const v = valueLookup[pid] ?? 0
+                  return (
+                    <View key={pid} style={s.rosterRow}>
+                      <Text style={s.rosterPos}>{p?.position ?? '?'}</Text>
+                      <Text style={s.rosterName} numberOfLines={1}>{p?.full_name || pid}</Text>
+                      {v > 0 && <Text style={s.rosterVal}>{fmtValue(v, valueType)}</Text>}
+                    </View>
+                  )
+                })}
+                {bench.length > 0 && <Text style={s.rosterGroupLabel}>Bench</Text>}
+                {bench.map((pid) => {
+                  const p = allplayers[pid]
+                  const v = valueLookup[pid] ?? 0
+                  return (
+                    <View key={pid} style={s.rosterRow}>
+                      <Text style={s.rosterPos}>{p?.position ?? '?'}</Text>
+                      <Text style={s.rosterName} numberOfLines={1}>{p?.full_name || pid}</Text>
+                      {v > 0 && <Text style={s.rosterVal}>{fmtValue(v, valueType)}</Text>}
+                    </View>
+                  )
+                })}
+                {taxi.length > 0 && <Text style={s.rosterGroupLabel}>Taxi</Text>}
+                {taxi.map((pid) => {
+                  const p = allplayers[pid]
+                  return (
+                    <View key={pid} style={s.rosterRow}>
+                      <Text style={s.rosterPos}>{p?.position ?? '?'}</Text>
+                      <Text style={s.rosterName} numberOfLines={1}>{p?.full_name || pid}</Text>
+                    </View>
+                  )
+                })}
+                {roster.draftpicks.length > 0 && <Text style={s.rosterGroupLabel}>Picks</Text>}
+                {roster.draftpicks
+                  .slice()
+                  .sort((a, b) => a.season.localeCompare(b.season) || a.round - b.round)
+                  .map((pick, i) => {
+                    const label = pick.order
+                      ? `${pick.season} ${pick.round}.${String(pick.order).padStart(2, '0')}`
+                      : `${pick.season} Rd ${pick.round}`
+                    const v = valueLookup[getPickKtcName(pick.season, pick.round, pick.order)] ?? 0
+                    return (
+                      <View key={i} style={s.rosterRow}>
+                        <Text style={s.rosterPos}>PK</Text>
+                        <Text style={s.rosterName}>{label}</Text>
+                        {v > 0 && <Text style={s.rosterVal}>{fmtValue(v, valueType)}</Text>}
+                      </View>
+                    )
+                  })}
+              </View>
+            )
+          })}
         </View>
       )}
     </View>
@@ -349,6 +452,7 @@ const s = StyleSheet.create({
   segTextActive: { color: colors.white },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   card: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 12 },
+  tradeSide: { borderLeftWidth: 3, paddingLeft: 10, marginTop: 8, marginBottom: 4 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   white600: { color: colors.white, fontWeight: '600', fontSize: 14 },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
@@ -370,4 +474,14 @@ const s = StyleSheet.create({
   acceptBtn: { backgroundColor: colors.greenBg },
   rejectBtn: { backgroundColor: colors.redBg },
   actionText: { fontWeight: '600', fontSize: 13 },
+  expandBtn: { alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8 },
+  expandText: { color: colors.blueLight, fontSize: 12, fontWeight: '500' },
+  rosterSection: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 4, paddingTop: 8 },
+  rosterCol: { marginBottom: 12 },
+  rosterHeader: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  rosterGroupLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '600', textTransform: 'uppercase', marginTop: 6, marginBottom: 2 },
+  rosterRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 2 },
+  rosterPos: { width: 28, color: colors.textMuted, fontSize: 11, fontWeight: '600' },
+  rosterName: { flex: 1, color: colors.text, fontSize: 12 },
+  rosterVal: { color: colors.blueLight, fontSize: 11, fontWeight: '500', marginLeft: 4 },
 })
