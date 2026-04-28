@@ -98,24 +98,10 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
-        name="rankings/index"
-        options={{
-          title: 'Rankings',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📊</Text>,
-        }}
-      />
-      <Tabs.Screen
         name="trades/index"
         options={{
           title: 'Trades',
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🔄</Text>,
-        }}
-      />
-      <Tabs.Screen
-        name="chats/index"
-        options={{
-          title: 'Chats',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>💬</Text>,
         }}
       />
       <Tabs.Screen
@@ -132,6 +118,9 @@ export default function AppLayout() {
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📋</Text>,
         }}
       />
+      {/* Hidden from tabs - accessed as subtabs of Leagues */}
+      <Tabs.Screen name="rankings/index" options={{ href: null }} />
+      <Tabs.Screen name="chats/index" options={{ href: null }} />
     </Tabs>
     </LeagueCacheProvider>
   )
