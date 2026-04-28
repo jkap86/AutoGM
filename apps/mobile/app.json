@@ -9,7 +9,6 @@
       "android"
     ],
     "orientation": "portrait",
-    "newArchEnabled": false,
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",
@@ -19,7 +18,7 @@
     "ios": {
       "bundleIdentifier": "com.jkap86.autogm",
       "appleTeamId": "FK8K2ZKZT5",
-      "buildNumber": "4",
+      "buildNumber": "9",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
