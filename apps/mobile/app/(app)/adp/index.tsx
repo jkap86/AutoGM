@@ -37,7 +37,7 @@ export default function AdpScreen() {
         if (q && !(p.full_name || '').toLowerCase().includes(q)) return false
         return true
       })
-      .slice(0, 200)
+      .slice(0, 300)
   }, [adpRows, allplayers, posFilter, search])
 
   const loading = apLoading || adpLoading
@@ -98,6 +98,7 @@ export default function AdpScreen() {
               <Text style={s.headerCell}>ADP</Text>
               <Text style={s.headerCell}>Min</Text>
               <Text style={s.headerCell}>Max</Text>
+              <Text style={s.headerCell}>Stdev</Text>
               <Text style={s.headerCell}>Auc%</Text>
               <Text style={s.headerCell}>#</Text>
             </View>
@@ -113,13 +114,14 @@ export default function AdpScreen() {
                 <Text style={s.cell}>{item.adp.toFixed(1)}</Text>
                 <Text style={s.cell}>{item.min_pick}</Text>
                 <Text style={s.cell}>{item.max_pick}</Text>
+                <Text style={s.cell}>{item.stdev != null ? item.stdev.toFixed(1) : '-'}</Text>
                 <Text style={s.cell}>{item.avg_pct != null ? `${(item.avg_pct * 100).toFixed(1)}` : '-'}</Text>
                 <Text style={s.cell}>{item.n_drafts}</Text>
               </View>
             )
           }}
           ListEmptyComponent={<Text style={s.empty}>No results</Text>}
-          ListFooterComponent={filtered.length >= 200 ? <Text style={s.footer}>Showing first 200 of {adpRows.length}</Text> : null}
+          ListFooterComponent={filtered.length >= 300 ? <Text style={s.footer}>Showing first 300 of {adpRows.length}</Text> : null}
         />
       )}
     </View>

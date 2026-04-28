@@ -295,13 +295,16 @@ function PollsContent() {
 
   return (
     <View style={s.container}>
-      <View style={{ padding: 16, alignItems: 'center' }}>
+      <View style={{ padding: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 12 }}>
         <TouchableOpacity
           onPress={() => setShowCreate(true)}
           disabled={leaguesLoading || Object.keys(safeLeagues).length === 0}
           style={[s.submitBtn, { opacity: leaguesLoading ? 0.5 : 1 }]}
         >
           <Text style={s.submitText}>Create Poll</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={refetch} style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+          <Text style={{ color: colors.textMuted, fontSize: 13 }}>Refresh</Text>
         </TouchableOpacity>
       </View>
 

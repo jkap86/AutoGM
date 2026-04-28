@@ -13,11 +13,12 @@ import type { Message, MessagesResult, CreateMessageResult } from '@autogm/share
 import { useCallback, useRef } from 'react'
 
 type LeaguesTab = 'ranks' | 'chats'
-type PositionFilter = 'ALL' | 'PLAYERS' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
+type PositionFilter = 'ALL' | 'PLAYERS' | 'PLAYERS+CUR' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
 
 const RANK_CATEGORIES: { label: string; filter: PositionFilter }[] = [
   { label: 'Overall', filter: 'ALL' },
   { label: 'Players', filter: 'PLAYERS' },
+  { label: 'Plyr+Cur', filter: 'PLAYERS+CUR' },
   { label: 'QB', filter: 'QB' },
   { label: 'RB', filter: 'RB' },
   { label: 'WR', filter: 'WR' },
@@ -25,20 +26,27 @@ const RANK_CATEGORIES: { label: string; filter: PositionFilter }[] = [
   { label: 'Picks', filter: 'PICKS' },
 ]
 
+const EMOJI_CATEGORIES = [
+  { label: 'Smileys', emojis: ['😂', '🤣', '😭', '💀', '🔥', '❤️', '😤', '😈', '🥶', '🤡', '😎', '🤔', '😏', '🙄', '😬', '💯', '👀', '🤝', '👏', '🫠'] },
+  { label: 'Sports', emojis: ['🏈', '🏆', '🥇', '📈', '📉', '💰', '🎯', '⚡', '🚀', '💪', '🧠', '👑', '🐐', '🗑️', '💩', '🤮', '🫡', '🍻', '🥳', '🎉'] },
+  { label: 'Reactions', emojis: ['👍', '👎', '🤷', '🙏', '✅', '❌', '⚠️', '🚨', '📢', '🔔', '💤', '😢', '😡', '🤦', '💔', '🫣', '⁉️', '‼️', '🥴', '😮‍💨'] },
+]
+
 function computeRosterValue(
-  roster: Roster, filter: PositionFilter, values: Record<string, number>, allplayers: Record<string, Allplayer>,
+  roster: Roster, filter: PositionFilter, values: Record<string, number>, allplayers: Record<string, Allplayer>, currentSeason?: string,
 ): number {
   const vals: number[] = []
   if (filter !== 'PICKS') {
     for (const pid of roster.players ?? []) {
       const player = allplayers[pid]
       if (!player) continue
-      if (filter !== 'ALL' && filter !== 'PLAYERS' && player.position !== filter) continue
+      if (filter !== 'ALL' && filter !== 'PLAYERS' && filter !== 'PLAYERS+CUR' && player.position !== filter) continue
       vals.push(values[pid] ?? 0)
     }
   }
-  if (filter === 'ALL' || filter === 'PICKS') {
+  if (filter === 'ALL' || filter === 'PICKS' || filter === 'PLAYERS+CUR') {
     for (const pick of roster.draftpicks ?? []) {
+      if (filter === 'PLAYERS+CUR' && pick.season !== currentSeason) continue
       vals.push(values[getPickKtcName(pick.season, pick.round, pick.order)] ?? 0)
     }
   }
@@ -53,7 +61,7 @@ function rankColor(rank: number | null, total: number): string {
 }
 
 function getRank(league: LeagueDetailed, rosterId: number, filter: PositionFilter, values: Record<string, number>, allplayers: Record<string, Allplayer>): number {
-  const totals = league.rosters.map((r) => ({ rid: r.roster_id, total: computeRosterValue(r, filter, values, allplayers) }))
+  const totals = league.rosters.map((r) => ({ rid: r.roster_id, total: computeRosterValue(r, filter, values, allplayers, league.season) }))
   totals.sort((a, b) => b.total - a.total)
   return totals.findIndex((t) => t.rid === rosterId) + 1
 }
@@ -72,9 +80,16 @@ function LeagueRankCard({
   return (
     <View style={s.card}>
       <TouchableOpacity onPress={() => setExpanded((p) => !p)} style={s.cardHeader}>
+        {league.avatar ? (
+          <Image source={{ uri: `https://sleepercdn.com/avatars/thumbs/${league.avatar}` }} style={s.avatar} />
+        ) : (
+          <View style={[s.avatar, s.avatarPlaceholder]}><Text style={{ fontSize: 16 }}>🏈</Text></View>
+        )}
         <View style={{ flex: 1 }}>
           <Text style={s.leagueName}>{league.name}</Text>
-          <Text style={s.subtext}>{total} teams</Text>
+          <Text style={s.subtext}>
+            {league.season} · {league.settings.type === 2 ? 'Dynasty' : league.settings.type === 1 ? 'Keeper' : 'Redraft'} · {total} teams · {league.user_roster.wins}-{league.user_roster.losses}{league.user_roster.ties > 0 ? `-${league.user_roster.ties}` : ''}
+          </Text>
         </View>
       </TouchableOpacity>
 
@@ -184,6 +199,10 @@ function ChatCard({ league, userId, onLastMessage }: {
   const [sending, setSending] = useState(false)
   const draftRef = useRef(draft); draftRef.current = draft
   const flatListRef = useRef<FlatList>(null)
+  const [showEmoji, setShowEmoji] = useState(false)
+  const [showGif, setShowGif] = useState(false)
+  const [gifQuery, setGifQuery] = useState('')
+  const [gifResults, setGifResults] = useState<{ id: string; url: string; preview: string }[]>([])
 
   const fetchMsgs = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -250,6 +269,13 @@ function ChatCard({ league, userId, onLastMessage }: {
             )}
           </View>
           <View style={s.inputRow}>
+            <TouchableOpacity onPress={() => { setShowEmoji((p) => !p); setShowGif(false) }} style={{ padding: 4 }}>
+              <Text style={{ fontSize: 18 }}>😊</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => { setShowGif((p) => !p); setShowEmoji(false) }}
+              style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ color: colors.textMuted, fontSize: 10, fontWeight: '700' }}>GIF</Text>
+            </TouchableOpacity>
             <TextInput value={draft} onChangeText={setDraft} placeholder={`Message...`} placeholderTextColor={colors.textMuted}
               style={s.chatInput} onSubmitEditing={sendMsg} returnKeyType="send" />
             <TouchableOpacity onPress={sendMsg} disabled={!draft.trim() || sending}
@@ -257,6 +283,59 @@ function ChatCard({ league, userId, onLastMessage }: {
               <Text style={s.sendText}>{sending ? '...' : 'Send'}</Text>
             </TouchableOpacity>
           </View>
+          {showEmoji && (
+            <View style={{ paddingHorizontal: 8, paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <ScrollView style={{ maxHeight: 140 }}>
+                {EMOJI_CATEGORIES.map((cat) => (
+                  <View key={cat.label} style={{ marginBottom: 6 }}>
+                    <Text style={{ color: colors.textMuted, fontSize: 10 }}>{cat.label}</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
+                      {cat.emojis.map((e) => (
+                        <TouchableOpacity key={e} onPress={() => { setDraft((p) => p + e); setShowEmoji(false) }}
+                          style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 18 }}>{e}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+          {showGif && (
+            <View style={{ paddingHorizontal: 8, paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <TextInput value={gifQuery} placeholder="Search GIFs..." placeholderTextColor={colors.textMuted}
+                style={[s.chatInput, { marginBottom: 6 }]}
+                onChangeText={(q) => {
+                  setGifQuery(q)
+                  if (!q.trim()) { setGifResults([]); return }
+                  fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=AIzaSyC-P6RbEhWxUhtjTAANbYz4WB-YGlavnD0&limit=12&media_filter=tinygif,tinymp4`)
+                    .then((r) => r.json())
+                    .then((d) => setGifResults((d.results ?? []).map((g: any) => ({
+                      id: g.id, url: g.media_formats?.tinymp4?.url ?? '', preview: g.media_formats?.tinygif?.url ?? '',
+                    }))))
+                }} />
+              <ScrollView style={{ maxHeight: 120 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                  {gifResults.map((g) => (
+                    <TouchableOpacity key={g.id} onPress={async () => {
+                      setShowGif(false); setSending(true)
+                      try {
+                        await mobileDataClient.graphql('createLeagueMessage' as any, {
+                          parent_id: league.league_id, text: '', attachment_type: 'gif',
+                          k_attachment_data: ['original_mp4', 'original_still', 'fixed_height_mp4', 'fixed_height_still'],
+                          v_attachment_data: [g.url, g.preview, g.url, g.preview],
+                        } as any)
+                        await fetchMsgs()
+                      } catch {} finally { setSending(false) }
+                    }} style={{ width: 80, height: 60, backgroundColor: colors.card, borderRadius: 6 }}>
+                      <Text style={{ color: colors.textMuted, fontSize: 8, textAlign: 'center', paddingTop: 20 }}>GIF</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -362,6 +441,8 @@ const s = StyleSheet.create({
   statsText: { color: colors.textMuted, fontSize: 11, marginLeft: 12 },
   // Cards
   card: { backgroundColor: colors.card, borderRadius: 12, marginBottom: 10, overflow: 'hidden' },
+  avatar: { width: 32, height: 32, borderRadius: 16, marginRight: 10 },
+  avatarPlaceholder: { backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 12 },
   leagueName: { color: colors.white, fontWeight: '600', fontSize: 15 },
   subtext: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
