@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { LeagueDetailed, Message, MessagesResult, CreateMessageResult } from "@autogm/shared";
+import type { LeagueDetailed, Message, MessagesResult, CreateMessageResult, MessageCreatedPayload } from "@autogm/shared";
+import { SleeperTopics, messageFromSocket } from "@autogm/shared";
+import { useGatewayTopic } from "../../../contexts/socket-context";
 import { Avatar } from "../../components/avatar";
 import { formatTime } from "../../../lib/trade-utils";
 
@@ -264,6 +266,21 @@ function LeagueChatCard({
     fetchMessages();
   }, [fetchMessages]);
 
+  // Real-time: append new messages from the WebSocket
+  useGatewayTopic(
+    SleeperTopics.league(league.league_id),
+    useCallback((event: string, payload: unknown) => {
+      if (event === "message_created") {
+        const p = payload as MessageCreatedPayload;
+        setMessages((prev) => {
+          if (prev.some((m) => m.message_id === p.message_id)) return prev;
+          onLastMessage(league.league_id, p.created);
+          return [...prev, messageFromSocket(p)];
+        });
+      }
+    }, [league.league_id, onLastMessage]),
+  );
+
   // Autoscroll to bottom of chat container only (not the whole page)
   useEffect(() => {
     if (expanded && scrollContainerRef.current) {
@@ -283,13 +300,12 @@ function LeagueChatCard({
         text,
       });
       setDraft("");
-      await fetchMessages();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSending(false);
     }
-  }, [league.league_id, fetchMessages]);
+  }, [league.league_id]);
 
   const sendGif = useCallback(async (gif: TenorGif) => {
     if (sendingRef.current) return;
@@ -306,13 +322,12 @@ function LeagueChatCard({
         k_attachment_data: ["original_mp4", "original_still", "fixed_height_mp4", "fixed_height_still"],
         v_attachment_data: [mp4Url, gifUrl, mp4Url, gifUrl],
       });
-      await fetchMessages();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSending(false);
     }
-  }, [league.league_id, fetchMessages]);
+  }, [league.league_id]);
 
   const insertEmoji = useCallback((emoji: string) => {
     setDraft((prev) => prev + emoji);

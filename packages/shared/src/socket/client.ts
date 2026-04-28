@@ -1,41 +1,164 @@
-import { BROWSER_HEADERS } from '../browser-headers'
-
 /**
- * Sleeper WebSocket client.
+ * Sleeper WebSocket client — Phoenix Channels protocol (vsn 2.0.0).
  *
- * The actual endpoint URL and message format need to be filled in after
- * capturing them from Sleeper's web app via Chrome DevTools (Network → WS).
+ * Sleeper runs two Phoenix socket endpoints (same auth, same protocol):
+ *   - gateway:  wss://gateway.sleeper.com/socket/websocket  (chat, drafts, trades, notifications)
+ *   - presence: wss://presence.sleeper.com/socket/websocket  (online status per league)
+ *
+ * Messages are JSON arrays: [join_ref, ref, topic, event, payload]
  *
  * Usage:
  *   const socket = createSleeperSocket({ getToken: () => myToken })
- *   socket.on('trade_proposal', (data) => { ... })
  *   socket.connect()
- *   // later:
- *   socket.disconnect()
+ *   socket.join('user:424024949334740992', (event, payload) => { ... })
+ *   socket.join('draft:1353879306207494144', (event, payload) => { ... })
  */
 
-// ── Placeholder: replace with actual endpoint from DevTools ──────────
-// Open sleeper.com → DevTools → Network → WS → copy the wss:// URL
-const DEFAULT_ENDPOINT = 'wss://TODO-capture-from-devtools.sleeper.com'
+export const SLEEPER_GATEWAY = 'wss://gateway.sleeper.com/socket/websocket'
+export const SLEEPER_PRESENCE = 'wss://presence.sleeper.com/socket/websocket'
 
-// ── Types ────────────────────────────────────────────────────────────
+// ── Phoenix Channel message format ──────────────────────────────────
 
-export type SleeperSocketEvent = string // narrow this once you know the event names
-
-export type SleeperSocketMessage = {
-  event: SleeperSocketEvent
-  data: unknown
-  [key: string]: unknown
-}
+/** [join_ref, ref, topic, event, payload] */
+export type PhxMessage = [string | null, string | null, string, string, unknown]
 
 export type SocketStatus = 'disconnected' | 'connecting' | 'connected'
 
+// ── Presence types ──────────────────────────────────────────────────
+
+export type PresenceMeta = {
+  device_type: string
+  in_chat: boolean
+  online_at: string
+  is_bot: boolean
+  display_name: string
+  avatar: string
+  phx_ref: string
+  real_name: string | null
+}
+
+export type PresenceDiff = {
+  joins: Record<string, { metas: PresenceMeta[] }>
+  leaves: Record<string, { metas: PresenceMeta[] }>
+}
+
+// ── Gateway event payloads ──────────────────────────────────────────
+
+export type PlayerPickedPayload = {
+  draft_id: string
+  pick_no: number
+  player_id: string
+  picked_by: string
+  is_keeper: boolean | null
+  reactions: unknown
+  metadata: {
+    player_id: string
+    first_name: string
+    last_name: string
+    position: string
+    team: string
+    sport: string
+    status: string
+    years_exp: string
+    [key: string]: unknown
+  }
+}
+
+export type MessageCreatedPayload = {
+  message_id: string
+  parent_type: string
+  parent_id: string
+  author_id: string
+  author_display_name: string
+  author_avatar: string | null
+  author_is_bot: boolean
+  text: string
+  text_map: unknown
+  created: number
+  attachment: unknown
+  [key: string]: unknown
+}
+
+/** Convert a socket message_created payload to a Message object. */
+export function messageFromSocket(p: MessageCreatedPayload) {
+  return {
+    message_id: p.message_id,
+    parent_id: p.parent_id,
+    parent_type: p.parent_type,
+    author_id: p.author_id,
+    author_display_name: p.author_display_name,
+    author_avatar: p.author_avatar,
+    author_is_bot: p.author_is_bot,
+    author_real_name: (p.author_real_name as string | null) ?? null,
+    author_role_id: (p.author_role_id as string | null) ?? null,
+    client_id: (p.client_id as string) ?? '',
+    text: p.text,
+    text_map: p.text_map,
+    created: p.created,
+    attachment: p.attachment,
+    pinned: (p.pinned as boolean) ?? false,
+    reactions: p.reactions ?? null,
+    user_reactions: p.user_reactions ?? null,
+  }
+}
+
+export type MentionPayload = {
+  message_id: string
+  user_id: string
+  unread: boolean
+  parent_id: string
+  metadata: {
+    text: string
+    parent_type: string
+    league_id?: string
+    name?: string
+    author_id: string
+    author_display_name: string
+    author_avatar: string | null
+    created: number
+    [key: string]: unknown
+  }
+}
+
+export type NotificationsPayload = {
+  unread_mentions: number
+}
+
+export type ReadReceiptPayload = {
+  user_id: string
+  type: string
+  last_read_id: string
+  draft_id?: string
+}
+
+export type TypingPayload = {
+  user_id: string
+  name: string
+  ts: number
+}
+
+// ── Topic helpers ───────────────────────────────────────────────────
+
+export const SleeperTopics = {
+  // Gateway topics
+  user: (userId: string) => `user:${userId}`,
+  league: (leagueId: string) => `league:${leagueId}`,
+  draft: (draftId: string) => `draft:${draftId}`,
+  // Presence topics
+  userPresence: (userId: string) => `presence_presence:${userId}`,
+  leaguePresence: (leagueId: string) => `presence_league:${leagueId}`,
+  leagueVoice: (leagueId: string) => `presence_league_voice:${leagueId}`,
+} as const
+
+// ── Client ───────────────────────────────────────────────────────────
+
+type TopicListener = (event: string, payload: unknown) => void
 type Listener = (data: unknown) => void
 
 export type SleeperSocketOptions = {
   /** Return the current bearer token (same one used for GraphQL). */
   getToken: () => string | null
-  /** Override the default WebSocket endpoint. */
+  /** WebSocket endpoint (default: gateway). */
   endpoint?: string
   /** Auto-reconnect on close/error (default true). */
   autoReconnect?: boolean
@@ -45,12 +168,10 @@ export type SleeperSocketOptions = {
   onStatusChange?: (status: SocketStatus) => void
 }
 
-// ── Client ───────────────────────────────────────────────────────────
-
 export function createSleeperSocket(opts: SleeperSocketOptions) {
   const {
     getToken,
-    endpoint = DEFAULT_ENDPOINT,
+    endpoint = SLEEPER_GATEWAY,
     autoReconnect = true,
     reconnectDelay = 3_000,
     onStatusChange,
@@ -59,10 +180,19 @@ export function createSleeperSocket(opts: SleeperSocketOptions) {
   let ws: WebSocket | null = null
   let status: SocketStatus = 'disconnected'
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null
   let reconnectAttempts = 0
-  const listeners = new Map<string, Set<Listener>>()
+  let refCounter = 0
+
+  const topicListeners = new Map<string, Set<TopicListener>>()
+  const wildcardListeners = new Set<Listener>()
+  const joinedTopics = new Set<string>()
 
   // ── Helpers ──────────────────────────────────────────────────────
+
+  function nextRef() {
+    return String(++refCounter)
+  }
 
   function setStatus(next: SocketStatus) {
     status = next
@@ -76,60 +206,73 @@ export function createSleeperSocket(opts: SleeperSocketOptions) {
     reconnectTimer = setTimeout(() => connect(), delay)
   }
 
+  function startHeartbeat() {
+    stopHeartbeat()
+    heartbeatTimer = setInterval(() => {
+      sendRaw([null, nextRef(), 'phoenix', 'heartbeat', {}])
+    }, 30_000)
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer)
+      heartbeatTimer = null
+    }
+  }
+
+  function sendRaw(msg: PhxMessage) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(msg))
+    }
+  }
+
   // ── Public API ───────────────────────────────────────────────────
 
   function connect() {
     if (ws) return
 
     const token = getToken()
-
-    // Most browser WebSocket constructors only accept `protocols` as a
-    // second arg — custom headers aren't supported in the browser.
-    // If Sleeper requires auth via headers (likely), you'll need to
-    // either:
-    //   a) pass the token as a query param: `${endpoint}?token=${token}`
-    //   b) send an auth message right after connecting
-    //   c) use the `ws` npm package on Node/Electron which supports headers
-    //
-    // Adjust the line below once you know the auth mechanism.
-    const url = token ? `${endpoint}?token=${encodeURIComponent(token)}` : endpoint
+    const params = new URLSearchParams({
+      ...(token ? { token } : {}),
+      device_type: 'web',
+      vsn: '2.0.0',
+    })
+    const url = `${endpoint}?${params.toString()}`
 
     setStatus('connecting')
-
     ws = new WebSocket(url)
 
     ws.onopen = () => {
       reconnectAttempts = 0
       setStatus('connected')
-
-      // ── Option B: send auth message after connecting ──
-      // Uncomment & adjust once you know the format:
-      // if (token) {
-      //   ws!.send(JSON.stringify({ event: 'auth', token }))
-      // }
+      startHeartbeat()
+      for (const topic of joinedTopics) {
+        sendRaw([nextRef(), nextRef(), topic, 'phx_join', {}])
+      }
     }
 
     ws.onmessage = (event) => {
       try {
-        const msg: SleeperSocketMessage = JSON.parse(
+        const msg: PhxMessage = JSON.parse(
           typeof event.data === 'string' ? event.data : ''
         )
-        emit(msg.event, msg.data)
-        emit('*', msg) // wildcard: receive every message
+        const [, , topic, phxEvent, payload] = msg
+
+        wildcardListeners.forEach((fn) => fn(msg))
+        topicListeners.get(topic)?.forEach((fn) => fn(phxEvent, payload))
       } catch {
-        // Non-JSON frame — emit as raw
-        emit('raw', event.data)
+        // Non-JSON frame — ignore
       }
     }
 
     ws.onclose = () => {
       ws = null
+      stopHeartbeat()
       setStatus('disconnected')
       scheduleReconnect()
     }
 
     ws.onerror = () => {
-      // onerror is always followed by onclose, so reconnect happens there
       ws?.close()
     }
   }
@@ -139,38 +282,57 @@ export function createSleeperSocket(opts: SleeperSocketOptions) {
       clearTimeout(reconnectTimer)
       reconnectTimer = null
     }
+    stopHeartbeat()
     reconnectAttempts = 0
     ws?.close()
     ws = null
     setStatus('disconnected')
   }
 
-  function send(data: unknown) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      throw new Error('Socket not connected')
+  /**
+   * Join a Phoenix channel topic and listen for events.
+   * Returns an unsubscribe function.
+   */
+  function join(topic: string, listener: TopicListener) {
+    joinedTopics.add(topic)
+
+    if (!topicListeners.has(topic)) {
+      topicListeners.set(topic, new Set())
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        sendRaw([nextRef(), nextRef(), topic, 'phx_join', {}])
+      }
     }
-    ws.send(JSON.stringify(data))
+
+    topicListeners.get(topic)!.add(listener)
+
+    return () => {
+      topicListeners.get(topic)?.delete(listener)
+      if (topicListeners.get(topic)?.size === 0) {
+        topicListeners.delete(topic)
+        joinedTopics.delete(topic)
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          sendRaw([nextRef(), nextRef(), topic, 'phx_leave', {}])
+        }
+      }
+    }
   }
 
-  function on(event: string, fn: Listener) {
-    if (!listeners.has(event)) listeners.set(event, new Set())
-    listeners.get(event)!.add(fn)
-    return () => off(event, fn)
+  /** Send a custom event on a topic. */
+  function push(topic: string, event: string, payload: unknown = {}) {
+    sendRaw([null, nextRef(), topic, event, payload])
   }
 
-  function off(event: string, fn: Listener) {
-    listeners.get(event)?.delete(fn)
-  }
-
-  function emit(event: string, data: unknown) {
-    listeners.get(event)?.forEach((fn) => fn(data))
+  /** Listen to every raw Phoenix message. */
+  function onAll(fn: Listener) {
+    wildcardListeners.add(fn)
+    return () => wildcardListeners.delete(fn)
   }
 
   function getStatus() {
     return status
   }
 
-  return { connect, disconnect, send, on, off, getStatus }
+  return { connect, disconnect, join, push, onAll, getStatus }
 }
 
 export type SleeperSocket = ReturnType<typeof createSleeperSocket>

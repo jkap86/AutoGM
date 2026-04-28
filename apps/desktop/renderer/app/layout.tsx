@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Space_Grotesk, Rajdhani } from 'next/font/google'
 import '../styles/globals.css'
 import { AuthProvider } from '../contexts/auth-context'
+import { SocketProvider } from '../contexts/socket-context'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -29,7 +30,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${rajdhani.variable}`}>
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <SocketProvider>{children}</SocketProvider>
+        </AuthProvider>
       </body>
     </html>
   )

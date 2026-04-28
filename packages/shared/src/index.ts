@@ -36,8 +36,13 @@ export { fetchOpponentDrafts } from './db/opponent-drafts'
 export type { OpponentDraftPick } from './db/opponent-drafts'
 
 // Socket
-export { createSleeperSocket } from './socket'
-export type { SleeperSocket, SleeperSocketOptions, SocketStatus, SleeperSocketMessage } from './socket'
+export { createSleeperSocket, SleeperTopics, SLEEPER_GATEWAY, SLEEPER_PRESENCE, messageFromSocket } from './socket'
+export type {
+  SleeperSocket, SleeperSocketOptions, SocketStatus, PhxMessage,
+  PresenceDiff, PresenceMeta,
+  PlayerPickedPayload, MessageCreatedPayload, MentionPayload,
+  NotificationsPayload, ReadReceiptPayload, TypingPayload,
+} from './socket'
 
 // React hooks are in "@autogm/shared/react" to avoid pulling React
 // into non-React environments (e.g. Electron main process).

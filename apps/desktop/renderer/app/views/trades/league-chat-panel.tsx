@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Message, MessagesResult, CreateMessageResult } from "@autogm/shared";
+import type { Message, MessagesResult, CreateMessageResult, MessageCreatedPayload } from "@autogm/shared";
+import { SleeperTopics, messageFromSocket } from "@autogm/shared";
+import { useGatewayTopic } from "../../../contexts/socket-context";
 import { formatTime } from "../../../lib/trade-utils";
 
 function decodeHtmlEntities(text: string): string {
@@ -53,6 +55,20 @@ export function LeagueChatPanel({
     fetchMessages();
   }, [fetchMessages]);
 
+  // Real-time: append new messages from the WebSocket
+  useGatewayTopic(
+    SleeperTopics.league(leagueId),
+    useCallback((event: string, payload: unknown) => {
+      if (event === "message_created") {
+        const p = payload as MessageCreatedPayload;
+        setMessages((prev) => {
+          if (prev.some((m) => m.message_id === p.message_id)) return prev;
+          return [...prev, messageFromSocket(p)];
+        });
+      }
+    }, []),
+  );
+
   const sendMessage = useCallback(async () => {
     const text = draftRef.current.trim();
     if (!text || sendingRef.current) return;
@@ -64,13 +80,12 @@ export function LeagueChatPanel({
         text,
       });
       setDraft("");
-      await fetchMessages();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSending(false);
     }
-  }, [leagueId, fetchMessages]);
+  }, [leagueId]);
 
   const sorted = useMemo(() => [...messages].sort((a, b) => a.created - b.created), [messages]);
 

@@ -13,7 +13,8 @@ import { LeagueFilterBar, useLeagueFilter } from "../components/league-filter";
 import { useKtc } from "../../hooks/use-ktc";
 import { useLeaguePlayers } from "../../hooks/use-league-players";
 import { useTradeValueFilter } from "../../hooks/use-trade-value-filter";
-import { CURRENT_SEASON } from "@autogm/shared";
+import { CURRENT_SEASON, SleeperTopics } from "@autogm/shared";
+import { useGatewayTopic, useSocketContext } from "../../contexts/socket-context";
 
 const SEASON = CURRENT_SEASON;
 
@@ -45,6 +46,15 @@ export default function DashboardPage() {
 
   const { interestByLeague, tradeBlockByLeague } = useLeaguePlayers(leagues);
   const valueFilter = useTradeValueFilter({ leagues: filteredLeagues, allplayers: allplayers ?? {}, ktc });
+  const { gatewayStatus } = useSocketContext();
+
+  // Subscribe to user-level events (mentions, notifications, trade updates)
+  useGatewayTopic(
+    session?.user_id ? SleeperTopics.user(session.user_id) : null,
+    (event, payload) => {
+      console.log('[sleeper:user]', event, payload);
+    },
+  );
 
   const views = ["leagues", "trades", "polls", "adp"];
 
@@ -62,7 +72,19 @@ export default function DashboardPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center gap-4 p-8">
-      <h1 className="text-3xl font-bold">{user?.display_name}</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-3xl font-bold">{user?.display_name}</h1>
+        <span
+          className={`h-2.5 w-2.5 rounded-full ${
+            gatewayStatus === 'connected'
+              ? 'bg-green-500'
+              : gatewayStatus === 'connecting'
+              ? 'bg-yellow-500 animate-pulse'
+              : 'bg-red-500'
+          }`}
+          title={`Socket: ${gatewayStatus}`}
+        />
+      </div>
 
       {allPlayersLoading && <p className="text-gray-400">Loading players…</p>}
       {loading && <p className="text-gray-400">Loading leagues…</p>}
