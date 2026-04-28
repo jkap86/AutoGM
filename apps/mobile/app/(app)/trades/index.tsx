@@ -21,7 +21,9 @@ import { useTradeAction } from '../../../src/hooks/use-trade-action'
 import { ErrorBoundary } from '../../../src/components/error-boundary'
 import { colors } from '../../../src/theme'
 
-type Tab = 'pending' | 'completed' | 'rejected'
+import CreateTradeScreen from './create'
+
+type Tab = 'create' | 'pending' | 'completed' | 'rejected'
 
 function TradeCard({
   trade,
@@ -164,7 +166,7 @@ function TradesContent() {
   const { leagues, loading: leaguesLoading } = useLeagueCache()
   const { allplayers } = useAllPlayers()
   const { ktc } = useKtc()
-  const [tab, setTab] = useState<Tab>('pending')
+  const [tab, setTab] = useState<Tab>('create')
 
   const safeLeagues = leagues ?? {}
 
@@ -186,6 +188,7 @@ function TradesContent() {
     (tab === 'rejected' && rejectedLoading)
 
   const tabs: { key: Tab; label: string; count: number }[] = [
+    { key: 'create', label: 'Create', count: 0 },
     { key: 'pending', label: 'Pending', count: pendingTrades.length },
     { key: 'completed', label: 'Completed', count: completedTrades.length },
     { key: 'rejected', label: 'Rejected', count: rejectedTrades.length },
@@ -207,7 +210,9 @@ function TradesContent() {
         ))}
       </View>
 
-      {isLoading && trades.length === 0 ? (
+      {tab === 'create' ? (
+        <CreateTradeScreen />
+      ) : isLoading && trades.length === 0 ? (
         <View style={s.center}>
           <ActivityIndicator size="large" color={colors.blueLight} />
         </View>
