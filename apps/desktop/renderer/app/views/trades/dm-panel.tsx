@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LeagueDetailed, Message, GetDmByMembersResult, MessagesResult } from "@autogm/shared";
 import { formatTime } from "../../../lib/trade-utils";
 
@@ -44,15 +44,13 @@ function parseAttachment(raw: unknown): Record<string, unknown> | null {
   return obj;
 }
 
-export function DmPanel({ userId, partnerId, partnerName, leagues }: { userId: string; partnerId: string; partnerName: string; leagues: { [league_id: string]: LeagueDetailed } }) {
+export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, leagues }: { userId: string; partnerId: string; partnerName: string; leagues: { [league_id: string]: LeagueDetailed } }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [dmId, setDmId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
+  const inputRef = useRef<HTMLInputElement>(null);
   const sendingRef = useRef(sending);
   sendingRef.current = sending;
 
@@ -88,7 +86,7 @@ export function DmPanel({ userId, partnerId, partnerName, leagues }: { userId: s
   }, [fetchMessages]);
 
   const sendMessage = useCallback(async () => {
-    const text = draftRef.current.trim();
+    const text = inputRef.current?.value.trim();
     if (!text || !dmId || sendingRef.current) return;
     setSending(true);
     setError(null);
@@ -99,7 +97,7 @@ export function DmPanel({ userId, partnerId, partnerName, leagues }: { userId: s
         k_attachment_data: [],
         v_attachment_data: [],
       });
-      setDraft("");
+      if (inputRef.current) inputRef.current.value = "";
       await fetchMessages();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -154,9 +152,8 @@ export function DmPanel({ userId, partnerId, partnerName, leagues }: { userId: s
       {/* Message input */}
       <div className="flex items-center gap-2 border-t border-gray-700/40 px-4 py-2">
         <input
+          ref={inputRef}
           type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -169,7 +166,7 @@ export function DmPanel({ userId, partnerId, partnerName, leagues }: { userId: s
         />
         <button
           onClick={sendMessage}
-          disabled={!draft.trim() || !dmId || sending}
+          disabled={!dmId || sending}
           className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-500 disabled:opacity-50"
         >
           {sending ? "..." : "Send"}
@@ -182,7 +179,7 @@ export function DmPanel({ userId, partnerId, partnerName, leagues }: { userId: s
       )}
     </div>
   );
-}
+});
 
 // ---- Attachment rendering ----
 

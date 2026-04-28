@@ -57,14 +57,20 @@ async function fetchWithRetry<T>(
   }
 }
 
-// Events to ignore (high-frequency, not trade-related)
+// Events to ignore (high-frequency or not trade-related)
 const IGNORE_EVENTS = new Set([
   'phx_reply',
+  'phx_join',
   'presence_diff',
   'presence_state',
   'typing',
   'read_receipt',
   'heartbeat',
+  'message_created',
+  'notifications',
+  'mention',
+  'draft_updated_by_pick',
+  'player_picked',
 ])
 
 export function useTradesByStatus(
@@ -143,15 +149,17 @@ export function useTradesByStatus(
     fetchFn()
   }, [fetchFn])
 
-  // Refetch on trade-related WebSocket events from user channel
+  // Refetch on trade-related WebSocket events from user channel (debounced)
   const fetchRef = useRef(fetchFn)
   fetchRef.current = fetchFn
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useGatewayTopic(
     userId ? SleeperTopics.user(userId) : null,
     useCallback((event: string) => {
       if (!IGNORE_EVENTS.has(event)) {
-        fetchRef.current()
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+        debounceRef.current = setTimeout(() => fetchRef.current(), 2000)
       }
     }, []),
   )

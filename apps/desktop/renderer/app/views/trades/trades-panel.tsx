@@ -720,7 +720,7 @@ function TradeCards({
                 </div>
               </div>
             ) : isReceived && (onAccept || onReject || onCounter) ? (
-              <div className="flex items-center gap-2 px-4 py-2.5 border-t border-gray-700/40">
+              <div className="flex justify-between px-4 py-2.5 border-t border-gray-700/40">
                 {onAccept && (
                   <button
                     onClick={() => setConfirmAction({ trade, action: "accept" })}
@@ -728,15 +728,6 @@ function TradeCards({
                     className="rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-green-500 disabled:opacity-50"
                   >
                     {loadingAction === "accept" ? "Accepting..." : "Accept"}
-                  </button>
-                )}
-                {onReject && (
-                  <button
-                    onClick={() => setConfirmAction({ trade, action: "reject" })}
-                    disabled={!!loadingAction}
-                    className="rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-red-500 disabled:opacity-50"
-                  >
-                    {loadingAction === "reject" ? "Rejecting..." : "Reject"}
                   </button>
                 )}
                 {onCounter && (
@@ -748,12 +739,21 @@ function TradeCards({
                     Counter
                   </button>
                 )}
+                {onReject && (
+                  <button
+                    onClick={() => setConfirmAction({ trade, action: "reject" })}
+                    disabled={!!loadingAction}
+                    className="rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-red-500 disabled:opacity-50"
+                  >
+                    {loadingAction === "reject" ? "Rejecting..." : "Reject"}
+                  </button>
+                )}
                 {error && (
-                  <span className="text-xs text-red-400 ml-auto">{error}</span>
+                  <span className="text-xs text-red-400">{error}</span>
                 )}
               </div>
             ) : !isReceived && (onWithdraw || onModify) ? (
-              <div className="flex items-center gap-2 px-4 py-2.5 border-t border-gray-700/40">
+              <div className="flex justify-between px-4 py-2.5 border-t border-gray-700/40">
                 {onModify && (
                   <button
                     onClick={() => enterCounter(trade, "modify")}
@@ -773,7 +773,7 @@ function TradeCards({
                   </button>
                 )}
                 {error && (
-                  <span className="text-xs text-red-400 ml-auto">{error}</span>
+                  <span className="text-xs text-red-400">{error}</span>
                 )}
               </div>
             ) : null}
