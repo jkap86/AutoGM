@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet, ScrollView } from 'react-native'
 import type { LeagueDetailed, Roster, Allplayer } from '@autogm/shared'
 import { useLeagueCache } from '../../../src/league-cache'
@@ -6,6 +6,7 @@ import { useKtc } from '../../../src/hooks/use-ktc'
 import { useAdp } from '../../../src/hooks/use-adp'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { type ValueType, buildValueLookup, formatValue, getPickKtcName } from '../../../src/utils/value-lookup'
+import { mobileDataClient } from '../../../src/data-client'
 import { colors } from '../../../src/theme'
 
 type PositionFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
@@ -114,19 +115,38 @@ export default function RankingsScreen() {
   const [posFilter, setPosFilter] = useState<PositionFilter>('ALL')
   const [topN, setTopN] = useState(0)
 
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const [ktcDate, setKtcDate] = useState(today)
+  const [ktcHistorical, setKtcHistorical] = useState<Record<string, number> | null>(null)
+
+  // ADP filters
   const isAdp = valueType === 'adp' || valueType === 'auction'
   const defaultStart = useMemo(() => {
     const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10)
   }, [])
+  const [adpStart, setAdpStart] = useState(defaultStart)
+  const [adpEnd, setAdpEnd] = useState(today)
+  const [draftType, setDraftType] = useState<string>('')
+  const [minDrafts, setMinDrafts] = useState(2)
+
   const { data: adpRows, stats: adpStats, loading: adpLoading } = useAdp(
-    { startDate: defaultStart, endDate: new Date().toISOString().slice(0, 10), minDrafts: 2 },
+    { startDate: adpStart, endDate: adpEnd, draftType: draftType || null, minDrafts } as any,
     isAdp,
   )
 
-  const valueLookup = useMemo(
-    () => buildValueLookup(valueType, ktc, adpRows),
-    [valueType, ktc, adpRows],
-  )
+  // KTC date fetch
+  useEffect(() => {
+    if (valueType !== 'ktc' || ktcDate === today) {
+      setKtcHistorical(null)
+      return
+    }
+    mobileDataClient.fetchKtcByDate(ktcDate).then((d) => setKtcHistorical(d.player_values)).catch(() => {})
+  }, [ktcDate, valueType, today])
+
+  const valueLookup = useMemo(() => {
+    if (valueType === 'ktc') return ktcHistorical ?? ktc
+    return buildValueLookup(valueType, ktc, adpRows)
+  }, [valueType, ktc, ktcHistorical, adpRows])
 
   const leagueList = useMemo(() => (leagues ? Object.values(leagues) : []), [leagues])
   const loading = leaguesLoading || ktcLoading || apLoading || (isAdp && adpLoading)
@@ -163,6 +183,35 @@ export default function RankingsScreen() {
         )}
         {loading && <ActivityIndicator size="small" color={colors.blueLight} style={{ marginLeft: 8 }} />}
       </View>
+
+      {/* Source-specific filters */}
+      {valueType === 'ktc' && (
+        <View style={s.filterRow}>
+          <Text style={s.filterLabel}>Date</Text>
+          <TextInput
+            value={ktcDate}
+            onChangeText={setKtcDate}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={colors.textMuted}
+            style={s.dateInput}
+          />
+          {ktcDate !== today && (
+            <TouchableOpacity onPress={() => setKtcDate(today)}>
+              <Text style={{ color: colors.blueLight, fontSize: 12 }}>Reset</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+      {isAdp && (
+        <View style={s.filterRow}>
+          <Text style={s.filterLabel}>From</Text>
+          <TextInput value={adpStart} onChangeText={setAdpStart} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} style={s.dateInput} />
+          <Text style={s.filterLabel}>To</Text>
+          <TextInput value={adpEnd} onChangeText={setAdpEnd} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} style={s.dateInput} />
+          <Text style={s.filterLabel}>Min</Text>
+          <TextInput value={String(minDrafts)} onChangeText={(v) => setMinDrafts(Math.max(1, Number(v) || 1))} keyboardType="number-pad" style={[s.dateInput, { width: 36 }]} />
+        </View>
+      )}
 
       {/* Position filter + Top N */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ gap: 6, paddingHorizontal: 16, alignItems: 'center' }}>
@@ -222,6 +271,9 @@ const s = StyleSheet.create({
   segText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
   segTextActive: { color: colors.white },
   statsText: { color: colors.textMuted, fontSize: 11, marginLeft: 12 },
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.card, flexWrap: 'wrap' },
+  filterLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
+  dateInput: { backgroundColor: colors.card, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, color: colors.text, fontSize: 11, borderWidth: 1, borderColor: colors.border, width: 90 },
   card: { backgroundColor: colors.card, borderRadius: 12, marginBottom: 12, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
   leagueName: { color: colors.white, fontWeight: '600', fontSize: 15 },

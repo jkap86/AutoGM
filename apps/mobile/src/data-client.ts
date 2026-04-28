@@ -47,6 +47,7 @@ export interface DataClient {
   fetchLeagues(args: { user_id: string; season: string }): Promise<LeaguesPayload>
   fetchAllPlayers(): Promise<Allplayer[]>
   fetchKtcLatest(): Promise<KtcData>
+  fetchKtcByDate(date: string): Promise<KtcData>
   fetchAdp(filters: AdpFilters): Promise<AdpRow[]>
   fetchAdpStats(filters: AdpFilters): Promise<{ n_drafts: number; n_leagues: number }>
 }
@@ -56,6 +57,7 @@ export const mobileDataClient: DataClient = {
   fetchLeagues: (args) => withTimeout(fetchLeaguesUncached(args), 30_000),
   fetchAllPlayers: () => withTimeout(fetchAllPlayersUncached(), 30_000),
   fetchKtcLatest: () => withTimeout(apiFetch<KtcData>('/api/ktc/latest')),
+  fetchKtcByDate: (date) => withTimeout(apiFetch<KtcData>(`/api/ktc/by-date?date=${date}`)),
   fetchAdp: (filters) => withTimeout(apiFetch<AdpRow[]>('/api/adp/fetch', {
     method: 'POST',
     body: JSON.stringify(filters),

@@ -14,7 +14,7 @@ import { useLeagueCache } from '../../../src/league-cache'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { useKtc } from '../../../src/hooks/use-ktc'
 import { useAdp } from '../../../src/hooks/use-adp'
-import { type ValueType, buildValueLookup, formatValue as fmtValue } from '../../../src/utils/value-lookup'
+import { type ValueType, buildValueLookup, formatValue as fmtValue, getPickKtcName } from '../../../src/utils/value-lookup'
 import {
   useTradesByStatus,
   TradeWithLeague,
@@ -135,14 +135,43 @@ function TradeCard({
         )
       })}
 
-      {(trade.draft_picks ?? []).length > 0 && (
-        <View style={{ marginTop: 8 }}>
-          <Text style={s.label}>Draft picks:</Text>
-          {trade.draft_picks!.map((pick, i) => (
-            <Text key={i} style={s.pickText}>{pick}</Text>
-          ))}
-        </View>
-      )}
+      {(trade.draft_picks ?? []).length > 0 && (() => {
+        const parsed = trade.draft_picks!.map((str) => {
+          const [roster_id, season, round, owner_id, previous_owner_id] = str.split(',')
+          return { roster_id: +roster_id, season, round: +round, owner_id: +owner_id, previous_owner_id: +previous_owner_id }
+        })
+        const findOrder = (rosterId: number, season: string, round: number) => {
+          if (!league) return null
+          for (const r of league.rosters) {
+            const m = r.draftpicks.find((d) => d.roster_id === rosterId && String(d.season) === season && d.round === round)
+            if (m?.order != null) return m.order
+          }
+          return null
+        }
+        return Object.entries(sides).map(([rid, _]) => {
+          const ridNum = Number(rid)
+          const roster = league?.rosters?.find((r) => r.roster_id === ridNum)
+          const receiving = parsed.filter((dp) => dp.owner_id === ridNum)
+          if (receiving.length === 0) return null
+          return (
+            <View key={`picks-${rid}`} style={{ marginTop: 4, marginLeft: 8 }}>
+              {receiving.map((dp, i) => {
+                const order = findOrder(dp.roster_id, dp.season, dp.round)
+                const suffix = dp.round === 1 ? 'st' : dp.round === 2 ? 'nd' : dp.round === 3 ? 'rd' : 'th'
+                const label = order ? `${dp.season} ${dp.round}.${String(order).padStart(2, '0')}` : `${dp.season} Round ${dp.round}`
+                const ktcName = getPickKtcName(dp.season, dp.round, order)
+                const val = valueLookup[ktcName] ?? 0
+                return (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                    <Text style={s.pickText}>+ {label}</Text>
+                    {val > 0 && <Text style={s.ktcValue}>{fmtValue(val, valueType)}</Text>}
+                  </View>
+                )
+              })}
+            </View>
+          )
+        })
+      })()}
 
       {showActions && (
         <View style={s.actions}>

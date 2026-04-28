@@ -173,6 +173,18 @@ export default function CreateTradeScreen() {
   const [showGivePicks, setShowGivePicks] = useState(false)
   const [showReceivePicks, setShowReceivePicks] = useState(false)
   const [sendingKey, setSendingKey] = useState<string | null>(null)
+  // Roster filters
+  const [userOwnsFilter, setUserOwnsFilter] = useState<string[]>([])
+  const [userLacksFilter, setUserLacksFilter] = useState<string[]>([])
+  const [partnerOwnsFilter, setPartnerOwnsFilter] = useState<string[]>([])
+  const [partnerLacksFilter, setPartnerLacksFilter] = useState<string[]>([])
+  const [showFilterModal, setShowFilterModal] = useState<'userOwns' | 'userLacks' | 'partnerOwns' | 'partnerLacks' | null>(null)
+  // Batch send
+  const [selectedTrades, setSelectedTrades] = useState<Set<string>>(new Set())
+  const [batchSending, setBatchSending] = useState(false)
+  const [batchProgress, setBatchProgress] = useState(0)
+
+  const allPlayerIds = useMemo(() => Object.keys(allplayers), [allplayers])
 
   const ownedPlayers = useMemo(
     () => Object.keys(playerShares).filter((id) => playerShares[id].owned.length > 0),
@@ -202,16 +214,21 @@ export default function CreateTradeScreen() {
       const hasPlayersToGive = playersToGive.every((pid) => userRoster.players.includes(pid))
       const hasPicksToGive = picksToGive.every((pid) => userRoster.draftpicks.some((d) => getPickId(d) === pid))
       if (!hasPlayersToGive || !hasPicksToGive) return []
+      // Roster filters on user
+      if (!userOwnsFilter.every((pid) => userRoster.players.includes(pid))) return []
+      if (!userLacksFilter.every((pid) => !userRoster.players.includes(pid))) return []
 
       return league.rosters
         .filter((r) => r.roster_id !== userRoster.roster_id)
         .filter((r) =>
           playersToReceive.every((pid) => r.players.includes(pid)) &&
-          picksToReceive.every((pid) => r.draftpicks.some((d) => getPickId(d) === pid)),
+          picksToReceive.every((pid) => r.draftpicks.some((d) => getPickId(d) === pid)) &&
+          partnerOwnsFilter.every((pid) => r.players.includes(pid)) &&
+          partnerLacksFilter.every((pid) => !r.players.includes(pid)),
         )
         .map((partner) => ({ league, partner }))
     })
-  }, [leagues, playersToGive, playersToReceive, picksToGive, picksToReceive])
+  }, [leagues, playersToGive, playersToReceive, picksToGive, picksToReceive, userOwnsFilter, userLacksFilter, partnerOwnsFilter, partnerLacksFilter])
 
   const sendTrade = useCallback(async (league: LeagueDetailed, partner: Roster) => {
     const key = `${league.league_id}-${partner.roster_id}`
@@ -251,6 +268,31 @@ export default function CreateTradeScreen() {
       setSendingKey(null)
     }
   }, [playersToGive, playersToReceive, picksToGive, picksToReceive])
+
+  const toggleSelected = useCallback((key: string) => {
+    setSelectedTrades((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      return next
+    })
+  }, [])
+
+  const batchSend = useCallback(async () => {
+    const toSend = filteredMatches.filter(({ league, partner }) =>
+      selectedTrades.has(`${league.league_id}-${partner.roster_id}`),
+    )
+    if (toSend.length === 0) return
+    setBatchSending(true)
+    setBatchProgress(0)
+    for (let i = 0; i < toSend.length; i++) {
+      try { await sendTrade(toSend[i].league, toSend[i].partner) } catch {}
+      setBatchProgress(i + 1)
+      if (i < toSend.length - 1) await new Promise((r) => setTimeout(r, 2000 + Math.random() * 2000))
+    }
+    setBatchSending(false)
+    setSelectedTrades(new Set())
+    Alert.alert('Done', `Sent ${toSend.length} trade proposals`)
+  }, [filteredMatches, selectedTrades, sendTrade])
 
   const giveTotal = playersToGive.reduce((s, id) => s + (ktc[id] ?? 0), 0)
   const receiveTotal = playersToReceive.reduce((s, id) => s + (ktc[id] ?? 0), 0)
@@ -317,13 +359,64 @@ export default function CreateTradeScreen() {
         ))}
       </View>
 
+      {/* Roster Filters */}
+      <View style={s.section}>
+        <Text style={[s.sectionTitle, { color: colors.textMuted, marginBottom: 8 }]}>Roster Filters</Text>
+        <View style={s.btnRow}>
+          <TouchableOpacity style={s.addBtn} onPress={() => setShowFilterModal('userOwns')}>
+            <Text style={s.addBtnText}>You Own</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.addBtn} onPress={() => setShowFilterModal('userLacks')}>
+            <Text style={s.addBtnText}>You Lack</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={s.btnRow}>
+          <TouchableOpacity style={s.addBtn} onPress={() => setShowFilterModal('partnerOwns')}>
+            <Text style={s.addBtnText}>Ptr Owns</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.addBtn} onPress={() => setShowFilterModal('partnerLacks')}>
+            <Text style={s.addBtnText}>Ptr Lacks</Text>
+          </TouchableOpacity>
+        </View>
+        {userOwnsFilter.length > 0 && <View style={s.chipWrap}>{userOwnsFilter.map((id) => (
+          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor={colors.blueLight} onRemove={() => setUserOwnsFilter((p) => p.filter((x) => x !== id))} />
+        ))}</View>}
+        {userLacksFilter.length > 0 && <View style={s.chipWrap}>{userLacksFilter.map((id) => (
+          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor={colors.orange} onRemove={() => setUserLacksFilter((p) => p.filter((x) => x !== id))} />
+        ))}</View>}
+        {partnerOwnsFilter.length > 0 && <View style={s.chipWrap}>{partnerOwnsFilter.map((id) => (
+          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor={colors.blueLight} onRemove={() => setPartnerOwnsFilter((p) => p.filter((x) => x !== id))} />
+        ))}</View>}
+        {partnerLacksFilter.length > 0 && <View style={s.chipWrap}>{partnerLacksFilter.map((id) => (
+          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor={colors.orange} onRemove={() => setPartnerLacksFilter((p) => p.filter((x) => x !== id))} />
+        ))}</View>}
+      </View>
+
       {/* Potential Trades */}
       {filteredMatches.length > 0 ? (
         <View>
-          <Text style={s.matchesTitle}>
-            {filteredMatches.length} potential {filteredMatches.length === 1 ? 'trade' : 'trades'}
-          </Text>
-          {filteredMatches.map(({ league, partner }) => (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={s.matchesTitle}>
+              {filteredMatches.length} potential {filteredMatches.length === 1 ? 'trade' : 'trades'}
+              {selectedTrades.size > 0 ? ` · ${selectedTrades.size} selected` : ''}
+            </Text>
+            {selectedTrades.size > 0 && (
+              <TouchableOpacity
+                style={[s.sendBtn, batchSending && { opacity: 0.5 }]}
+                onPress={batchSend}
+                disabled={batchSending}
+              >
+                <Text style={s.sendBtnText}>
+                  {batchSending ? `${batchProgress}/${selectedTrades.size}...` : `Send ${selectedTrades.size}`}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {filteredMatches.map(({ league, partner }) => {
+            const key = `${league.league_id}-${partner.roster_id}`
+            return (
+              <TouchableOpacity key={key} onLongPress={() => toggleSelected(key)} activeOpacity={0.8}>
+                <View style={selectedTrades.has(key) ? [s.matchCard, { borderWidth: 1, borderColor: colors.blueLight }] : undefined}>
             <TradeMatchCard
               key={`${league.league_id}-${partner.roster_id}`}
               league={league}
@@ -341,7 +434,10 @@ export default function CreateTradeScreen() {
                 [{ text: 'Cancel', style: 'cancel' }, { text: 'Send', onPress: () => sendTrade(league, partner) }],
               )}
             />
-          ))}
+                </View>
+              </TouchableOpacity>
+            )
+          })}
         </View>
       ) : (playersToGive.length + playersToReceive.length + picksToGive.length + picksToReceive.length > 0) ? (
         <Text style={s.noMatches}>No matching leagues for these players/picks.</Text>
@@ -389,6 +485,46 @@ export default function CreateTradeScreen() {
         onSelect={(id) => setPicksToReceive((p) => [...p, id])}
         onClose={() => setShowReceivePicks(false)}
         title="Picks to Receive"
+      />
+      <PlayerSearchModal
+        visible={showFilterModal === 'userOwns'}
+        playerIds={allPlayerIds}
+        allplayers={allplayers}
+        ktc={ktc}
+        selected={[...userOwnsFilter, ...userLacksFilter, ...partnerOwnsFilter, ...partnerLacksFilter]}
+        onSelect={(id) => setUserOwnsFilter((p) => [...p, id])}
+        onClose={() => setShowFilterModal(null)}
+        title="You Must Own"
+      />
+      <PlayerSearchModal
+        visible={showFilterModal === 'userLacks'}
+        playerIds={allPlayerIds}
+        allplayers={allplayers}
+        ktc={ktc}
+        selected={[...userOwnsFilter, ...userLacksFilter, ...partnerOwnsFilter, ...partnerLacksFilter]}
+        onSelect={(id) => setUserLacksFilter((p) => [...p, id])}
+        onClose={() => setShowFilterModal(null)}
+        title="You Must NOT Own"
+      />
+      <PlayerSearchModal
+        visible={showFilterModal === 'partnerOwns'}
+        playerIds={allPlayerIds}
+        allplayers={allplayers}
+        ktc={ktc}
+        selected={[...userOwnsFilter, ...userLacksFilter, ...partnerOwnsFilter, ...partnerLacksFilter]}
+        onSelect={(id) => setPartnerOwnsFilter((p) => [...p, id])}
+        onClose={() => setShowFilterModal(null)}
+        title="Partner Must Own"
+      />
+      <PlayerSearchModal
+        visible={showFilterModal === 'partnerLacks'}
+        playerIds={allPlayerIds}
+        allplayers={allplayers}
+        ktc={ktc}
+        selected={[...userOwnsFilter, ...userLacksFilter, ...partnerOwnsFilter, ...partnerLacksFilter]}
+        onSelect={(id) => setPartnerLacksFilter((p) => [...p, id])}
+        onClose={() => setShowFilterModal(null)}
+        title="Partner Must NOT Own"
       />
     </ScrollView>
   )
