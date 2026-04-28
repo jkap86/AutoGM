@@ -98,6 +98,13 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="rankings/index"
+        options={{
+          title: 'Rankings',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📊</Text>,
+        }}
+      />
+      <Tabs.Screen
         name="trades/index"
         options={{
           title: 'Trades',
@@ -105,10 +112,17 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="chats/index"
+        options={{
+          title: 'Chats',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>💬</Text>,
+        }}
+      />
+      <Tabs.Screen
         name="polls/index"
         options={{
           title: 'Polls',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📊</Text>,
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📋</Text>,
         }}
       />
     </Tabs>

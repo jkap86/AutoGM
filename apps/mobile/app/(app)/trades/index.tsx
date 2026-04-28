@@ -12,6 +12,7 @@ import { useAuth } from '@autogm/shared/react'
 import type { Allplayer, LeagueDetailed } from '@autogm/shared'
 import { useLeagueCache } from '../../../src/league-cache'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
+import { useKtc } from '../../../src/hooks/use-ktc'
 import {
   useTradesByStatus,
   TradeWithLeague,
@@ -27,12 +28,14 @@ function TradeCard({
   allplayers,
   userId,
   leagues,
+  ktc,
   onAction,
 }: {
   trade: TradeWithLeague
   allplayers: Record<string, Allplayer>
   userId: string | null
   leagues: { [id: string]: LeagueDetailed }
+  ktc: Record<string, number>
   onAction?: () => void
 }) {
   const isReceived = trade.creator !== userId
@@ -102,10 +105,13 @@ function TradeCard({
             {side.gets.map((pid) => {
               const p = allplayers[pid]
               return (
-                <Text key={pid} style={s.playerAdd}>
-                  + {p ? `${p.first_name} ${p.last_name}` : pid}
-                  {p ? ` (${p.position ?? '?'} - ${p.team ?? 'FA'})` : ''}
-                </Text>
+                <View key={pid} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8, marginBottom: 2 }}>
+                  <Text style={s.playerAdd}>
+                    + {p ? `${p.first_name} ${p.last_name}` : pid}
+                    {p ? ` (${p.position ?? '?'} - ${p.team ?? 'FA'})` : ''}
+                  </Text>
+                  {ktc[pid] ? <Text style={s.ktcValue}>{ktc[pid]}</Text> : null}
+                </View>
               )
             })}
           </View>
@@ -157,6 +163,7 @@ function TradesContent() {
   const { session } = useAuth()
   const { leagues, loading: leaguesLoading } = useLeagueCache()
   const { allplayers } = useAllPlayers()
+  const { ktc } = useKtc()
   const [tab, setTab] = useState<Tab>('pending')
 
   const safeLeagues = leagues ?? {}
@@ -214,6 +221,7 @@ function TradesContent() {
               allplayers={allplayers}
               userId={session?.user_id ?? null}
               leagues={safeLeagues}
+              ktc={ktc}
               onAction={tab === 'pending' ? refetchPending : undefined}
             />
           )}
@@ -247,7 +255,8 @@ const s = StyleSheet.create({
   badgeText: { fontSize: 11, fontWeight: '500' },
   dateText: { color: colors.textMuted, fontSize: 11 },
   label: { color: colors.textSecondary, fontSize: 11, marginBottom: 4 },
-  playerAdd: { color: colors.green, fontSize: 13, marginLeft: 8 },
+  playerAdd: { color: colors.green, fontSize: 13 },
+  ktcValue: { color: colors.textMuted, fontSize: 11, marginLeft: 6 },
   pickText: { color: colors.blueLight, fontSize: 13, marginLeft: 8 },
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 16 },
   tab: { paddingHorizontal: 16, paddingVertical: 12, marginRight: 4 },
