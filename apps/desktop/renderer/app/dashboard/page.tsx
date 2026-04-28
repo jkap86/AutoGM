@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/auth-context";
 import { useLeagues } from "../../hooks/use-leagues";
-import TradesView from "../views/trades";
+import TransactionsView from "../views/trades";
 import { useAllPlayers } from "../../hooks/use-allplayers";
-import PollsView from "../views/polls-view";
-import AdpView from "../views/adp-view";
+import ResearchView from "../views/research-view";
 import LeaguesView from "../views/leagues-view";
 import { LeagueFilterBar, useLeagueFilter } from "../components/league-filter";
 import { useKtc } from "../../hooks/use-ktc";
@@ -18,7 +17,7 @@ import { useGatewayTopic, useSocketContext } from "../../contexts/socket-context
 
 const SEASON = CURRENT_SEASON;
 
-type View = "leagues" | "trades" | "polls" | "adp" | null;
+type View = "leagues" | "transactions" | "research" | null;
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -56,7 +55,7 @@ export default function DashboardPage() {
     },
   );
 
-  const views = ["leagues", "trades", "polls", "adp"];
+  const views = ["leagues", "transactions", "research"];
 
   useEffect(() => {
     if (restoring) return;
@@ -125,8 +124,8 @@ export default function DashboardPage() {
           userId={session.user_id}
           filter={valueFilter}
         />
-      ) : view === "trades" ? (
-        <TradesView
+      ) : view === "transactions" ? (
+        <TransactionsView
           allplayers={allplayers ?? {}}
           leagues={filteredLeagues}
           playerShares={playerShares}
@@ -137,10 +136,11 @@ export default function DashboardPage() {
           interestByLeague={interestByLeague}
           tradeBlockByLeague={tradeBlockByLeague}
         />
-      ) : view === "polls" ? (
-        <PollsView leagues={filteredLeagues} />
-      ) : view === "adp" ? (
-        <AdpView allplayers={allplayers ?? {}} />
+      ) : view === "research" ? (
+        <ResearchView
+          leagues={filteredLeagues}
+          allplayers={allplayers ?? {}}
+        />
       ) : (
         <p className="text-gray-400">Select a view above.</p>
       )}

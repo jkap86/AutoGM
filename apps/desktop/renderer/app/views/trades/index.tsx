@@ -16,6 +16,7 @@ import { TradesPanel } from "./trades-panel";
 import { PotentialTrades } from "./potential-trades";
 import { PlayerCombobox } from "../../components/player-combobox";
 import { TradeFilterBar } from "../../components/trade-filter-bar";
+type TransactionType = "trades" | "waivers";
 type TradesTab = "create" | "pending" | "expired" | "completed" | "rejected";
 
 // Convert a UI pick_id like "2026 1.03" or "2026 Round 2" into the KTC-compatible name
@@ -59,7 +60,52 @@ function getPickValue(pickId: string, ktc: Record<string, number>): number {
   return ktc[pickIdToKtcName(pickId)] ?? 0;
 }
 
-export default function TradesView({
+export default function TransactionsView(props: {
+  leagues: { [league_id: string]: LeagueDetailed };
+  playerShares: PlayerShares;
+  leaguemates: Leaguemates;
+  pickShares: PickShares;
+  allplayers: { [player_id: string]: Allplayer };
+  userId: string;
+  ktc: Record<string, number>;
+  interestByLeague?: InterestByLeague;
+  tradeBlockByLeague?: InterestByLeague;
+}) {
+  const [txType, setTxType] = useState<TransactionType>("trades");
+
+  return (
+    <div className="flex flex-col flex-1 items-center w-full gap-4">
+      {/* Transaction type tabs */}
+      <div className="flex gap-1 rounded-lg bg-gray-900/60 p-0.5">
+        {([
+          { key: "trades" as TransactionType, label: "Trades" },
+          { key: "waivers" as TransactionType, label: "Waivers" },
+        ]).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setTxType(key)}
+            className={`rounded-md px-5 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all ${
+              txType === key
+                ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
+                : "text-gray-500 hover:text-gray-300"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {txType === "trades" && <TradesContent {...props} />}
+      {txType === "waivers" && (
+        <div className="flex flex-col items-center py-12 gap-3">
+          <p className="text-gray-500 text-sm">Waivers coming soon.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TradesContent({
   leagues,
   playerShares,
   leaguemates,
