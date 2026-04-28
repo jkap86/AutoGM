@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { KtcData } from '@autogm/shared'
+import { getSession } from '@autogm/shared'
 import { mobileDataClient } from '../data-client'
+import { useAuth } from '@autogm/shared/react'
 
 export function useKtc() {
   const [ktc, setKtc] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
+  const { session } = useAuth()
 
-  const fetch = useCallback(async () => {
+  const fetchKtc = useCallback(async () => {
+    const s = getSession()
+    if (!s?.user_id) return
     setLoading(true)
     try {
       const data = await mobileDataClient.fetchKtcLatest()
@@ -18,7 +22,10 @@ export function useKtc() {
     }
   }, [])
 
-  useEffect(() => { fetch() }, [fetch])
+  // Fetch once session is available
+  useEffect(() => {
+    if (session?.user_id) fetchKtc()
+  }, [session?.user_id, fetchKtc])
 
-  return { ktc, loading, refetch: fetch }
+  return { ktc, loading, refetch: fetchKtc }
 }

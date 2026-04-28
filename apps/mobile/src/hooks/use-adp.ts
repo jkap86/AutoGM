@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { AdpFilters, AdpRow } from '@autogm/shared'
+import { getSession } from '@autogm/shared'
+import { useAuth } from '@autogm/shared/react'
 import { mobileDataClient } from '../data-client'
 
 export function useAdp(filters: AdpFilters, enabled: boolean = true) {
   const [data, setData] = useState<AdpRow[]>([])
   const [stats, setStats] = useState<{ n_drafts: number; n_leagues: number }>({ n_drafts: 0, n_leagues: 0 })
   const [loading, setLoading] = useState(false)
+  const { session } = useAuth()
 
   const filterKey = JSON.stringify(filters)
 
-  const fetch = useCallback(async () => {
-    if (!enabled) return
+  const fetchAdp = useCallback(async () => {
+    const s = getSession()
+    if (!enabled || !s?.user_id) return
     setLoading(true)
     try {
       const [rows, statsResult] = await Promise.all([
@@ -25,9 +29,9 @@ export function useAdp(filters: AdpFilters, enabled: boolean = true) {
       setLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterKey, enabled])
+  }, [filterKey, enabled, session?.user_id])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { fetchAdp() }, [fetchAdp])
 
-  return { data, stats, loading, refetch: fetch }
+  return { data, stats, loading, refetch: fetchAdp }
 }
