@@ -1,65 +1,40 @@
 import { useState, useMemo } from 'react'
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, ScrollView } from 'react-native'
-import type { LeagueDetailed, Roster, Allplayer, AdpRow } from '@autogm/shared'
+import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet, ScrollView } from 'react-native'
+import type { LeagueDetailed, Roster, Allplayer } from '@autogm/shared'
 import { useLeagueCache } from '../../../src/league-cache'
 import { useKtc } from '../../../src/hooks/use-ktc'
 import { useAdp } from '../../../src/hooks/use-adp'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
+import { type ValueType, buildValueLookup, formatValue, getPickKtcName } from '../../../src/utils/value-lookup'
 import { colors } from '../../../src/theme'
 
-type ValueType = 'ktc' | 'adp' | 'auction'
 type PositionFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
-
-function getPickKtcName(season: string, round: number, order: number | null): string {
-  const suffix = round === 1 ? 'st' : round === 2 ? 'nd' : round === 3 ? 'rd' : 'th'
-  if (order == null || order === 0) return `${season} Mid ${round}${suffix}`
-  const type = order <= 4 ? 'Early' : order >= 9 ? 'Late' : 'Mid'
-  return `${season} ${type} ${round}${suffix}`
-}
-
-function adpToValue(adp: number): number {
-  return 1000 * Math.exp(-(adp - 1) / 50)
-}
-
-function buildValueLookup(
-  valueType: ValueType,
-  ktc: Record<string, number>,
-  adpRows: AdpRow[],
-): Record<string, number> {
-  if (valueType === 'ktc') return ktc
-  const out: Record<string, number> = {}
-  if (valueType === 'adp') {
-    for (const r of adpRows) out[r.player_id] = adpToValue(r.adp)
-  } else {
-    for (const r of adpRows) {
-      if (r.avg_pct != null) out[r.player_id] = r.avg_pct * 100
-    }
-  }
-  return out
-}
 
 function computeRosterValue(
   roster: Roster,
   filter: PositionFilter,
   values: Record<string, number>,
   allplayers: Record<string, Allplayer>,
+  topN: number = 0,
 ): number {
-  let total = 0
+  const vals: number[] = []
   if (filter !== 'PICKS') {
     for (const pid of roster.players ?? []) {
       const player = allplayers[pid]
       if (!player) continue
       if (filter !== 'ALL' && player.position !== filter) continue
-      total += values[pid] ?? 0
+      vals.push(values[pid] ?? 0)
     }
   }
   if (filter === 'ALL' || filter === 'PICKS') {
     for (const pick of roster.draftpicks ?? []) {
       const name = getPickKtcName(pick.season, pick.round, pick.order)
-      total += values[name] ?? 0
+      vals.push(values[name] ?? 0)
     }
   }
-  return total
+  vals.sort((a, b) => b - a)
+  const sliced = topN > 0 ? vals.slice(0, topN) : vals
+  return sliced.reduce((a, b) => a + b, 0)
 }
 
 function rankColor(rank: number, total: number): string {
@@ -69,26 +44,22 @@ function rankColor(rank: number, total: number): string {
   return colors.text
 }
 
-function formatValue(n: number, valueType: ValueType): string {
-  if (valueType === 'auction') return `${n.toFixed(1)}%`
-  return Math.round(n).toLocaleString()
-}
-
 function LeagueRankCard({
-  league, values, allplayers, posFilter, valueType,
+  league, values, allplayers, posFilter, valueType, topN,
 }: {
   league: LeagueDetailed
   values: Record<string, number>
   allplayers: Record<string, Allplayer>
   posFilter: PositionFilter
   valueType: ValueType
+  topN: number
 }) {
   const [expanded, setExpanded] = useState(false)
 
   const ranked = useMemo(() => {
     const data = league.rosters.map((r) => ({
       roster: r,
-      value: computeRosterValue(r, posFilter, values, allplayers),
+      value: computeRosterValue(r, posFilter, values, allplayers, topN),
     }))
     data.sort((a, b) => b.value - a.value)
     return data.map((d, i) => ({ ...d, rank: i + 1 }))
@@ -141,6 +112,7 @@ export default function RankingsScreen() {
   const { allplayers, loading: apLoading } = useAllPlayers()
   const [valueType, setValueType] = useState<ValueType>('ktc')
   const [posFilter, setPosFilter] = useState<PositionFilter>('ALL')
+  const [topN, setTopN] = useState(0)
 
   const isAdp = valueType === 'adp' || valueType === 'auction'
   const defaultStart = useMemo(() => {
@@ -192,8 +164,8 @@ export default function RankingsScreen() {
         {loading && <ActivityIndicator size="small" color={colors.blueLight} style={{ marginLeft: 8 }} />}
       </View>
 
-      {/* Position filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ gap: 6, paddingHorizontal: 16 }}>
+      {/* Position filter + Top N */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ gap: 6, paddingHorizontal: 16, alignItems: 'center' }}>
         {filters.map((f) => (
           <TouchableOpacity
             key={f}
@@ -203,6 +175,22 @@ export default function RankingsScreen() {
             <Text style={[s.filterText, posFilter === f && s.filterTextActive]}>{f}</Text>
           </TouchableOpacity>
         ))}
+        <View style={{ width: 1, height: 20, backgroundColor: colors.border, marginHorizontal: 4 }} />
+        <Text style={s.topNLabel}>Top</Text>
+        <TouchableOpacity
+          onPress={() => setTopN(0)}
+          style={[s.filterBtn, topN === 0 && s.filterBtnActive]}
+        >
+          <Text style={[s.filterText, topN === 0 && s.filterTextActive]}>All</Text>
+        </TouchableOpacity>
+        <TextInput
+          value={topN > 0 ? String(topN) : ''}
+          onChangeText={(v) => setTopN(v === '' ? 0 : Math.max(0, Number(v)))}
+          placeholder="N"
+          placeholderTextColor={colors.textMuted}
+          keyboardType="number-pad"
+          style={s.topNInput}
+        />
       </ScrollView>
 
       <FlatList
@@ -215,6 +203,7 @@ export default function RankingsScreen() {
             allplayers={allplayers}
             posFilter={posFilter}
             valueType={valueType}
+            topN={topN}
           />
         )}
         contentContainerStyle={{ padding: 16 }}
@@ -245,6 +234,8 @@ const s = StyleSheet.create({
   rankNum: { width: 32, fontSize: 13, fontWeight: '700' },
   rankName: { flex: 1, color: colors.text, fontSize: 13 },
   rankValue: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  topNLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '600' },
+  topNInput: { width: 36, backgroundColor: colors.card, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 4, color: colors.text, fontSize: 12, textAlign: 'center', borderWidth: 1, borderColor: colors.border },
   filterBar: { borderBottomWidth: 1, borderBottomColor: colors.card, paddingVertical: 10 },
   filterBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.card },
   filterBtnActive: { backgroundColor: colors.blue },

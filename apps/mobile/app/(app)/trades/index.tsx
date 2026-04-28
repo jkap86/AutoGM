@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import type { Allplayer, LeagueDetailed } from '@autogm/shared'
 import { useLeagueCache } from '../../../src/league-cache'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { useKtc } from '../../../src/hooks/use-ktc'
+import { useAdp } from '../../../src/hooks/use-adp'
+import { type ValueType, buildValueLookup, formatValue as fmtValue } from '../../../src/utils/value-lookup'
 import {
   useTradesByStatus,
   TradeWithLeague,
@@ -30,14 +32,16 @@ function TradeCard({
   allplayers,
   userId,
   leagues,
-  ktc,
+  valueLookup,
+  valueType,
   onAction,
 }: {
   trade: TradeWithLeague
   allplayers: Record<string, Allplayer>
   userId: string | null
   leagues: { [id: string]: LeagueDetailed }
-  ktc: Record<string, number>
+  valueLookup: Record<string, number>
+  valueType: ValueType
   onAction?: () => void
 }) {
   const isReceived = trade.creator !== userId
@@ -82,7 +86,18 @@ function TradeCard({
     }
   }, [execute, tradeVars, userRosterId, onAction])
 
+  const handleWithdraw = useCallback(async () => {
+    if (!userRosterId) return
+    try {
+      await execute('rejectTrade', tradeVars)
+      onAction?.()
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : String(e))
+    }
+  }, [execute, tradeVars, userRosterId, onAction])
+
   const showActions = isPending && isReceived && userRosterId != null
+  const showWithdraw = isPending && !isReceived && userRosterId != null
 
   return (
     <View style={s.card}>
@@ -112,7 +127,7 @@ function TradeCard({
                     + {p ? `${p.first_name} ${p.last_name}` : pid}
                     {p ? ` (${p.position ?? '?'} - ${p.team ?? 'FA'})` : ''}
                   </Text>
-                  {ktc[pid] ? <Text style={s.ktcValue}>{ktc[pid]}</Text> : null}
+                  {valueLookup[pid] ? <Text style={s.ktcValue}>{fmtValue(valueLookup[pid], valueType)}</Text> : null}
                 </View>
               )
             })}
@@ -157,6 +172,23 @@ function TradeCard({
           </TouchableOpacity>
         </View>
       )}
+
+      {showWithdraw && (
+        <View style={s.actions}>
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert('Withdraw Trade', 'Withdraw this trade proposal?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Withdraw', style: 'destructive', onPress: handleWithdraw },
+              ])
+            }
+            disabled={acting}
+            style={[s.actionBtn, s.rejectBtn]}
+          >
+            <Text style={[s.actionText, { color: colors.orange }]}>{acting ? '...' : 'Withdraw'}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   )
 }
@@ -166,6 +198,19 @@ function TradesContent() {
   const { leagues, loading: leaguesLoading } = useLeagueCache()
   const { allplayers } = useAllPlayers()
   const { ktc } = useKtc()
+  const [valueType, setValueType] = useState<ValueType>('ktc')
+  const isAdp = valueType === 'adp' || valueType === 'auction'
+  const defaultStart = useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10)
+  }, [])
+  const { data: adpRows } = useAdp(
+    { startDate: defaultStart, endDate: new Date().toISOString().slice(0, 10), minDrafts: 2 },
+    isAdp,
+  )
+  const valueLookup = useMemo(
+    () => buildValueLookup(valueType, ktc, adpRows),
+    [valueType, ktc, adpRows],
+  )
   const [tab, setTab] = useState<Tab>('create')
 
   const safeLeagues = leagues ?? {}
@@ -194,8 +239,24 @@ function TradesContent() {
     { key: 'rejected', label: 'Rejected', count: rejectedTrades.length },
   ]
 
+  const valueTypes: ValueType[] = ['ktc', 'adp', 'auction']
+
   return (
     <View style={s.container}>
+      {/* Value type toggle */}
+      <View style={s.valueBar}>
+        <View style={s.segmented}>
+          {valueTypes.map((v) => (
+            <TouchableOpacity
+              key={v}
+              onPress={() => setValueType(v)}
+              style={[s.segBtn, valueType === v && s.segBtnActive]}
+            >
+              <Text style={[s.segText, valueType === v && s.segTextActive]}>{v.toUpperCase()}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
       <View style={s.tabBar}>
         {tabs.map((t) => (
           <TouchableOpacity
@@ -226,7 +287,8 @@ function TradesContent() {
               allplayers={allplayers}
               userId={session?.user_id ?? null}
               leagues={safeLeagues}
-              ktc={ktc}
+              valueLookup={valueLookup}
+              valueType={valueType}
               onAction={tab === 'pending' ? refetchPending : undefined}
             />
           )}
@@ -250,6 +312,12 @@ export default function TradesScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  valueBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.card },
+  segmented: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 8, padding: 2 },
+  segBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 6 },
+  segBtnActive: { backgroundColor: colors.blue },
+  segText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  segTextActive: { color: colors.white },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   card: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 12 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },

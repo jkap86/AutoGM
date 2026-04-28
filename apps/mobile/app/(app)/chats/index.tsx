@@ -24,8 +24,8 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
   draftRef.current = draft
   const flatListRef = useRef<FlatList>(null)
 
-  const fetchMessages = useCallback(async () => {
-    setLoading(true)
+  const fetchMessages = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const result = await mobileDataClient.graphql('messages', { parent_id: league.league_id })
       const msgs = (result as MessagesResult).messages ?? []
@@ -41,9 +41,14 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
     }
   }, [league.league_id])
 
+  // Prefetch on mount for preview, refetch on expand
+  useEffect(() => {
+    fetchMessages(true)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (expanded) fetchMessages()
-  }, [expanded, fetchMessages])
+  }, [expanded]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sorted = useMemo(
     () => [...messages].sort((a, b) => a.created - b.created),
