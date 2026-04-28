@@ -1,30 +1,32 @@
 const RELEASE_BASE =
   "https://github.com/jkap86/AutoGM/releases/latest/download";
 
+const VERSION = "1.0.0";
+
 const platforms = [
   {
     name: "Windows",
     icon: "🪟",
     available: true,
     label: "Download for Windows",
-    detail: "v1.0.0 · .exe installer",
-    href: `${RELEASE_BASE}/AutoGM.Setup.1.0.0.exe`,
+    detail: `v${VERSION} · .exe installer`,
+    href: `${RELEASE_BASE}/AutoGM-${VERSION}-win-x64.exe`,
   },
   {
     name: "macOS",
     icon: "🍎",
     available: true,
     label: "Download for macOS",
-    detail: "v1.0.0 · Intel & Apple Silicon · .dmg",
-    href: `${RELEASE_BASE}/AutoGM-1.0.0-arm64.dmg`,
+    detail: `v${VERSION} · Intel & Apple Silicon · .dmg`,
+    href: `${RELEASE_BASE}/AutoGM-${VERSION}-mac-arm64.dmg`,
   },
   {
     name: "Linux",
     icon: "🐧",
     available: true,
     label: "Download for Linux",
-    detail: "v1.0.0 · .AppImage",
-    href: `${RELEASE_BASE}/AutoGM-1.0.0.AppImage`,
+    detail: `v${VERSION} · .AppImage`,
+    href: `${RELEASE_BASE}/AutoGM-${VERSION}-linux-x64.AppImage`,
   },
 ];
 

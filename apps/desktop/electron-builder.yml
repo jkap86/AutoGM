@@ -26,4 +26,5 @@ linux:
     - target: AppImage
       arch:
         - x64
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 publish: null

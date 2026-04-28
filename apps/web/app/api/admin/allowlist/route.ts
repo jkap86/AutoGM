@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const GIST_ID = "5ffafe73e067c18d0b5ea440b0f9a04a";
+const GIST_ID = process.env.ALLOWLIST_GIST_ID || "5ffafe73e067c18d0b5ea440b0f9a04a";
 const GIST_FILENAME = "allowlist.json";
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;

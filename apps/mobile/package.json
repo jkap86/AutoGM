@@ -10,9 +10,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/ app/",
     "eas-build-post-install": "cd ../.. && pnpm --filter @autogm/shared build",
-    "build:ios": "eas build --platform ios --profile preview",
-    "build:ios:prod": "eas build --platform ios --profile production",
-    "submit:ios": "eas submit --platform ios"
+    "build:ios:preview": "eas build --platform ios --profile preview",
+    "build:ios:testflight": "eas build --platform ios --profile production",
+    "submit:ios:testflight": "eas submit --platform ios --profile production"
   },
   "dependencies": {
     "@autogm/shared": "workspace:*",
