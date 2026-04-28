@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { LeagueDetailed, Allplayer } from "@autogm/shared";
 import { ConfirmModal } from "../../components/confirm-modal";
 import type { TradeWithLeague } from "../../../hooks/use-trades-by-status";
@@ -428,6 +428,9 @@ function TradeCards({
             key={trade.transaction_id}
             className="rounded-xl border border-gray-700/80 bg-gray-800 overflow-hidden hover:border-gray-600/80 transition"
           >
+            {/* Countdown timer */}
+            <ExpirationTimer expiresAt={(trade.settings as Record<string, unknown>)?.expires_at} />
+
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700/40">
               <div className="flex items-center gap-2.5">
@@ -447,34 +450,6 @@ function TradeCards({
                 <span className="text-xs text-gray-500">
                   {formatTime(trade.status_updated)}
                 </span>
-                {(() => {
-                  const rawExp = (trade.settings as Record<string, unknown>)?.expires_at;
-                  if (typeof rawExp !== 'number') return null;
-                  const expiresMs = rawExp < 10_000_000_000 ? rawExp * 1000 : rawExp;
-                  const now = Date.now();
-                  const isExpired = expiresMs <= now;
-                  const diff = expiresMs - now;
-                  const hoursLeft = Math.floor(diff / 3600000);
-                  const daysLeft = Math.floor(diff / 86400000);
-                  const expiresLabel = isExpired
-                    ? "Expired"
-                    : daysLeft >= 1
-                    ? `Expires in ${daysLeft}d`
-                    : hoursLeft >= 1
-                    ? `Expires in ${hoursLeft}h`
-                    : `Expires in <1h`;
-                  return (
-                    <span className={`text-[10px] font-medium rounded px-1.5 py-0.5 ${
-                      isExpired
-                        ? "bg-red-500/15 text-red-400"
-                        : hoursLeft < 24
-                        ? "bg-orange-500/15 text-orange-400"
-                        : "bg-gray-500/15 text-gray-400"
-                    }`}>
-                      {expiresLabel}
-                    </span>
-                  );
-                })()}
                 <button
                   onClick={() => toggleExpand(trade.transaction_id)}
                   className="text-gray-500 hover:text-gray-300 transition"
@@ -836,6 +811,50 @@ function TradeCards({
           onCancel={() => setConfirmAction(null)}
         />
       )}
+    </div>
+  );
+}
+
+function ExpirationTimer({ expiresAt }: { expiresAt: unknown }) {
+  const [now, setNow] = useState(Date.now());
+
+  const expiresMs = typeof expiresAt === 'number'
+    ? (expiresAt < 10_000_000_000 ? expiresAt * 1000 : expiresAt)
+    : null;
+
+  useEffect(() => {
+    if (expiresMs === null) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [expiresMs]);
+
+  if (expiresMs === null) return null;
+
+  const diff = expiresMs - now;
+  if (diff <= 0) {
+    return (
+      <div className="flex justify-center py-1 bg-red-500/10">
+        <span className="text-xs font-bold font-[family-name:var(--font-heading)] text-red-400">
+          EXPIRED
+        </span>
+      </div>
+    );
+  }
+
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  parts.push(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+
+  return (
+    <div className="flex justify-center py-1 bg-red-500/10">
+      <span className="text-xs font-bold font-[family-name:var(--font-heading)] tracking-wider text-red-400">
+        {parts.join(' ')}
+      </span>
     </div>
   );
 }
