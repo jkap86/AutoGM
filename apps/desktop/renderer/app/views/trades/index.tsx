@@ -120,18 +120,30 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
   const [sortMode, setSortMode] = useState<DmSortMode>("recent");
   const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, number>>({});
   const [previews, setPreviews] = useState<Record<string, { text: string; time: number; author: string }>>(dmPreviewCache);
+  const [search, setSearch] = useState("");
+  const [leagueFilter, setLeagueFilter] = useState<string>("");
 
   const partners = useMemo(() => {
-    const seen = new Map<string, string>();
+    const map = new Map<string, { name: string; leagueIds: Set<string> }>();
     for (const league of Object.values(leagues)) {
       for (const roster of league.rosters) {
-        if (roster.user_id && roster.user_id !== userId && !seen.has(roster.user_id)) {
-          seen.set(roster.user_id, roster.username ?? `User ${roster.user_id}`);
+        if (roster.user_id && roster.user_id !== userId) {
+          const existing = map.get(roster.user_id);
+          if (existing) {
+            existing.leagueIds.add(league.league_id);
+          } else {
+            map.set(roster.user_id, { name: roster.username ?? `User ${roster.user_id}`, leagueIds: new Set([league.league_id]) });
+          }
         }
       }
     }
-    return [...seen.entries()].map(([id, name]) => ({ id, name }));
+    return [...map.entries()].map(([id, { name, leagueIds }]) => ({ id, name, leagueIds }));
   }, [leagues, userId]);
+
+  const leagueList = useMemo(() =>
+    Object.values(leagues).sort((a, b) => a.name.localeCompare(b.name)),
+    [leagues],
+  );
 
   // Fetch DM previews in batches
   useEffect(() => {
@@ -173,16 +185,21 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
   }, [partners, userId]);
 
   const sorted = useMemo(() => {
-    const list = [...partners];
+    let list = [...partners];
+    // Search filter
+    const q = search.toLowerCase().trim();
+    if (q) list = list.filter((p) => p.name.toLowerCase().includes(q));
+    // League filter
+    if (leagueFilter) list = list.filter((p) => p.leagueIds.has(leagueFilter));
+    // Sort
     if (sortMode === "alpha") return list.sort((a, b) => a.name.localeCompare(b.name));
-    // Recent: partners with DMs first (by time desc), then alphabetical
     return list.sort((a, b) => {
       const ta = lastMessageTimes[a.id] ?? 0;
       const tb = lastMessageTimes[b.id] ?? 0;
       if (ta !== tb) return tb - ta;
       return a.name.localeCompare(b.name);
     });
-  }, [partners, sortMode, lastMessageTimes]);
+  }, [partners, sortMode, lastMessageTimes, search, leagueFilter]);
 
   // Freeze sort while expanded
   const frozenRef = useRef(sorted);
@@ -195,25 +212,53 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
 
   return (
     <div className="w-full max-w-4xl flex flex-col gap-3">
-      {/* Sort controls */}
-      <div className="flex items-center gap-1">
-        <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mr-1.5">Sort</span>
-        {([
-          { mode: "recent" as DmSortMode, label: "Recent" },
-          { mode: "alpha" as DmSortMode, label: "A-Z" },
-        ]).map(({ mode, label }) => (
+      {/* Sort, search, league filter */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mr-1.5">Sort</span>
+          {([
+            { mode: "recent" as DmSortMode, label: "Recent" },
+            { mode: "alpha" as DmSortMode, label: "A-Z" },
+          ]).map(({ mode, label }) => (
+            <button
+              key={mode}
+              onClick={() => setSortMode(mode)}
+              className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+                sortMode === mode
+                  ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
+                  : "bg-gray-700/60 text-gray-500 hover:text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search user..."
+          className="rounded-md border border-gray-700/60 bg-gray-900/60 px-2.5 py-1 text-[11px] text-gray-300 placeholder:text-gray-600 focus:border-blue-500/50 focus:outline-none transition w-36"
+        />
+        <select
+          value={leagueFilter}
+          onChange={(e) => setLeagueFilter(e.target.value)}
+          className="rounded-md border border-gray-700/60 bg-gray-900/60 px-2 py-1 text-[11px] text-gray-300 focus:border-blue-500/50 focus:outline-none transition"
+        >
+          <option value="">All Leagues</option>
+          {leagueList.map((l) => (
+            <option key={l.league_id} value={l.league_id}>{l.name}</option>
+          ))}
+        </select>
+        {(search || leagueFilter) && (
           <button
-            key={mode}
-            onClick={() => setSortMode(mode)}
-            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
-              sortMode === mode
-                ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
-                : "bg-gray-700/60 text-gray-500 hover:text-gray-300 hover:bg-gray-700"
-            }`}
+            onClick={() => { setSearch(""); setLeagueFilter(""); }}
+            className="text-[10px] text-gray-500 hover:text-gray-300 underline"
           >
-            {label}
+            Clear
           </button>
-        ))}
+        )}
+        <span className="text-[10px] text-gray-600 ml-auto">{sorted.length} of {partners.length}</span>
       </div>
 
       {/* DM cards */}
