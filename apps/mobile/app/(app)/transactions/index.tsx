@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import TradesScreen from '../trades/index'
+import DmsScreen from '../dms/index'
 
-type SubTab = 'trades' | 'waivers'
+type SubTab = 'trades' | 'waivers' | 'dms'
 
 export default function TransactionsTab() {
   const [subTab, setSubTab] = useState<SubTab>('trades')
@@ -11,7 +12,7 @@ export default function TransactionsTab() {
     <View className="flex-1 bg-gray-900">
       {/* Sub-tab bar */}
       <View className="flex-row border-b border-gray-800 px-4">
-        {(['trades', 'waivers'] as const).map((tab) => (
+        {(['trades', 'waivers', 'dms'] as const).map((tab) => (
           <TouchableOpacity
             key={tab}
             onPress={() => setSubTab(tab)}
@@ -35,6 +36,7 @@ export default function TransactionsTab() {
           <Text className="text-gray-500 text-sm">Waivers coming soon</Text>
         </View>
       )}
+      {subTab === 'dms' && <DmsScreen />}
     </View>
   )
 }

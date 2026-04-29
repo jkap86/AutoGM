@@ -13,6 +13,7 @@ import { SleeperTopics, messageFromSocket } from '@autogm/shared'
 import { useCallback, useRef } from 'react'
 import { useLeagueFilter, LeagueFilterBar } from '../../src/components/league-filter'
 import { useGatewayTopic } from '../../src/contexts/socket-context'
+import { LeagueSettingsPanel } from '../../src/components/league-settings-panel'
 
 type LeaguesTab = 'ranks' | 'chats'
 type PositionFilter = 'ALL' | 'PLAYERS' | 'PLAYERS+CUR' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
@@ -79,6 +80,7 @@ function LeagueRankCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   const [expandedFilter, setExpandedFilter] = useState<PositionFilter>('ALL')
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const total = league.rosters.length
 
   return (
@@ -92,7 +94,9 @@ function LeagueRankCard({
           </View>
         )}
         <View className="flex-1">
-          <Text className="text-white font-semibold text-[15px] font-heading">{league.name}</Text>
+          <TouchableOpacity onPress={() => setSettingsOpen(true)}>
+            <Text className="text-white font-semibold text-[15px] font-heading">{league.name}</Text>
+          </TouchableOpacity>
           <Text className="text-gray-400 text-xs mt-0.5">
             {league.season} · {league.settings.type === 2 ? 'Dynasty' : league.settings.type === 1 ? 'Keeper' : 'Redraft'} · {total} teams · {league.user_roster.wins}-{league.user_roster.losses}{league.user_roster.ties > 0 ? `-${league.user_roster.ties}` : ''}
           </Text>
@@ -139,6 +143,8 @@ function LeagueRankCard({
             })}
         </View>
       )}
+
+      <LeagueSettingsPanel league={league} visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </View>
   )
 }

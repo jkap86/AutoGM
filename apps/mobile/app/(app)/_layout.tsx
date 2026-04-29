@@ -122,6 +122,7 @@ export default function AppLayout() {
         <Tabs.Screen name="trades/create" options={{ href: null }} />
         <Tabs.Screen name="adp/index" options={{ href: null }} />
         <Tabs.Screen name="polls/index" options={{ href: null }} />
+        <Tabs.Screen name="dms/index" options={{ href: null }} />
       </Tabs>
     </LeagueCacheProvider>
   )

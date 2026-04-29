@@ -28,6 +28,8 @@ import { useTradeAction } from '../../../src/hooks/use-trade-action'
 import { mobileDataClient } from '../../../src/data-client'
 import { ErrorBoundary } from '../../../src/components/error-boundary'
 import { useGatewayTopic } from '../../../src/contexts/socket-context'
+import { useLeaguePlayers } from '../../../src/hooks/use-league-players'
+import { OpponentPanel } from '../../../src/components/opponent-panel'
 
 import CreateTradeScreen from './create'
 
@@ -40,6 +42,8 @@ function TradeCard({
   leagues,
   valueLookup,
   valueType,
+  interestByLeague,
+  tradeBlockByLeague,
   onAction,
 }: {
   trade: TradeWithLeague
@@ -48,6 +52,8 @@ function TradeCard({
   leagues: { [id: string]: LeagueDetailed }
   valueLookup: Record<string, number>
   valueType: ValueType
+  interestByLeague: Record<string, Record<string, number[]>>
+  tradeBlockByLeague: Record<string, Record<string, number[]>>
   onAction?: () => void
 }) {
   const isReceived = trade.creator !== userId
@@ -105,6 +111,8 @@ function TradeCard({
   const showActions = isPending && isReceived && userRosterId != null
   const showWithdraw = isPending && !isReceived && userRosterId != null
   const [expanded, setExpanded] = useState(false)
+  const [opponentOpen, setOpponentOpen] = useState(false)
+  const [selectedPartner, setSelectedPartner] = useState<Roster | null>(null)
   const [counterOpen, setCounterOpen] = useState(false)
   const [counterGive, setCounterGive] = useState<Set<string>>(new Set())
   const [counterReceive, setCounterReceive] = useState<Set<string>>(new Set())
@@ -243,19 +251,37 @@ function TradeCard({
             {sideData.map((side) => (
               <View key={side.rid} className={`border-l-[3px] pl-2.5 mt-2 mb-1 ${side.isUser ? 'border-l-green-400' : 'border-l-red-400'}`}>
                 <View className="flex-row justify-between mb-1">
-                  <Text className={`text-[11px] font-semibold ${side.isUser ? 'text-green-400' : 'text-red-400'}`}>
-                    {side.name} receives
-                  </Text>
+                  {side.isUser ? (
+                    <Text className="text-[11px] font-semibold text-green-400">
+                      {side.name} receives
+                    </Text>
+                  ) : (
+                    <TouchableOpacity onPress={() => {
+                      const roster = league?.rosters?.find((r) => r.roster_id === side.rid)
+                      if (roster) { setSelectedPartner(roster); setOpponentOpen(true) }
+                    }}>
+                      <Text className="text-[11px] font-semibold text-red-400 underline">
+                        {side.name} receives
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                   {side.total > 0 && <Text className="text-gray-500 text-[11px] font-semibold ml-1.5">{fmtValue(side.total, valueType)}</Text>}
                 </View>
                 {side.receivingPids.map((pid) => {
                   const p = allplayers[pid]
+                  const leagueInterest = interestByLeague?.[trade.league_id]
+                  const leagueTB = tradeBlockByLeague?.[trade.league_id]
+                  const sendingRid = rosterIds.find((r) => r !== side.rid)
+                  const isLiked = leagueInterest?.[pid]?.includes(side.rid)
+                  const isOTB = sendingRid != null && (leagueTB?.[pid]?.includes(sendingRid) ?? false)
                   return (
                     <View key={pid} className="flex-row items-center mb-0.5">
                       <Text className="text-green-400 text-[13px]">
                         {p ? `${p.first_name} ${p.last_name}` : pid}
                         {p ? ` (${p.position ?? '?'} - ${p.team ?? 'FA'})` : ''}
                       </Text>
+                      {isLiked && <Text className="bg-pink-500/15 text-pink-300 text-[9px] px-1 rounded ml-1">♥</Text>}
+                      {isOTB && <Text className="bg-amber-500/15 text-amber-300 text-[9px] px-1 rounded ml-1">OTB</Text>}
                       {valueLookup[pid] ? <Text className="text-gray-500 text-[11px] ml-1.5">{fmtValue(valueLookup[pid], valueType)}</Text> : null}
                     </View>
                   )
@@ -508,6 +534,17 @@ function TradeCard({
           })}
         </View>
       )}
+
+      {selectedPartner && (
+        <OpponentPanel
+          partner={selectedPartner}
+          league={league}
+          allplayers={allplayers}
+          leagues={leagues}
+          visible={opponentOpen}
+          onClose={() => setOpponentOpen(false)}
+        />
+      )}
     </View>
   )
 }
@@ -518,6 +555,7 @@ function TradesContent() {
   const { allplayers } = useAllPlayers()
   const { ktc } = useKtc()
   const safeLeagues = leagues ?? {}
+  const { interestByLeague, tradeBlockByLeague } = useLeaguePlayers(leagues)
 
   const filter = useTradeValueFilter({ leagues: safeLeagues, allplayers, ktc })
   const { valueLookup, valueType, formatValue: fmtVal } = filter
@@ -606,6 +644,8 @@ function TradesContent() {
               leagues={safeLeagues}
               valueLookup={valueLookup}
               valueType={valueType}
+              interestByLeague={interestByLeague}
+              tradeBlockByLeague={tradeBlockByLeague}
               onAction={tab === 'pending' ? refetchPending : undefined}
             />
           )}
