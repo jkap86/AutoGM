@@ -8,21 +8,43 @@ import {
   waiverSubmitOperationKey,
   waiverCancelOperationKey,
 } from "../lib/operation-store";
+import {
+  requireString,
+  requirePairedArrays,
+  requirePairedStringArrays,
+  requireNonNegativeInt,
+} from "../lib/ipc-validation";
+
+function validateSubmitWaiver(vars: QueryMap["submitWaiverClaim"]["vars"]) {
+  requireString(vars.league_id, "league_id");
+  requirePairedArrays(vars.k_adds, vars.v_adds, "k_adds", "v_adds");
+
+  if (vars.k_drops?.length || vars.v_drops?.length) {
+    requirePairedArrays(vars.k_drops!, vars.v_drops!, "k_drops", "v_drops");
+  }
+
+  if (vars.k_settings?.length || vars.v_settings?.length) {
+    requirePairedStringArrays(
+      vars.k_settings ?? [],
+      vars.v_settings ?? [],
+      "k_settings",
+      "v_settings",
+    );
+
+    // Validate waiver_bid specifically
+    const bidIdx = (vars.k_settings ?? []).indexOf("waiver_bid");
+    if (bidIdx !== -1 && vars.v_settings) {
+      requireNonNegativeInt(vars.v_settings[bidIdx], "waiver_bid");
+    }
+  }
+}
 
 export function registerWaiversIpc() {
   ipcMain.handle(
     "waiver:submit",
     async (_event, vars: QueryMap["submitWaiverClaim"]["vars"]) => {
       await requireAccess();
-
-      if (!vars.league_id) throw new Error("league_id is required");
-      if (!vars.k_adds?.length) throw new Error("k_adds is required");
-      if (vars.k_adds.length !== vars.v_adds?.length) {
-        throw new Error("k_adds and v_adds must have the same length");
-      }
-      if ((vars.k_drops?.length ?? 0) !== (vars.v_drops?.length ?? 0)) {
-        throw new Error("k_drops and v_drops must have the same length");
-      }
+      validateSubmitWaiver(vars);
 
       const opKey = waiverSubmitOperationKey(vars);
       const existing = findBlockingRecord(opKey);
@@ -48,9 +70,8 @@ export function registerWaiversIpc() {
     "waiver:cancel",
     async (_event, vars: QueryMap["cancelWaiverClaim"]["vars"]) => {
       await requireAccess();
-
-      if (!vars.league_id) throw new Error("league_id is required");
-      if (!vars.transaction_id) throw new Error("transaction_id is required");
+      requireString(vars.league_id, "league_id");
+      requireString(vars.transaction_id, "transaction_id");
 
       const opKey = waiverCancelOperationKey(vars);
       const existing = findBlockingRecord(opKey);

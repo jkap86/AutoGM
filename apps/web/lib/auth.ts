@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWLIST_URL = process.env.ALLOWLIST_URL;
+const DESKTOP_API_KEY = process.env.DESKTOP_API_KEY;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 let cache: { userIds: Set<string>; fetchedAt: number } | null = null;
@@ -34,9 +35,22 @@ async function isAllowed(userId: string): Promise<boolean> {
  * Validates the x-user-id header against the allowlist.
  * Returns the user_id if authorized, or a 401/403 NextResponse if not.
  */
+/**
+ * Validates the x-user-id header against the allowlist.
+ * Also validates x-desktop-api-key if DESKTOP_API_KEY is configured.
+ * Returns the user_id if authorized, or a 401/403 NextResponse if not.
+ */
 export async function requireAuth(
   req: NextRequest,
 ): Promise<string | NextResponse> {
+  // Validate desktop API key when configured
+  if (DESKTOP_API_KEY) {
+    const apiKey = req.headers.get("x-desktop-api-key");
+    if (apiKey !== DESKTOP_API_KEY) {
+      return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
+    }
+  }
+
   const userId = req.headers.get("x-user-id");
   if (!userId) {
     return NextResponse.json(

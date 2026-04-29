@@ -458,7 +458,7 @@ function RosterFilterCombobox({
         onClick={() => setOpen((p) => !p)}
         className={`rounded-md border border-gray-700/60 bg-gray-800 px-2.5 py-1 text-[11px] font-medium transition ${
           selected.length > 0
-            ? `border-${color === "blue" ? "blue" : "orange"}-500/40 ${chipText}`
+            ? `${color === "blue" ? "border-blue-500/40" : "border-orange-500/40"} ${chipText}`
             : "text-gray-500 hover:text-gray-300"
         }`}
       >

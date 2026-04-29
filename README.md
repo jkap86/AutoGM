@@ -37,18 +37,22 @@ This happens automatically via Turbo when using `pnpm dev`, but direct commands 
 **Desktop** — create `apps/desktop/.env`:
 
 ```env
-DATABASE_URL=postgresql://user:pass@localhost:5432/autogm
+API_URL=http://localhost:3100   # URL of the web API (serves KTC/ADP/opponent data)
 ALLOWLIST_URL=https://example.com/allowlist.json
+DESKTOP_API_KEY=your-shared-secret  # must match the web API's DESKTOP_API_KEY
 LOG_LEVEL=info          # debug | info | warn | error
 LOGIN_URL=              # optional, defaults to https://sleeper.com/login
 PW_CHANNEL=chrome       # browser channel for playwright-core (chrome, chromium, msedge)
 ```
+
+> `DATABASE_URL` is **not** needed in the desktop `.env`. The desktop app calls the web API via `API_URL` for KTC/ADP/opponent data.
 
 **Web API** — create `apps/web/.env`:
 
 ```env
 DATABASE_URL=postgresql://user:pass@localhost:5432/autogm
 ALLOWLIST_URL=https://example.com/allowlist.json
+DESKTOP_API_KEY=your-shared-secret  # must match the desktop's DESKTOP_API_KEY
 ```
 
 **Mobile** — set in your Expo environment or `app.json`:
@@ -124,7 +128,7 @@ pnpm --filter @autogm/shared typecheck # tsc --noEmit
 - **Shared package** exports types, GraphQL queries, auth context, API helpers, DB query modules, `CURRENT_SEASON`, and `randomId()`.
 - **Desktop main process** handles IPC with auth guards (`requireAccess()`), lazy DB imports, mutation idempotency, and dedicated mutation routes.
 - **Desktop preload** exposes a whitelisted `window.ipc.invoke()` API (no open channel access).
-- **Desktop session** persists to `electron-store` and restores on app restart.
+- **Desktop session** persists encrypted via `electron safeStorage` (with `enc:`/`plain:` prefix) and restores after `app.whenReady()`.
 - **Mobile** uses `expo-secure-store` for token persistence, `AsyncStorage` for poll storage and operation idempotency, and guards app routes with allowlist access checks.
 - **Mobile league cache** fetches leagues once at the app level and shares across all tabs.
 - **Web** serves a static landing page with download links and server-side API routes for KTC/ADP data (requires `x-user-id` header validated against allowlist).

@@ -17,7 +17,7 @@ import { useGatewayTopic, useSocketContext } from "../../contexts/socket-context
 
 const SEASON = CURRENT_SEASON;
 
-type View = "leagues" | "transactions" | "research" | null;
+type View = "leagues" | "transactions" | "research";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -39,7 +39,7 @@ export default function DashboardPage() {
     user_id: session?.user_id,
     season: SEASON,
   });
-  const [view, setView] = useState<View>(null);
+  const [view, setView] = useState<View>("leagues");
   const { filters, setFilters, filteredLeagues } = useLeagueFilter(leagues);
   const { ktc } = useKtc();
 
@@ -136,13 +136,11 @@ export default function DashboardPage() {
           interestByLeague={interestByLeague}
           tradeBlockByLeague={tradeBlockByLeague}
         />
-      ) : view === "research" ? (
+      ) : (
         <ResearchView
           leagues={filteredLeagues}
           allplayers={allplayers ?? {}}
         />
-      ) : (
-        <p className="text-gray-400">Select a view above.</p>
       )}
     </main>
   );

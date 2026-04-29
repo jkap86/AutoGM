@@ -7,7 +7,7 @@ if (process.env.NODE_ENV !== "production") {
   require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 }
 
-import { app, ipcMain } from "electron";
+import { app } from "electron";
 import serve from "electron-serve";
 import { createWindow } from "./helpers/create-window";
 import { getToken, restoreSession } from "./lib/auth";
@@ -33,10 +33,7 @@ if (isProd) {
   app.setPath("userData", `${app.getPath("userData")} (development)`);
 }
 
-// Restore persisted session after userData path is set
-restoreSession();
-
-// Register all IPC handlers
+// Register all IPC handlers (safe before app.whenReady)
 registerAuthIpc();
 registerReadonlyGraphqlIpc();
 registerTradesIpc();
@@ -47,6 +44,9 @@ registerResearchIpc();
 
 (async () => {
   await app.whenReady();
+
+  // Restore after app.whenReady() so safeStorage is available
+  restoreSession();
 
   const mainWindow = createWindow("main", {
     width: 1000,
@@ -69,6 +69,3 @@ app.on("window-all-closed", () => {
   app.quit();
 });
 
-ipcMain.on("message", async (event, arg) => {
-  event.reply("message", `${arg} World!`);
-});

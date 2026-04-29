@@ -8,12 +8,42 @@ import {
   tradeOperationKey,
   tradeActionKey,
 } from "../lib/operation-store";
+import {
+  requireString,
+  requirePositiveInt,
+  requirePairedArrays,
+} from "../lib/ipc-validation";
+
+function validateProposeTrade(vars: QueryMap["proposeTrade"]["vars"]) {
+  requireString(vars.league_id, "league_id");
+  requirePairedArrays(vars.k_adds, vars.v_adds, "k_adds", "v_adds");
+  requirePairedArrays(vars.k_drops, vars.v_drops, "k_drops", "v_drops");
+
+  if (vars.draft_picks != null && !Array.isArray(vars.draft_picks)) {
+    throw new Error("draft_picks must be an array");
+  }
+  if (vars.waiver_budget != null && !Array.isArray(vars.waiver_budget)) {
+    throw new Error("waiver_budget must be an array");
+  }
+  if (vars.expires_at != null) {
+    if (!Number.isFinite(vars.expires_at) || vars.expires_at <= 0) {
+      throw new Error("expires_at must be a positive number");
+    }
+  }
+}
+
+function validateTradeAction(vars: { league_id: string; transaction_id: string; leg: number }) {
+  requireString(vars.league_id, "league_id");
+  requireString(vars.transaction_id, "transaction_id");
+  requirePositiveInt(vars.leg, "leg");
+}
 
 export function registerTradesIpc() {
   ipcMain.handle(
     "trade:propose",
     async (_event, vars: QueryMap["proposeTrade"]["vars"]) => {
       await requireAccess();
+      validateProposeTrade(vars);
       const opKey = tradeOperationKey(vars);
       const existing = findBlockingRecord(opKey);
       if (existing) {
@@ -38,6 +68,7 @@ export function registerTradesIpc() {
     "trade:accept",
     async (_event, vars: QueryMap["acceptTrade"]["vars"]) => {
       await requireAccess();
+      validateTradeAction(vars);
       const opKey = tradeActionKey("acceptTrade", vars);
       const existing = findBlockingRecord(opKey);
       if (existing) {
@@ -62,6 +93,7 @@ export function registerTradesIpc() {
     "trade:reject",
     async (_event, vars: QueryMap["rejectTrade"]["vars"]) => {
       await requireAccess();
+      validateTradeAction(vars);
       const opKey = tradeActionKey("rejectTrade", vars);
       const existing = findBlockingRecord(opKey);
       if (existing) {

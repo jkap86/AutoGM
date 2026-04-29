@@ -9,12 +9,21 @@ import {
   dmOperationKey,
   leagueMessageOperationKey,
 } from "../lib/operation-store";
+import { requireString, requireStringArray } from "../lib/ipc-validation";
+
+const MAX_MESSAGE_LENGTH = 10_000;
 
 export function registerMessagesIpc() {
   ipcMain.handle(
     "message:create",
     async (_event, vars: QueryMap["createMessage"]["vars"]) => {
       await requireAccess();
+      requireString(vars.parent_id, "parent_id");
+      requireString(vars.text, "text");
+      if (vars.text.length > MAX_MESSAGE_LENGTH) {
+        throw new Error(`Message text exceeds maximum length of ${MAX_MESSAGE_LENGTH}`);
+      }
+
       const opKey = messageOperationKey(vars);
       const existing = findBlockingRecord(opKey);
       if (existing) {
@@ -42,6 +51,12 @@ export function registerMessagesIpc() {
     "dm:create",
     async (_event, vars: QueryMap["createDm"]["vars"]) => {
       await requireAccess();
+      requireStringArray(vars.members, "members");
+      if (vars.members.length < 2) {
+        throw new Error("DM requires at least 2 members");
+      }
+      requireString(vars.dm_type, "dm_type");
+
       const opKey = dmOperationKey(vars);
       const existing = findBlockingRecord(opKey);
       if (existing) {
@@ -65,6 +80,12 @@ export function registerMessagesIpc() {
     "league-message:create",
     async (_event, vars: QueryMap["createLeagueMessage"]["vars"]) => {
       await requireAccess();
+      requireString(vars.parent_id, "parent_id");
+      requireString(vars.text, "text");
+      if (vars.text.length > MAX_MESSAGE_LENGTH) {
+        throw new Error(`Message text exceeds maximum length of ${MAX_MESSAGE_LENGTH}`);
+      }
+
       const opKey = leagueMessageOperationKey(vars);
       const existing = findBlockingRecord(opKey);
       if (existing) {

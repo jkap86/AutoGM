@@ -220,13 +220,16 @@ export function waiverSubmitOperationKey(vars: {
     .map((k, i) => [k, (vars.v_drops ?? [])[i]] as const)
     .sort(([a], [b]) => a.localeCompare(b));
 
+  const settings = (vars.k_settings ?? [])
+    .map((k, i) => [k, (vars.v_settings ?? [])[i]] as const)
+    .sort(([a], [b]) => a.localeCompare(b));
+
   return makeKey([
     "submitWaiverClaim",
     vars.league_id,
     adds,
     drops,
-    vars.k_settings ?? [],
-    vars.v_settings ?? [],
+    settings,
   ]);
 }
 

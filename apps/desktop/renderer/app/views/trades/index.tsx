@@ -360,8 +360,13 @@ function TradesContent({
     (ProposeTradeVars & { user_id: string; _effective?: { playersToGive: string[]; playersToReceive: string[]; picksToGive: string[]; picksToReceive: string[] } })[]
   >([]);
 
+  type ProposalResult =
+    | { status: "success"; leagueName: string; recipientName: string }
+    | { status: "error"; leagueName: string; recipientName: string; message: string };
+
   const [submitting, setSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
+  const [submitResults, setSubmitResults] = useState<ProposalResult[]>([]);
 
   useEffect(() => {
     setSelectedProposals([]);
@@ -525,13 +530,24 @@ function TradesContent({
     if (selectedProposals.length === 0) return;
     setSubmitting(true);
     setSubmitProgress(0);
+    setSubmitResults([]);
+
+    const results: ProposalResult[] = [];
+    const failedIndices: number[] = [];
+
     for (let i = 0; i < selectedProposals.length; i++) {
       const { user_id, _effective, ...vars } = selectedProposals[i];
       const eff = _effective ?? { playersToGive, playersToReceive, picksToGive, picksToReceive };
+      const league = leagues[vars.league_id];
+      const leagueName = league?.name ?? vars.league_id;
+      const recipientRoster = league?.rosters.find((r) => r.user_id === user_id);
+      const recipientName = recipientRoster?.username ?? user_id;
+
       try {
         const result = await proposeTrade({ ...vars, ...(expiresAt ? { expires_at: Math.floor(expiresAt / 1000) } : {}) });
         const transaction = result.propose_trade;
-        const league = leagues[vars.league_id];
+
+        results.push({ status: "success", leagueName, recipientName });
 
         try {
           await sendTradeDm(
@@ -545,25 +561,34 @@ function TradesContent({
             "proposed",
             `@${league?.user_roster.username} has proposed a trade in ${league?.name}`,
           );
-        } catch (e) {
-          console.error(`DM for proposal ${i + 1} failed:`, e);
+        } catch {
+          // DM failure is non-critical — trade was still sent
         }
       } catch (e) {
-        console.error(`Trade proposal ${i + 1} failed:`, e);
+        const errMsg = e instanceof Error ? e.message : String(e);
+        results.push({ status: "error", leagueName, recipientName, message: errMsg });
+        failedIndices.push(i);
       }
       setSubmitProgress(i + 1);
+      setSubmitResults([...results]);
       if (i < selectedProposals.length - 1) {
         await new Promise((r) => setTimeout(r, 2000 + Math.random() * 3000));
       }
     }
     setSubmitting(false);
-    setSelectedProposals([]);
+    // Only clear successful proposals; keep failed ones selected for retry
+    if (failedIndices.length === 0) {
+      setSelectedProposals([]);
+    } else {
+      setSelectedProposals((prev) => prev.filter((_, i) => failedIndices.includes(i)));
+    }
     refetchPendingRef.current();
   }, [
     selectedProposals,
     proposeTrade,
     sendTradeDm,
     leagues,
+    expiresAt,
     playersToGive,
     playersToReceive,
     picksToGive,
@@ -1202,6 +1227,40 @@ function TradesContent({
             </button>
           )}
         </div>
+
+        {/* Batch submit results */}
+        {submitResults.length > 0 && !submitting && (() => {
+          const successes = submitResults.filter((r) => r.status === "success");
+          const errors = submitResults.filter((r): r is ProposalResult & { status: "error" } => r.status === "error");
+          return (
+            <div className="w-full max-w-4xl">
+              {errors.length > 0 ? (
+                <div className="rounded-lg border border-red-800/50 bg-red-900/15 px-4 py-3 mb-4">
+                  <p className="text-xs font-semibold text-red-400 mb-1.5">
+                    Sent {successes.length} of {submitResults.length}. Failed:
+                  </p>
+                  <ul className="flex flex-col gap-0.5">
+                    {errors.map((r, i) => (
+                      <li key={i} className="text-[11px] text-red-300/80">
+                        <span className="font-medium text-red-300">{r.leagueName}</span>
+                        {" / "}
+                        <span className="text-red-300/70">{r.recipientName}</span>
+                        {": "}
+                        <span className="text-red-400/70">{r.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-green-800/50 bg-green-900/15 px-4 py-2.5 mb-4">
+                  <p className="text-xs font-medium text-green-400">
+                    All {successes.length} {successes.length === 1 ? "proposal" : "proposals"} sent successfully.
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {playersToGive.length === 0 &&
         playersToReceive.length === 0 &&

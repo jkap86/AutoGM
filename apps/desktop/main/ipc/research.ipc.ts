@@ -1,6 +1,11 @@
 import { ipcMain } from "electron";
 import { requireAccess } from "../lib/auth";
 import type { AdpFilters } from "../helpers/fetch-adp";
+import {
+  requireString,
+  requireStringArray,
+  requireDateString,
+} from "../lib/ipc-validation";
 
 export function registerResearchIpc() {
   ipcMain.handle("ktc:latest", async () => {
@@ -13,6 +18,12 @@ export function registerResearchIpc() {
     "ktc:history",
     async (_event, args: { playerIds: string[]; days?: number }) => {
       await requireAccess();
+      requireStringArray(args.playerIds, "playerIds");
+      if (args.days != null) {
+        if (!Number.isInteger(args.days) || args.days <= 0 || args.days > 365) {
+          throw new Error("days must be an integer between 1 and 365");
+        }
+      }
       const { fetchKtcHistory } = await import("../helpers/fetch-ktc");
       return fetchKtcHistory(args.playerIds, args.days);
     },
@@ -20,6 +31,7 @@ export function registerResearchIpc() {
 
   ipcMain.handle("ktc:byDate", async (_event, args: { date: string }) => {
     await requireAccess();
+    requireDateString(args.date, "date");
     const { fetchKtcByDate } = await import("../helpers/fetch-ktc");
     return fetchKtcByDate(args.date);
   });
@@ -40,6 +52,7 @@ export function registerResearchIpc() {
     "opponent:drafts",
     async (_event, args: { userId: string }) => {
       await requireAccess();
+      requireString(args.userId, "userId");
       const { fetchOpponentDrafts } = await import(
         "../helpers/fetch-opponent-drafts"
       );
@@ -58,6 +71,11 @@ export function registerResearchIpc() {
       },
     ) => {
       await requireAccess();
+      requireString(args.opponentUserId, "opponentUserId");
+      requireStringArray(args.playerIds, "playerIds");
+      if (args.season != null) {
+        requireString(args.season, "season");
+      }
       const { fetchOpponentTrades } = await import(
         "../helpers/fetch-opponent-trades"
       );

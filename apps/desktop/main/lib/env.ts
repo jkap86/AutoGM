@@ -15,3 +15,6 @@ export const PW_CHANNEL: string =
 
 export const LOGIN_URL: string =
   process.env.LOGIN_URL ?? "";
+
+export const DESKTOP_API_KEY: string =
+  process.env.DESKTOP_API_KEY ?? "";

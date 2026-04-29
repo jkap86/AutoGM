@@ -1,16 +1,24 @@
-import { API_URL } from "./env";
+import { API_URL, DESKTOP_API_KEY } from "./env";
 import { getSession } from "./auth";
 
+function apiHeaders(): Record<string, string> {
+  const session = getSession();
+  const headers: Record<string, string> = {
+    "x-user-id": session?.user_id ?? "",
+  };
+  if (DESKTOP_API_KEY) {
+    headers["x-desktop-api-key"] = DESKTOP_API_KEY;
+  }
+  return headers;
+}
+
 /**
- * Call the AutoGM web API. Adds the x-user-id header from the current session.
+ * Call the AutoGM web API. Adds auth headers from the current session.
  */
 export async function apiGet<T>(path: string): Promise<T> {
   if (!API_URL) throw new Error("API_URL is not configured");
-  const session = getSession();
   const res = await fetch(`${API_URL}${path}`, {
-    headers: {
-      "x-user-id": session?.user_id ?? "",
-    },
+    headers: apiHeaders(),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -21,12 +29,11 @@ export async function apiGet<T>(path: string): Promise<T> {
 
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   if (!API_URL) throw new Error("API_URL is not configured");
-  const session = getSession();
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-user-id": session?.user_id ?? "",
+      ...apiHeaders(),
     },
     body: JSON.stringify(body),
   });

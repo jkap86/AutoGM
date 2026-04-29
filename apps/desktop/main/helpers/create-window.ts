@@ -7,18 +7,33 @@ import {
 } from 'electron'
 import Store from 'electron-store'
 
+type WindowStoreSchema = {
+  'window-state': Partial<Rectangle>
+}
+
+function openExternalSafely(url: string) {
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      shell.openExternal(url)
+    }
+  } catch {
+    // Ignore malformed URLs
+  }
+}
+
 export const createWindow = (
   windowName: string,
   options: BrowserWindowConstructorOptions
 ): BrowserWindow => {
-  const key = 'window-state'
+  const key = 'window-state' as const
   const name = `window-state-${windowName}`
-  const store = new Store<Rectangle>({ name })
+  const store = new Store<WindowStoreSchema>({ name })
   const defaultSize = {
     width: options.width,
     height: options.height,
   }
-  let state = {}
+  let state: Partial<Rectangle> = {}
 
   const restore = () => store.get(key, defaultSize) as Rectangle
 
@@ -45,8 +60,8 @@ export const createWindow = (
   const resetToDefaults = () => {
     const bounds = screen.getPrimaryDisplay().bounds
     return Object.assign({}, defaultSize, {
-      x: (bounds.width - defaultSize.width!) / 2,
-      y: (bounds.height - defaultSize.height!) / 2,
+      x: bounds.x + (bounds.width - defaultSize.width!) / 2,
+      y: bounds.y + (bounds.height - defaultSize.height!) / 2,
     })
   }
 
@@ -85,7 +100,7 @@ export const createWindow = (
 
   // Prevent external URLs from loading inside the app window
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    openExternalSafely(url)
     return { action: 'deny' }
   })
 
@@ -95,7 +110,7 @@ export const createWindow = (
       url.startsWith('http://localhost:')
     if (!allowed) {
       event.preventDefault()
-      shell.openExternal(url)
+      openExternalSafely(url)
     }
   })
 
