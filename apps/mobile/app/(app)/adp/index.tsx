@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react'
-import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet, ScrollView } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, ScrollView } from 'react-native'
 import type { Allplayer } from '@autogm/shared'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { useAdp } from '../../../src/hooks/use-adp'
-import { colors } from '../../../src/theme'
 
 type PosFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE'
 
@@ -44,35 +43,35 @@ export default function AdpScreen() {
   const positions: PosFilter[] = ['ALL', 'QB', 'RB', 'WR', 'TE']
 
   return (
-    <View style={s.container}>
+    <View className="flex-1 bg-gray-900">
       {/* Filters */}
-      <View style={s.filterRow}>
-        <Text style={s.label}>From</Text>
-        <TextInput value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} style={s.dateInput} />
-        <Text style={s.label}>To</Text>
-        <TextInput value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} style={s.dateInput} />
-        <Text style={s.label}>Min</Text>
-        <TextInput value={String(minDrafts)} onChangeText={(v) => setMinDrafts(Math.max(1, Number(v) || 1))} keyboardType="number-pad" style={[s.dateInput, { width: 36 }]} />
+      <View className="flex-row items-center gap-1.5 px-3 py-2 border-b border-gray-800 flex-wrap">
+        <Text className="text-gray-500 text-[10px] font-semibold uppercase">From</Text>
+        <TextInput value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" placeholderTextColor="#6B7280" className="bg-gray-800 rounded-md px-2 py-1 text-gray-100 text-[11px] border border-gray-700 w-[90px]" />
+        <Text className="text-gray-500 text-[10px] font-semibold uppercase">To</Text>
+        <TextInput value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD" placeholderTextColor="#6B7280" className="bg-gray-800 rounded-md px-2 py-1 text-gray-100 text-[11px] border border-gray-700 w-[90px]" />
+        <Text className="text-gray-500 text-[10px] font-semibold uppercase">Min</Text>
+        <TextInput value={String(minDrafts)} onChangeText={(v) => setMinDrafts(Math.max(1, Number(v) || 1))} keyboardType="number-pad" className="bg-gray-800 rounded-md px-2 py-1 text-gray-100 text-[11px] border border-gray-700 w-9" />
       </View>
 
       {/* Type + Stats */}
-      <View style={s.typeRow}>
+      <View className="flex-row items-center gap-1 px-3 py-1.5 border-b border-gray-800">
         {['', 'snake', 'auction', 'linear'].map((t) => (
-          <TouchableOpacity key={t} onPress={() => setDraftType(t)} style={[s.typeBtn, draftType === t && s.typeBtnActive]}>
-            <Text style={[s.typeText, draftType === t && s.typeTextActive]}>{t || 'Any'}</Text>
+          <TouchableOpacity key={t} onPress={() => setDraftType(t)} className={`px-2.5 py-1 rounded-xl ${draftType === t ? 'bg-blue-600' : 'bg-gray-800'}`}>
+            <Text className={`text-[11px] font-medium capitalize ${draftType === t ? 'text-white' : 'text-gray-500'}`}>{t || 'Any'}</Text>
           </TouchableOpacity>
         ))}
         {stats && !loading && (
-          <Text style={s.statsText}>{stats.n_drafts.toLocaleString()} drafts · {stats.n_leagues.toLocaleString()} leagues</Text>
+          <Text className="text-gray-500 text-[10px] ml-auto">{stats.n_drafts.toLocaleString()} drafts · {stats.n_leagues.toLocaleString()} leagues</Text>
         )}
       </View>
 
       {/* Position + Search */}
-      <View style={s.posRow}>
+      <View className="flex-row items-center gap-2 px-3 py-2 border-b border-gray-800">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
           {positions.map((p) => (
-            <TouchableOpacity key={p} onPress={() => setPosFilter(p)} style={[s.posBtn, posFilter === p && s.posBtnActive]}>
-              <Text style={[s.posText, posFilter === p && s.posTextActive]}>{p}</Text>
+            <TouchableOpacity key={p} onPress={() => setPosFilter(p)} className={`px-3 py-1.5 rounded-[14px] ${posFilter === p ? 'bg-blue-600' : 'bg-gray-800'}`}>
+              <Text className={`text-[11px] font-medium ${posFilter === p ? 'text-white' : 'text-gray-500'}`}>{p}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -80,78 +79,50 @@ export default function AdpScreen() {
           value={search}
           onChangeText={setSearch}
           placeholder="Search..."
-          placeholderTextColor={colors.textMuted}
-          style={s.searchInput}
+          placeholderTextColor="#6B7280"
+          className="flex-1 bg-gray-800 rounded-lg px-2.5 py-1.5 text-gray-100 text-xs border border-gray-700"
         />
       </View>
 
       {/* Results */}
       {loading && filtered.length === 0 ? (
-        <View style={s.center}><ActivityIndicator size="large" color={colors.blueLight} /></View>
+        <View className="flex-1 items-center justify-center"><ActivityIndicator size="large" color="#2563EB" /></View>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(r) => r.player_id}
           ListHeaderComponent={
-            <View style={s.headerRow}>
-              <Text style={[s.headerCell, { flex: 2 }]}>Player</Text>
-              <Text style={s.headerCell}>ADP</Text>
-              <Text style={s.headerCell}>Min</Text>
-              <Text style={s.headerCell}>Max</Text>
-              <Text style={s.headerCell}>Stdev</Text>
-              <Text style={s.headerCell}>Auc%</Text>
-              <Text style={s.headerCell}>#</Text>
+            <View className="flex-row px-3 py-1.5 border-b border-gray-700">
+              <Text className="flex-[2] text-gray-500 text-[10px] font-semibold text-right">Player</Text>
+              <Text className="flex-1 text-gray-500 text-[10px] font-semibold text-right">ADP</Text>
+              <Text className="flex-1 text-gray-500 text-[10px] font-semibold text-right">Min</Text>
+              <Text className="flex-1 text-gray-500 text-[10px] font-semibold text-right">Max</Text>
+              <Text className="flex-1 text-gray-500 text-[10px] font-semibold text-right">Stdev</Text>
+              <Text className="flex-1 text-gray-500 text-[10px] font-semibold text-right">Auc%</Text>
+              <Text className="flex-1 text-gray-500 text-[10px] font-semibold text-right">#</Text>
             </View>
           }
           renderItem={({ item }) => {
             const p = allplayers[item.player_id]
             return (
-              <View style={s.row}>
-                <View style={{ flex: 2 }}>
-                  <Text style={s.playerName} numberOfLines={1}>{p?.full_name || item.player_id}</Text>
-                  <Text style={s.playerDetail}>{p?.position ?? '?'} - {p?.team ?? 'FA'}</Text>
+              <View className="flex-row items-center px-3 py-2 border-b border-gray-800/25">
+                <View className="flex-[2]">
+                  <Text className="text-gray-100 text-[13px] font-medium" numberOfLines={1}>{p?.full_name || item.player_id}</Text>
+                  <Text className="text-gray-500 text-[10px] mt-px">{p?.position ?? '?'} - {p?.team ?? 'FA'}</Text>
                 </View>
-                <Text style={s.cell}>{item.adp.toFixed(1)}</Text>
-                <Text style={s.cell}>{item.min_pick}</Text>
-                <Text style={s.cell}>{item.max_pick}</Text>
-                <Text style={s.cell}>{item.stdev != null ? item.stdev.toFixed(1) : '-'}</Text>
-                <Text style={s.cell}>{item.avg_pct != null ? `${(item.avg_pct * 100).toFixed(1)}` : '-'}</Text>
-                <Text style={s.cell}>{item.n_drafts}</Text>
+                <Text className="flex-1 text-gray-100 text-xs text-right">{item.adp.toFixed(1)}</Text>
+                <Text className="flex-1 text-gray-100 text-xs text-right">{item.min_pick}</Text>
+                <Text className="flex-1 text-gray-100 text-xs text-right">{item.max_pick}</Text>
+                <Text className="flex-1 text-gray-100 text-xs text-right">{item.stdev != null ? item.stdev.toFixed(1) : '-'}</Text>
+                <Text className="flex-1 text-gray-100 text-xs text-right">{item.avg_pct != null ? `${(item.avg_pct * 100).toFixed(1)}` : '-'}</Text>
+                <Text className="flex-1 text-gray-100 text-xs text-right">{item.n_drafts}</Text>
               </View>
             )
           }}
-          ListEmptyComponent={<Text style={s.empty}>No results</Text>}
-          ListFooterComponent={filtered.length >= 300 ? <Text style={s.footer}>Showing first 300 of {adpRows.length}</Text> : null}
+          ListEmptyComponent={<Text className="text-gray-500 text-center p-10 text-[13px]">No results</Text>}
+          ListFooterComponent={filtered.length >= 300 ? <Text className="text-gray-500 text-center p-3 text-[11px]">Showing first 300 of {adpRows.length}</Text> : null}
         />
       )}
     </View>
   )
 }
-
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.card, flexWrap: 'wrap' },
-  label: { color: colors.textMuted, fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
-  dateInput: { backgroundColor: colors.card, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, color: colors.text, fontSize: 11, borderWidth: 1, borderColor: colors.border, width: 90 },
-  typeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.card },
-  typeBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: colors.card },
-  typeBtnActive: { backgroundColor: colors.blue },
-  typeText: { color: colors.textMuted, fontSize: 11, fontWeight: '500', textTransform: 'capitalize' },
-  typeTextActive: { color: colors.white },
-  statsText: { color: colors.textMuted, fontSize: 10, marginLeft: 'auto' },
-  posRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.card },
-  posBtn: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: colors.card },
-  posBtnActive: { backgroundColor: colors.blue },
-  posText: { color: colors.textMuted, fontSize: 11, fontWeight: '500' },
-  posTextActive: { color: colors.white },
-  searchInput: { flex: 1, backgroundColor: colors.card, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, color: colors.text, fontSize: 12, borderWidth: 1, borderColor: colors.border },
-  headerRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
-  headerCell: { flex: 1, color: colors.textMuted, fontSize: 10, fontWeight: '600', textAlign: 'right' },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.card + '40' },
-  playerName: { color: colors.text, fontSize: 13, fontWeight: '500' },
-  playerDetail: { color: colors.textMuted, fontSize: 10, marginTop: 1 },
-  cell: { flex: 1, color: colors.text, fontSize: 12, textAlign: 'right' },
-  empty: { color: colors.textMuted, textAlign: 'center', padding: 40, fontSize: 13 },
-  footer: { color: colors.textMuted, textAlign: 'center', padding: 12, fontSize: 11 },
-})

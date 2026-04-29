@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Text, View, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native'
+import { Text, View, TouchableOpacity, Alert, ActivityIndicator } from 'react-native'
 import { Tabs, Redirect, useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { clearSession } from '@autogm/shared'
@@ -7,14 +7,12 @@ import { useAuth } from '@autogm/shared/react'
 import { LeagueCacheProvider } from '../../src/league-cache'
 import { checkAccess } from '../../src/access'
 import { DEMO_SESSION } from '../../src/demo-data'
-import { colors } from '../../src/theme'
 
 export default function AppLayout() {
   const { session, restoring, clearSession: clearAuthSession } = useAuth()
   const router = useRouter()
   const [accessAllowed, setAccessAllowed] = useState<boolean | null>(null)
 
-  // Check allowlist after session is available (skip for demo)
   useEffect(() => {
     if (restoring || !session?.user_id) return
     if (session.user_id === DEMO_SESSION.user_id) {
@@ -48,88 +46,76 @@ export default function AppLayout() {
     return <Redirect href="/(auth)/login" />
   }
 
-  // Wait for access check
   if (accessAllowed === null) {
     return (
-      <View style={s.center}>
-        <ActivityIndicator size="large" color={colors.blueLight} />
-        <Text style={s.text}>Checking access...</Text>
+      <View className="flex-1 bg-gray-900 items-center justify-center p-6">
+        <ActivityIndicator size="large" color="#60A5FA" />
+        <Text className="text-gray-400 text-center mt-2">Checking access...</Text>
       </View>
     )
   }
 
   if (!accessAllowed) {
     return (
-      <View style={s.center}>
-        <Text style={s.title}>Access Denied</Text>
-        <Text style={s.text}>
+      <View className="flex-1 bg-gray-900 items-center justify-center p-6">
+        <Text className="text-white text-xl font-bold mb-2">Access Denied</Text>
+        <Text className="text-gray-400 text-center mt-2">
           Your account ({session.user_id}) is not on the access list.
         </Text>
-        <TouchableOpacity onPress={handleLogout} style={s.btn}>
-          <Text style={s.btnText}>Sign Out</Text>
+        <TouchableOpacity onPress={handleLogout} className="bg-gray-800 px-5 py-2.5 rounded-lg mt-4">
+          <Text className="text-gray-400 font-semibold text-sm">Sign Out</Text>
         </TouchableOpacity>
       </View>
     )
   }
 
   const logoutButton = () => (
-    <TouchableOpacity onPress={handleLogout} style={{ marginRight: 8 }}>
-      <Text style={{ color: colors.textMuted, fontSize: 13 }}>Sign Out</Text>
+    <TouchableOpacity onPress={handleLogout} className="mr-2">
+      <Text className="text-gray-500 text-xs">Sign Out</Text>
     </TouchableOpacity>
   )
 
   return (
     <LeagueCacheProvider>
-    <Tabs
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.bg },
-        headerTintColor: colors.text,
-        tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.card },
-        tabBarActiveTintColor: colors.blueLight,
-        tabBarInactiveTintColor: colors.textMuted,
-        headerRight: logoutButton,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Leagues',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🏈</Text>,
+      <Tabs
+        screenOptions={{
+          headerStyle: { backgroundColor: '#111827' },
+          headerTintColor: '#F3F4F6',
+          tabBarStyle: { backgroundColor: '#111827', borderTopColor: '#1F2937' },
+          tabBarActiveTintColor: '#60A5FA',
+          tabBarInactiveTintColor: '#6B7280',
+          headerRight: logoutButton,
         }}
-      />
-      <Tabs.Screen
-        name="trades/index"
-        options={{
-          title: 'Trades',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🔄</Text>,
-        }}
-      />
-      <Tabs.Screen
-        name="adp/index"
-        options={{
-          title: 'ADP',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📈</Text>,
-        }}
-      />
-      <Tabs.Screen
-        name="polls/index"
-        options={{
-          title: 'Polls',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📋</Text>,
-        }}
-      />
-      {/* Hidden from tabs - accessed as subtabs of Leagues */}
-      <Tabs.Screen name="rankings/index" options={{ href: null }} />
-      <Tabs.Screen name="chats/index" options={{ href: null }} />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Leagues',
+            tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🏈</Text>,
+          }}
+        />
+        <Tabs.Screen
+          name="transactions/index"
+          options={{
+            title: 'Transactions',
+            tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🔄</Text>,
+          }}
+        />
+        <Tabs.Screen
+          name="research/index"
+          options={{
+            title: 'Research',
+            tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📊</Text>,
+          }}
+        />
+        {/* Hidden routes - accessed within tab views */}
+        <Tabs.Screen name="rankings/index" options={{ href: null }} />
+        <Tabs.Screen name="chats/index" options={{ href: null }} />
+        <Tabs.Screen name="trades/index" options={{ href: null }} />
+        <Tabs.Screen name="trades/create" options={{ href: null }} />
+        <Tabs.Screen name="adp/index" options={{ href: null }} />
+        <Tabs.Screen name="polls/index" options={{ href: null }} />
+      </Tabs>
     </LeagueCacheProvider>
   )
 }
-
-const s = StyleSheet.create({
-  center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  title: { color: colors.white, fontSize: 20, fontWeight: '700', marginBottom: 8 },
-  text: { color: colors.textSecondary, textAlign: 'center', marginTop: 8 },
-  btn: { backgroundColor: colors.card, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, marginTop: 16 },
-  btnText: { color: colors.textSecondary, fontWeight: '600', fontSize: 14 },
-})

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { View, Text, FlatList, ActivityIndicator, Image, TouchableOpacity, TextInput, ScrollView, StyleSheet } from 'react-native'
+import { View, Text, FlatList, ActivityIndicator, Image, TouchableOpacity, TextInput, ScrollView } from 'react-native'
 import type { LeagueDetailed, Roster, Allplayer } from '@autogm/shared'
 import { useLeagueCache } from '../../src/league-cache'
 import { useKtc } from '../../src/hooks/use-ktc'
@@ -8,7 +8,6 @@ import { useAllPlayers } from '../../src/hooks/use-allplayers'
 import { useAuth } from '@autogm/shared/react'
 import { type ValueType, buildValueLookup, formatValue, getPickKtcName } from '../../src/utils/value-lookup'
 import { mobileDataClient } from '../../src/data-client'
-import { colors } from '../../src/theme'
 import type { Message, MessagesResult, CreateMessageResult } from '@autogm/shared'
 import { useCallback, useRef } from 'react'
 
@@ -54,10 +53,10 @@ function computeRosterValue(
 }
 
 function rankColor(rank: number | null, total: number): string {
-  if (rank === 1) return colors.orange
-  if (rank != null && rank <= 3) return colors.green
-  if (rank != null && rank >= total - 2) return colors.red
-  return colors.text
+  if (rank === 1) return '#FB923C'
+  if (rank != null && rank <= 3) return '#4ADE80'
+  if (rank != null && rank >= total - 2) return '#F87171'
+  return '#F3F4F6'
 }
 
 function getRank(league: LeagueDetailed, rosterId: number, filter: PositionFilter, values: Record<string, number>, allplayers: Record<string, Allplayer>): number {
@@ -65,8 +64,6 @@ function getRank(league: LeagueDetailed, rosterId: number, filter: PositionFilte
   totals.sort((a, b) => b.total - a.total)
   return totals.findIndex((t) => t.rid === rosterId) + 1
 }
-
-// ─── Ranks Tab ────────────────────────────────────────────
 
 function LeagueRankCard({
   league, values, allplayers, valueType,
@@ -78,44 +75,44 @@ function LeagueRankCard({
   const total = league.rosters.length
 
   return (
-    <View style={s.card}>
-      <TouchableOpacity onPress={() => setExpanded((p) => !p)} style={s.cardHeader}>
+    <View className="bg-gray-800 rounded-xl mb-2.5 overflow-hidden">
+      <TouchableOpacity onPress={() => setExpanded((p) => !p)} className="flex-row items-center p-3">
         {league.avatar ? (
-          <Image source={{ uri: `https://sleepercdn.com/avatars/thumbs/${league.avatar}` }} style={s.avatar} />
+          <Image source={{ uri: `https://sleepercdn.com/avatars/thumbs/${league.avatar}` }} className="w-8 h-8 rounded-full mr-2.5" />
         ) : (
-          <View style={[s.avatar, s.avatarPlaceholder]}><Text style={{ fontSize: 16 }}>🏈</Text></View>
+          <View className="w-8 h-8 rounded-full mr-2.5 bg-gray-700 items-center justify-center">
+            <Text style={{ fontSize: 16 }}>🏈</Text>
+          </View>
         )}
-        <View style={{ flex: 1 }}>
-          <Text style={s.leagueName}>{league.name}</Text>
-          <Text style={s.subtext}>
+        <View className="flex-1">
+          <Text className="text-white font-semibold text-[15px]">{league.name}</Text>
+          <Text className="text-gray-400 text-xs mt-0.5">
             {league.season} · {league.settings.type === 2 ? 'Dynasty' : league.settings.type === 1 ? 'Keeper' : 'Redraft'} · {total} teams · {league.user_roster.wins}-{league.user_roster.losses}{league.user_roster.ties > 0 ? `-${league.user_roster.ties}` : ''}
           </Text>
         </View>
       </TouchableOpacity>
 
-      {/* Multi-rank grid */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 6, paddingBottom: 12 }}>
         {RANK_CATEGORIES.map(({ label, filter }) => {
           const rank = getRank(league, league.user_roster.roster_id, filter, values, allplayers)
           const value = computeRosterValue(league.user_roster, filter, values, allplayers)
           return (
-            <View key={filter} style={s.rankBox}>
-              <Text style={s.rankLabel}>{label}</Text>
-              <Text style={[s.rankNum, { color: rankColor(rank, total) }]}>#{rank}</Text>
-              <Text style={s.rankVal}>{formatValue(value, valueType)}</Text>
+            <View key={filter} className="items-center bg-gray-900 rounded-lg px-2.5 py-1.5 min-w-[60px]">
+              <Text className="text-gray-500 text-[10px] font-medium">{label}</Text>
+              <Text style={{ color: rankColor(rank, total), fontSize: 16, fontWeight: '800', marginTop: 2 }}>#{rank}</Text>
+              <Text className="text-gray-500 text-[10px] mt-0.5">{formatValue(value, valueType)}</Text>
             </View>
           )
         })}
       </ScrollView>
 
-      {/* Expanded: full team table for selected filter */}
       {expanded && (
-        <View style={s.expandedSection}>
+        <View className="border-t border-gray-700 pt-2">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 4, paddingHorizontal: 12, paddingBottom: 8 }}>
             {RANK_CATEGORIES.map(({ label, filter }) => (
               <TouchableOpacity key={filter} onPress={() => setExpandedFilter(filter)}
-                style={[s.miniFilterBtn, expandedFilter === filter && s.miniFilterBtnActive]}>
-                <Text style={[s.miniFilterText, expandedFilter === filter && s.miniFilterTextActive]}>{label}</Text>
+                className={`px-2.5 py-1 rounded-xl ${expandedFilter === filter ? 'bg-blue-600' : 'bg-gray-900'}`}>
+                <Text className={`text-[11px] font-medium ${expandedFilter === filter ? 'text-white' : 'text-gray-500'}`}>{label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -125,10 +122,10 @@ function LeagueRankCard({
             .map((entry, i) => {
               const isUser = entry.roster.roster_id === league.user_roster.roster_id
               return (
-                <View key={entry.roster.roster_id} style={[s.rankRow, isUser && s.rankRowUser]}>
-                  <Text style={[s.rankRowNum, { color: rankColor(i + 1, total) }]}>#{i + 1}</Text>
-                  <Text style={[s.rankRowName, isUser && { color: colors.blueLight }]} numberOfLines={1}>{entry.roster.username}</Text>
-                  <Text style={s.rankRowVal}>{formatValue(entry.value, valueType)}</Text>
+                <View key={entry.roster.roster_id} className={`flex-row items-center px-3 py-1.5 ${isUser ? 'bg-blue-600/10' : ''}`}>
+                  <Text style={{ color: rankColor(i + 1, total), width: 30, fontSize: 13, fontWeight: '700' }}>#{i + 1}</Text>
+                  <Text className={`flex-1 text-[13px] ${isUser ? 'text-blue-400' : 'text-gray-100'}`} numberOfLines={1}>{entry.roster.username}</Text>
+                  <Text className="text-gray-500 text-xs font-semibold">{formatValue(entry.value, valueType)}</Text>
                 </View>
               )
             })}
@@ -149,26 +146,24 @@ function RanksView({ leagues, allplayers, ktc }: {
     { startDate: defaultStart, endDate: today, minDrafts: 2 }, isAdp,
   )
   const valueLookup = useMemo(() => buildValueLookup(valueType, ktc, adpRows), [valueType, ktc, adpRows])
-
   const valueTypes: ValueType[] = ['ktc', 'adp', 'auction']
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Value type toggle */}
-      <View style={s.controlBar}>
-        <View style={s.segmented}>
+    <View className="flex-1">
+      <View className="flex-row items-center px-3 py-2 border-b border-gray-800">
+        <View className="flex-row bg-gray-800 rounded-lg p-0.5">
           {valueTypes.map((v) => (
-            <TouchableOpacity key={v} onPress={() => setValueType(v)} style={[s.segBtn, valueType === v && s.segBtnActive]}>
-              <Text style={[s.segText, valueType === v && s.segTextActive]}>{v.toUpperCase()}</Text>
+            <TouchableOpacity key={v} onPress={() => setValueType(v)}
+              className={`px-3.5 py-1.5 rounded-md ${valueType === v ? 'bg-blue-600' : ''}`}>
+              <Text className={`text-xs font-semibold ${valueType === v ? 'text-white' : 'text-gray-500'}`}>{v.toUpperCase()}</Text>
             </TouchableOpacity>
           ))}
         </View>
         {isAdp && stats && !adpLoading && (
-          <Text style={s.statsText}>{stats.n_drafts.toLocaleString()} drafts</Text>
+          <Text className="text-gray-500 text-[11px] ml-3">{stats.n_drafts.toLocaleString()} drafts</Text>
         )}
-        {adpLoading && <ActivityIndicator size="small" color={colors.blueLight} style={{ marginLeft: 8 }} />}
+        {adpLoading && <ActivityIndicator size="small" color="#60A5FA" className="ml-2" />}
       </View>
-
       <FlatList
         data={leagues}
         keyExtractor={(l) => l.league_id}
@@ -180,8 +175,6 @@ function RanksView({ leagues, allplayers, ktc }: {
     </View>
   )
 }
-
-// ─── Chats Tab ────────────────────────────────────────────
 
 type SortMode = 'original' | 'alpha' | 'recent'
 
@@ -214,8 +207,8 @@ function ChatCard({ league, userId, onLastMessage }: {
     } catch {} finally { if (!silent) setLoading(false) }
   }, [league.league_id, onLastMessage])
 
-  useEffect(() => { fetchMsgs(true) }, []) // eslint-disable-line
-  useEffect(() => { if (expanded) fetchMsgs() }, [expanded]) // eslint-disable-line
+  useEffect(() => { fetchMsgs(true) }, [])
+  useEffect(() => { if (expanded) fetchMsgs() }, [expanded])
 
   const sendMsg = useCallback(async () => {
     const text = draftRef.current.trim()
@@ -231,68 +224,69 @@ function ChatCard({ league, userId, onLastMessage }: {
   const lastMsg = sorted.length > 0 ? sorted[sorted.length - 1] : null
 
   return (
-    <View style={s.card}>
-      <TouchableOpacity onPress={() => setExpanded((p) => !p)} style={s.cardHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.leagueName}>{league.name}</Text>
+    <View className="bg-gray-800 rounded-xl mb-2.5 overflow-hidden">
+      <TouchableOpacity onPress={() => setExpanded((p) => !p)} className="flex-row items-center p-3">
+        <View className="flex-1">
+          <Text className="text-white font-semibold text-[15px]">{league.name}</Text>
           {!expanded && lastMsg ? (
-            <Text style={s.subtext} numberOfLines={1}>{lastMsg.author_display_name}: {lastMsg.text || '...'}</Text>
+            <Text className="text-gray-400 text-xs mt-0.5" numberOfLines={1}>{lastMsg.author_display_name}: {lastMsg.text || '...'}</Text>
           ) : (
-            <Text style={s.subtext}>{league.rosters.length} teams</Text>
+            <Text className="text-gray-400 text-xs mt-0.5">{league.rosters.length} teams</Text>
           )}
         </View>
-        {!expanded && lastMsg && <Text style={{ color: colors.textDim, fontSize: 10 }}>{formatTime(lastMsg.created)}</Text>}
+        {!expanded && lastMsg && <Text className="text-gray-600 text-[10px]">{formatTime(lastMsg.created)}</Text>}
       </TouchableOpacity>
 
       {expanded && (
-        <View style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+        <View className="border-t border-gray-700">
           <View style={{ maxHeight: 260 }}>
             {loading && messages.length === 0 ? (
-              <View style={{ padding: 24, alignItems: 'center' }}><ActivityIndicator size="small" color={colors.blueLight} /></View>
+              <View className="p-6 items-center"><ActivityIndicator size="small" color="#60A5FA" /></View>
             ) : (
               <FlatList ref={flatListRef} data={sorted} keyExtractor={(m) => m.message_id}
                 onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
                 renderItem={({ item }) => {
                   const isMe = item.author_id === userId
                   return (
-                    <View style={[{ marginBottom: 4 }, isMe ? { alignItems: 'flex-end' } : { alignItems: 'flex-start' }]}>
-                      <View style={[s.bubble, isMe ? s.bubbleMe : s.bubbleOther]}>
-                        <Text style={{ color: colors.textMuted, fontSize: 10, fontWeight: '600' }}>{item.author_display_name}</Text>
-                        {item.text ? <Text style={{ color: colors.text, fontSize: 13 }}>{item.text}</Text> : null}
+                    <View className={`mb-1 ${isMe ? 'items-end' : 'items-start'}`}>
+                      <View className={`max-w-[75%] rounded-xl px-2.5 py-1.5 ${isMe ? 'bg-blue-600/20' : 'bg-gray-700'}`}>
+                        <Text className="text-gray-500 text-[10px] font-semibold">{item.author_display_name}</Text>
+                        {item.text ? <Text className="text-gray-100 text-[13px]">{item.text}</Text> : null}
                       </View>
                     </View>
                   )
                 }}
                 contentContainerStyle={{ padding: 8 }}
-                ListEmptyComponent={<Text style={[s.subtext, { textAlign: 'center', padding: 20 }]}>No messages</Text>}
+                ListEmptyComponent={<Text className="text-gray-400 text-center p-5 text-xs">No messages</Text>}
               />
             )}
           </View>
-          <View style={s.inputRow}>
-            <TouchableOpacity onPress={() => { setShowEmoji((p) => !p); setShowGif(false) }} style={{ padding: 4 }}>
+          <View className="flex-row items-center p-2 border-t border-gray-700">
+            <TouchableOpacity onPress={() => { setShowEmoji((p) => !p); setShowGif(false) }} className="p-1">
               <Text style={{ fontSize: 18 }}>😊</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { setShowGif((p) => !p); setShowEmoji(false) }}
-              style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-              <Text style={{ color: colors.textMuted, fontSize: 10, fontWeight: '700' }}>GIF</Text>
+              className="border border-gray-700 rounded px-1.5 py-0.5">
+              <Text className="text-gray-500 text-[10px] font-bold">GIF</Text>
             </TouchableOpacity>
-            <TextInput value={draft} onChangeText={setDraft} placeholder={`Message...`} placeholderTextColor={colors.textMuted}
-              style={s.chatInput} onSubmitEditing={sendMsg} returnKeyType="send" />
+            <TextInput value={draft} onChangeText={setDraft} placeholder="Message..." placeholderTextColor="#6B7280"
+              className="flex-1 bg-gray-900 rounded-lg px-2.5 py-1.5 text-gray-100 text-[13px] border border-gray-700 mx-1.5"
+              onSubmitEditing={sendMsg} returnKeyType="send" />
             <TouchableOpacity onPress={sendMsg} disabled={!draft.trim() || sending}
-              style={[s.sendBtn, (!draft.trim() || sending) && { opacity: 0.5 }]}>
-              <Text style={s.sendText}>{sending ? '...' : 'Send'}</Text>
+              className={`bg-blue-600 rounded-lg px-3 py-1.5 ${(!draft.trim() || sending) ? 'opacity-50' : ''}`}>
+              <Text className="text-white text-[13px] font-semibold">{sending ? '...' : 'Send'}</Text>
             </TouchableOpacity>
           </View>
           {showEmoji && (
-            <View style={{ paddingHorizontal: 8, paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border }}>
+            <View className="px-2 py-1.5 border-t border-gray-700">
               <ScrollView style={{ maxHeight: 140 }}>
                 {EMOJI_CATEGORIES.map((cat) => (
-                  <View key={cat.label} style={{ marginBottom: 6 }}>
-                    <Text style={{ color: colors.textMuted, fontSize: 10 }}>{cat.label}</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
+                  <View key={cat.label} className="mb-1.5">
+                    <Text className="text-gray-500 text-[10px]">{cat.label}</Text>
+                    <View className="flex-row flex-wrap gap-0.5">
                       {cat.emojis.map((e) => (
                         <TouchableOpacity key={e} onPress={() => { setDraft((p) => p + e); setShowEmoji(false) }}
-                          style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+                          className="w-8 h-8 items-center justify-center">
                           <Text style={{ fontSize: 18 }}>{e}</Text>
                         </TouchableOpacity>
                       ))}
@@ -303,9 +297,9 @@ function ChatCard({ league, userId, onLastMessage }: {
             </View>
           )}
           {showGif && (
-            <View style={{ paddingHorizontal: 8, paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border }}>
-              <TextInput value={gifQuery} placeholder="Search GIFs..." placeholderTextColor={colors.textMuted}
-                style={[s.chatInput, { marginBottom: 6 }]}
+            <View className="px-2 py-1.5 border-t border-gray-700">
+              <TextInput value={gifQuery} placeholder="Search GIFs..." placeholderTextColor="#6B7280"
+                className="bg-gray-900 rounded-lg px-2.5 py-1.5 text-gray-100 text-[13px] border border-gray-700 mb-1.5"
                 onChangeText={(q) => {
                   setGifQuery(q)
                   if (!q.trim()) { setGifResults([]); return }
@@ -316,7 +310,7 @@ function ChatCard({ league, userId, onLastMessage }: {
                     }))))
                 }} />
               <ScrollView style={{ maxHeight: 120 }}>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                <View className="flex-row flex-wrap gap-1">
                   {gifResults.map((g) => (
                     <TouchableOpacity key={g.id} onPress={async () => {
                       setShowGif(false); setSending(true)
@@ -328,8 +322,8 @@ function ChatCard({ league, userId, onLastMessage }: {
                         } as any)
                         await fetchMsgs()
                       } catch {} finally { setSending(false) }
-                    }} style={{ width: 80, height: 60, backgroundColor: colors.card, borderRadius: 6 }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 8, textAlign: 'center', paddingTop: 20 }}>GIF</Text>
+                    }} className="w-20 h-[60px] bg-gray-800 rounded-md items-center justify-center">
+                      <Text className="text-gray-500 text-[8px]">GIF</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -359,14 +353,14 @@ function ChatsView({ leagues, userId }: { leagues: LeagueDetailed[]; userId: str
   const sorts: { mode: SortMode; label: string }[] = [{ mode: 'original', label: 'Default' }, { mode: 'alpha', label: 'A-Z' }, { mode: 'recent', label: 'Recent' }]
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ borderBottomWidth: 1, borderBottomColor: colors.card, paddingVertical: 8 }}
+    <View className="flex-1">
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="border-b border-gray-800 py-2"
         contentContainerStyle={{ gap: 6, paddingHorizontal: 16, alignItems: 'center' }}>
-        <Text style={{ color: colors.textMuted, fontSize: 10, fontWeight: '600', textTransform: 'uppercase' }}>Sort</Text>
+        <Text className="text-gray-500 text-[10px] font-semibold uppercase">Sort</Text>
         {sorts.map((st) => (
           <TouchableOpacity key={st.mode} onPress={() => setSortMode(st.mode)}
-            style={[s.miniFilterBtn, sortMode === st.mode && s.miniFilterBtnActive]}>
-            <Text style={[s.miniFilterText, sortMode === st.mode && s.miniFilterTextActive]}>{st.label}</Text>
+            className={`px-2.5 py-1 rounded-xl ${sortMode === st.mode ? 'bg-blue-600' : 'bg-gray-900'}`}>
+            <Text className={`text-[11px] font-medium ${sortMode === st.mode ? 'text-white' : 'text-gray-500'}`}>{st.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -376,8 +370,6 @@ function ChatsView({ leagues, userId }: { leagues: LeagueDetailed[]; userId: str
     </View>
   )
 }
-
-// ─── Main Screen ──────────────────────────────────────────
 
 export default function LeaguesScreen() {
   const { leagues, loading, error } = useLeagueCache()
@@ -390,25 +382,26 @@ export default function LeaguesScreen() {
 
   if ((loading || ktcLoading || apLoading) && leagueList.length === 0) {
     return (
-      <View style={s.center}>
-        <ActivityIndicator size="large" color={colors.blueLight} />
-        <Text style={[s.subtext, { marginTop: 12 }]}>Loading...</Text>
+      <View className="flex-1 bg-gray-900 items-center justify-center p-6">
+        <ActivityIndicator size="large" color="#60A5FA" />
+        <Text className="text-gray-400 text-xs mt-3">Loading...</Text>
       </View>
     )
   }
 
   if (error) {
-    return <View style={s.center}><Text style={{ color: colors.red }}>{error}</Text></View>
+    return <View className="flex-1 bg-gray-900 items-center justify-center p-6"><Text className="text-red-400">{error}</Text></View>
   }
 
   return (
-    <View style={s.container}>
-      {/* Subtabs */}
-      <View style={s.tabBar}>
+    <View className="flex-1 bg-gray-900">
+      <View className="flex-row justify-center gap-1 py-2 border-b border-gray-800">
         {(['ranks', 'chats'] as LeaguesTab[]).map((t) => (
           <TouchableOpacity key={t} onPress={() => setTab(t)}
-            style={[s.tabBtn, tab === t && s.tabBtnActive]}>
-            <Text style={[s.tabText, tab === t && s.tabTextActive]}>{t === 'ranks' ? 'Ranks' : 'Chats'}</Text>
+            className={`px-5 py-1.5 rounded-lg ${tab === t ? 'bg-blue-600' : ''}`}>
+            <Text className={`text-[13px] font-semibold uppercase ${tab === t ? 'text-white' : 'text-gray-500'}`}>
+              {t === 'ranks' ? 'Ranks' : 'Chats'}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -421,53 +414,3 @@ export default function LeaguesScreen() {
     </View>
   )
 }
-
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  // Tabs
-  tabBar: { flexDirection: 'row', justifyContent: 'center', gap: 4, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.card },
-  tabBtn: { paddingHorizontal: 20, paddingVertical: 6, borderRadius: 8 },
-  tabBtnActive: { backgroundColor: colors.blue },
-  tabText: { color: colors.textMuted, fontSize: 13, fontWeight: '600', textTransform: 'uppercase' },
-  tabTextActive: { color: colors.white },
-  // Control bar
-  controlBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.card },
-  segmented: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 8, padding: 2 },
-  segBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 6 },
-  segBtnActive: { backgroundColor: colors.blue },
-  segText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  segTextActive: { color: colors.white },
-  statsText: { color: colors.textMuted, fontSize: 11, marginLeft: 12 },
-  // Cards
-  card: { backgroundColor: colors.card, borderRadius: 12, marginBottom: 10, overflow: 'hidden' },
-  avatar: { width: 32, height: 32, borderRadius: 16, marginRight: 10 },
-  avatarPlaceholder: { backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 12 },
-  leagueName: { color: colors.white, fontWeight: '600', fontSize: 15 },
-  subtext: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
-  // Rank grid
-  rankBox: { alignItems: 'center', backgroundColor: colors.bg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, minWidth: 60 },
-  rankLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '500' },
-  rankNum: { fontSize: 16, fontWeight: '800', marginTop: 2 },
-  rankVal: { color: colors.textMuted, fontSize: 10, marginTop: 1 },
-  // Expanded
-  expandedSection: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
-  miniFilterBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: colors.bg },
-  miniFilterBtnActive: { backgroundColor: colors.blue },
-  miniFilterText: { color: colors.textMuted, fontSize: 11, fontWeight: '500' },
-  miniFilterTextActive: { color: colors.white },
-  rankRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 5 },
-  rankRowUser: { backgroundColor: 'rgba(59,130,246,0.1)' },
-  rankRowNum: { width: 30, fontSize: 13, fontWeight: '700' },
-  rankRowName: { flex: 1, color: colors.text, fontSize: 13 },
-  rankRowVal: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  // Chat
-  bubble: { maxWidth: '75%', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5 },
-  bubbleMe: { backgroundColor: 'rgba(37,99,235,0.2)' },
-  bubbleOther: { backgroundColor: colors.border },
-  inputRow: { flexDirection: 'row', alignItems: 'center', padding: 8, borderTopWidth: 1, borderTopColor: colors.border },
-  chatInput: { flex: 1, backgroundColor: colors.bg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, color: colors.text, fontSize: 13, borderWidth: 1, borderColor: colors.border },
-  sendBtn: { marginLeft: 6, backgroundColor: colors.blue, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  sendText: { color: colors.white, fontSize: 13, fontWeight: '600' },
-})

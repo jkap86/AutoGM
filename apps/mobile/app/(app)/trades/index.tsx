@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  StyleSheet,
   Modal,
   ScrollView,
 } from 'react-native'
@@ -25,7 +24,6 @@ import {
 import { useTradeAction } from '../../../src/hooks/use-trade-action'
 import { mobileDataClient } from '../../../src/data-client'
 import { ErrorBoundary } from '../../../src/components/error-boundary'
-import { colors } from '../../../src/theme'
 
 import CreateTradeScreen from './create'
 
@@ -188,16 +186,16 @@ function TradeCard({
   }, [trade, userRoster, partnerRoster, counterGive, counterReceive, counterPicksGive, counterPicksReceive, onAction])
 
   return (
-    <View style={s.card}>
-      <View style={s.cardHeader}>
-        <Text style={s.white600}>{trade.league_name}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={[s.badge, isReceived ? s.badgeOrange : s.badgeBlue]}>
-            <Text style={[s.badgeText, { color: isReceived ? colors.orange : colors.blueLight }]}>
+    <View className="bg-gray-800 rounded-xl p-4 mb-3">
+      <View className="flex-row items-center justify-between mb-2">
+        <Text className="text-white font-semibold text-sm">{trade.league_name}</Text>
+        <View className="flex-row items-center gap-2">
+          <View className={`px-2 py-0.5 rounded ${isReceived ? 'bg-orange-500/20' : 'bg-blue-500/20'}`}>
+            <Text className={`text-[11px] font-medium ${isReceived ? 'text-orange-400' : 'text-blue-400'}`}>
               {isReceived ? 'Received' : 'Outgoing'}
             </Text>
           </View>
-          <Text style={s.dateText}>{date}</Text>
+          <Text className="text-gray-500 text-[11px]">{date}</Text>
         </View>
       </View>
 
@@ -239,22 +237,22 @@ function TradeCard({
         return (
           <View>
             {sideData.map((side) => (
-              <View key={side.rid} style={[s.tradeSide, side.isUser ? { borderLeftColor: colors.green } : { borderLeftColor: colors.red }]}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Text style={[s.label, { fontWeight: '600', color: side.isUser ? colors.green : colors.red }]}>
+              <View key={side.rid} className={`border-l-[3px] pl-2.5 mt-2 mb-1 ${side.isUser ? 'border-l-green-400' : 'border-l-red-400'}`}>
+                <View className="flex-row justify-between mb-1">
+                  <Text className={`text-[11px] font-semibold ${side.isUser ? 'text-green-400' : 'text-red-400'}`}>
                     {side.name} receives
                   </Text>
-                  {side.total > 0 && <Text style={[s.ktcValue, { fontWeight: '600' }]}>{fmtValue(side.total, valueType)}</Text>}
+                  {side.total > 0 && <Text className="text-gray-500 text-[11px] font-semibold ml-1.5">{fmtValue(side.total, valueType)}</Text>}
                 </View>
                 {side.receivingPids.map((pid) => {
                   const p = allplayers[pid]
                   return (
-                    <View key={pid} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                      <Text style={s.playerAdd}>
+                    <View key={pid} className="flex-row items-center mb-0.5">
+                      <Text className="text-green-400 text-[13px]">
                         {p ? `${p.first_name} ${p.last_name}` : pid}
                         {p ? ` (${p.position ?? '?'} - ${p.team ?? 'FA'})` : ''}
                       </Text>
-                      {valueLookup[pid] ? <Text style={s.ktcValue}>{fmtValue(valueLookup[pid], valueType)}</Text> : null}
+                      {valueLookup[pid] ? <Text className="text-gray-500 text-[11px] ml-1.5">{fmtValue(valueLookup[pid], valueType)}</Text> : null}
                     </View>
                   )
                 })}
@@ -263,17 +261,17 @@ function TradeCard({
                   const label = order ? `${dp.season} ${dp.round}.${String(order).padStart(2, '0')}` : `${dp.season} Round ${dp.round}`
                   const val = valueLookup[getPickKtcName(dp.season, dp.round, order)] ?? 0
                   return (
-                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                      <Text style={s.pickText}>{label}</Text>
-                      {val > 0 && <Text style={s.ktcValue}>{fmtValue(val, valueType)}</Text>}
+                    <View key={i} className="flex-row items-center mb-0.5">
+                      <Text className="text-blue-400 text-[13px] ml-2">{label}</Text>
+                      {val > 0 && <Text className="text-gray-500 text-[11px] ml-1.5">{fmtValue(val, valueType)}</Text>}
                     </View>
                   )
                 })}
               </View>
             ))}
             {userSide && partnerSide && (
-              <View style={{ alignItems: 'center', paddingVertical: 4 }}>
-                <Text style={{ color: netSwing >= 0 ? colors.green : colors.red, fontWeight: '700', fontSize: 13 }}>
+              <View className="items-center py-1">
+                <Text className={`font-bold text-[13px] ${netSwing >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {netSwing >= 0 ? '+' : ''}{fmtValue(netSwing, valueType)} net
                 </Text>
               </View>
@@ -283,7 +281,7 @@ function TradeCard({
       })()}
 
       {showActions && (
-        <View style={s.actions}>
+        <View className="flex-row gap-2 mt-3">
           <TouchableOpacity
             onPress={() =>
               Alert.alert('Accept Trade', 'Accept this trade?', [
@@ -292,9 +290,9 @@ function TradeCard({
               ])
             }
             disabled={acting}
-            style={[s.actionBtn, s.acceptBtn]}
+            className="flex-1 py-2 rounded-lg items-center bg-green-500/15"
           >
-            <Text style={[s.actionText, { color: colors.green }]}>{acting ? '...' : 'Accept'}</Text>
+            <Text className="font-semibold text-[13px] text-green-400">{acting ? '...' : 'Accept'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() =>
@@ -304,25 +302,25 @@ function TradeCard({
               ])
             }
             disabled={acting}
-            style={[s.actionBtn, s.rejectBtn]}
+            className="flex-1 py-2 rounded-lg items-center bg-red-500/15"
           >
-            <Text style={[s.actionText, { color: colors.red }]}>{acting ? '...' : 'Reject'}</Text>
+            <Text className="font-semibold text-[13px] text-red-400">{acting ? '...' : 'Reject'}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {showActions && (
-        <View style={[s.actions, { marginTop: 4 }]}>
-          <TouchableOpacity onPress={() => openCounter('counter')} style={[s.actionBtn, { backgroundColor: colors.card }]}>
-            <Text style={[s.actionText, { color: colors.blueLight }]}>Counter</Text>
+        <View className="flex-row gap-2 mt-1">
+          <TouchableOpacity onPress={() => openCounter('counter')} className="flex-1 py-2 rounded-lg items-center bg-gray-800">
+            <Text className="font-semibold text-[13px] text-blue-400">Counter</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {showWithdraw && (
-        <View style={s.actions}>
-          <TouchableOpacity onPress={() => openCounter('modify')} style={[s.actionBtn, { backgroundColor: colors.card }]}>
-            <Text style={[s.actionText, { color: colors.blueLight }]}>Modify</Text>
+        <View className="flex-row gap-2 mt-3">
+          <TouchableOpacity onPress={() => openCounter('modify')} className="flex-1 py-2 rounded-lg items-center bg-gray-800">
+            <Text className="font-semibold text-[13px] text-blue-400">Modify</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() =>
@@ -332,29 +330,29 @@ function TradeCard({
               ])
             }
             disabled={acting}
-            style={[s.actionBtn, s.rejectBtn]}
+            className="flex-1 py-2 rounded-lg items-center bg-red-500/15"
           >
-            <Text style={[s.actionText, { color: colors.orange }]}>{acting ? '...' : 'Withdraw'}</Text>
+            <Text className="font-semibold text-[13px] text-orange-400">{acting ? '...' : 'Withdraw'}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Counter/Modify Modal */}
       <Modal visible={counterOpen} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: colors.bg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-            <Text style={{ color: colors.white, fontSize: 17, fontWeight: '700' }}>Counter Offer</Text>
+        <View className="flex-1 bg-gray-900">
+          <View className="flex-row justify-between items-center p-4 border-b border-gray-700">
+            <Text className="text-white text-[17px] font-bold">Counter Offer</Text>
             <TouchableOpacity onPress={() => setCounterOpen(false)}>
-              <Text style={{ color: colors.blueLight, fontSize: 15 }}>Cancel</Text>
+              <Text className="text-blue-400 text-[15px]">Cancel</Text>
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 16 }}>
-            <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 12 }}>
+            <Text className="text-gray-500 text-xs mb-3">
               Tap players/picks to toggle. Green = you receive, Red = you give.
             </Text>
             {userRoster && (
-              <View style={{ marginBottom: 16 }}>
-                <Text style={[s.rosterHeader, { color: colors.blueLight }]}>{userRoster.username} (You)</Text>
+              <View className="mb-4">
+                <Text className="text-blue-400 text-sm font-bold mb-1">{userRoster.username} (You)</Text>
                 {userRoster.players.map((pid) => {
                   const p = allplayers[pid]
                   const isGiving = counterGive.has(pid)
@@ -362,9 +360,9 @@ function TradeCard({
                     <TouchableOpacity key={pid} onPress={() => {
                       setCounterGive((prev) => { const n = new Set(prev); isGiving ? n.delete(pid) : n.add(pid); return n })
                       setCounterReceive((prev) => { const n = new Set(prev); n.delete(pid); return n })
-                    }} style={[s.rosterRow, isGiving && { backgroundColor: colors.redBg }]}>
-                      <Text style={s.rosterPos}>{p?.position ?? '?'}</Text>
-                      <Text style={[s.rosterName, isGiving && { color: colors.red }]} numberOfLines={1}>{p?.full_name || pid}</Text>
+                    }} className={`flex-row items-center py-0.5 ${isGiving ? 'bg-red-500/15' : ''}`}>
+                      <Text className="w-7 text-gray-500 text-[11px] font-semibold">{p?.position ?? '?'}</Text>
+                      <Text className={`flex-1 text-xs ${isGiving ? 'text-red-400' : 'text-gray-100'}`} numberOfLines={1}>{p?.full_name || pid}</Text>
                     </TouchableOpacity>
                   )
                 })}
@@ -375,17 +373,17 @@ function TradeCard({
                   return (
                     <TouchableOpacity key={id} onPress={() => {
                       setCounterPicksGive((prev) => { const n = new Set(prev); isGiving ? n.delete(id) : n.add(id); return n })
-                    }} style={[s.rosterRow, isGiving && { backgroundColor: colors.redBg }]}>
-                      <Text style={s.rosterPos}>PK</Text>
-                      <Text style={[s.rosterName, isGiving && { color: colors.red }]}>{label}</Text>
+                    }} className={`flex-row items-center py-0.5 ${isGiving ? 'bg-red-500/15' : ''}`}>
+                      <Text className="w-7 text-gray-500 text-[11px] font-semibold">PK</Text>
+                      <Text className={`flex-1 text-xs ${isGiving ? 'text-red-400' : 'text-gray-100'}`}>{label}</Text>
                     </TouchableOpacity>
                   )
                 })}
               </View>
             )}
             {partnerRoster && (
-              <View style={{ marginBottom: 16 }}>
-                <Text style={[s.rosterHeader, { color: colors.textSecondary }]}>{partnerRoster.username}</Text>
+              <View className="mb-4">
+                <Text className="text-gray-400 text-sm font-bold mb-1">{partnerRoster.username}</Text>
                 {partnerRoster.players.map((pid) => {
                   const p = allplayers[pid]
                   const isReceiving = counterReceive.has(pid)
@@ -393,9 +391,9 @@ function TradeCard({
                     <TouchableOpacity key={pid} onPress={() => {
                       setCounterReceive((prev) => { const n = new Set(prev); isReceiving ? n.delete(pid) : n.add(pid); return n })
                       setCounterGive((prev) => { const n = new Set(prev); n.delete(pid); return n })
-                    }} style={[s.rosterRow, isReceiving && { backgroundColor: colors.greenBg }]}>
-                      <Text style={s.rosterPos}>{p?.position ?? '?'}</Text>
-                      <Text style={[s.rosterName, isReceiving && { color: colors.green }]} numberOfLines={1}>{p?.full_name || pid}</Text>
+                    }} className={`flex-row items-center py-0.5 ${isReceiving ? 'bg-green-500/15' : ''}`}>
+                      <Text className="w-7 text-gray-500 text-[11px] font-semibold">{p?.position ?? '?'}</Text>
+                      <Text className={`flex-1 text-xs ${isReceiving ? 'text-green-400' : 'text-gray-100'}`} numberOfLines={1}>{p?.full_name || pid}</Text>
                     </TouchableOpacity>
                   )
                 })}
@@ -406,37 +404,37 @@ function TradeCard({
                   return (
                     <TouchableOpacity key={id} onPress={() => {
                       setCounterPicksReceive((prev) => { const n = new Set(prev); isReceiving ? n.delete(id) : n.add(id); return n })
-                    }} style={[s.rosterRow, isReceiving && { backgroundColor: colors.greenBg }]}>
-                      <Text style={s.rosterPos}>PK</Text>
-                      <Text style={[s.rosterName, isReceiving && { color: colors.green }]}>{label}</Text>
+                    }} className={`flex-row items-center py-0.5 ${isReceiving ? 'bg-green-500/15' : ''}`}>
+                      <Text className="w-7 text-gray-500 text-[11px] font-semibold">PK</Text>
+                      <Text className={`flex-1 text-xs ${isReceiving ? 'text-green-400' : 'text-gray-100'}`}>{label}</Text>
                     </TouchableOpacity>
                   )
                 })}
               </View>
             )}
           </ScrollView>
-          <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
-            <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginBottom: 8 }}>
+          <View className="p-4 border-t border-gray-700">
+            <Text className="text-gray-500 text-xs text-center mb-2">
               Give {counterGive.size + counterPicksGive.size} · Receive {counterReceive.size + counterPicksReceive.size}
             </Text>
             <TouchableOpacity
               onPress={sendCounter}
               disabled={counterSending || (counterGive.size + counterPicksGive.size + counterReceive.size + counterPicksReceive.size === 0)}
-              style={[s.sendCounterBtn, counterSending && { opacity: 0.5 }]}
+              className={`bg-blue-600 rounded-xl p-3.5 items-center ${counterSending ? 'opacity-50' : ''}`}
             >
-              <Text style={s.sendCounterText}>{counterSending ? 'Sending...' : 'Send Counter'}</Text>
+              <Text className="text-white text-[15px] font-bold">{counterSending ? 'Sending...' : 'Send Counter'}</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
       {/* Expand/Collapse */}
-      <TouchableOpacity onPress={() => setExpanded((p) => !p)} style={s.expandBtn}>
-        <Text style={s.expandText}>{expanded ? 'Hide Rosters' : 'View Rosters'}</Text>
+      <TouchableOpacity onPress={() => setExpanded((p) => !p)} className="items-center py-1.5 border-t border-gray-700 mt-2">
+        <Text className="text-blue-400 text-xs font-medium">{expanded ? 'Hide Rosters' : 'View Rosters'}</Text>
       </TouchableOpacity>
 
       {expanded && userRoster && partnerRoster && (
-        <View style={s.rosterSection}>
+        <View className="border-t border-gray-700 mt-1 pt-2">
           {[userRoster, partnerRoster].map((roster) => {
             const isUser = roster.roster_id === userRosterId
             const starters = roster.starters.filter((id) => id !== '0')
@@ -446,45 +444,45 @@ function TradeCard({
               (id) => !starters.includes(id) && !taxi.includes(id) && !reserve.includes(id),
             )
             return (
-              <View key={roster.roster_id} style={s.rosterCol}>
-                <Text style={[s.rosterHeader, { color: isUser ? colors.blueLight : colors.textSecondary }]}>
+              <View key={roster.roster_id} className="mb-3">
+                <Text className={`text-sm font-bold mb-1 ${isUser ? 'text-blue-400' : 'text-gray-400'}`}>
                   {roster.username}
                 </Text>
-                <Text style={s.rosterGroupLabel}>Starters</Text>
+                <Text className="text-gray-500 text-[10px] font-semibold uppercase mt-1.5 mb-0.5">Starters</Text>
                 {starters.map((pid) => {
                   const p = allplayers[pid]
                   const v = valueLookup[pid] ?? 0
                   return (
-                    <View key={pid} style={s.rosterRow}>
-                      <Text style={s.rosterPos}>{p?.position ?? '?'}</Text>
-                      <Text style={s.rosterName} numberOfLines={1}>{p?.full_name || pid}</Text>
-                      {v > 0 && <Text style={s.rosterVal}>{fmtValue(v, valueType)}</Text>}
+                    <View key={pid} className="flex-row items-center py-0.5">
+                      <Text className="w-7 text-gray-500 text-[11px] font-semibold">{p?.position ?? '?'}</Text>
+                      <Text className="flex-1 text-gray-100 text-xs" numberOfLines={1}>{p?.full_name || pid}</Text>
+                      {v > 0 && <Text className="text-blue-400 text-[11px] font-medium ml-1">{fmtValue(v, valueType)}</Text>}
                     </View>
                   )
                 })}
-                {bench.length > 0 && <Text style={s.rosterGroupLabel}>Bench</Text>}
+                {bench.length > 0 && <Text className="text-gray-500 text-[10px] font-semibold uppercase mt-1.5 mb-0.5">Bench</Text>}
                 {bench.map((pid) => {
                   const p = allplayers[pid]
                   const v = valueLookup[pid] ?? 0
                   return (
-                    <View key={pid} style={s.rosterRow}>
-                      <Text style={s.rosterPos}>{p?.position ?? '?'}</Text>
-                      <Text style={s.rosterName} numberOfLines={1}>{p?.full_name || pid}</Text>
-                      {v > 0 && <Text style={s.rosterVal}>{fmtValue(v, valueType)}</Text>}
+                    <View key={pid} className="flex-row items-center py-0.5">
+                      <Text className="w-7 text-gray-500 text-[11px] font-semibold">{p?.position ?? '?'}</Text>
+                      <Text className="flex-1 text-gray-100 text-xs" numberOfLines={1}>{p?.full_name || pid}</Text>
+                      {v > 0 && <Text className="text-blue-400 text-[11px] font-medium ml-1">{fmtValue(v, valueType)}</Text>}
                     </View>
                   )
                 })}
-                {taxi.length > 0 && <Text style={s.rosterGroupLabel}>Taxi</Text>}
+                {taxi.length > 0 && <Text className="text-gray-500 text-[10px] font-semibold uppercase mt-1.5 mb-0.5">Taxi</Text>}
                 {taxi.map((pid) => {
                   const p = allplayers[pid]
                   return (
-                    <View key={pid} style={s.rosterRow}>
-                      <Text style={s.rosterPos}>{p?.position ?? '?'}</Text>
-                      <Text style={s.rosterName} numberOfLines={1}>{p?.full_name || pid}</Text>
+                    <View key={pid} className="flex-row items-center py-0.5">
+                      <Text className="w-7 text-gray-500 text-[11px] font-semibold">{p?.position ?? '?'}</Text>
+                      <Text className="flex-1 text-gray-100 text-xs" numberOfLines={1}>{p?.full_name || pid}</Text>
                     </View>
                   )
                 })}
-                {roster.draftpicks.length > 0 && <Text style={s.rosterGroupLabel}>Picks</Text>}
+                {roster.draftpicks.length > 0 && <Text className="text-gray-500 text-[10px] font-semibold uppercase mt-1.5 mb-0.5">Picks</Text>}
                 {roster.draftpicks
                   .slice()
                   .sort((a, b) => a.season.localeCompare(b.season) || a.round - b.round)
@@ -494,10 +492,10 @@ function TradeCard({
                       : `${pick.season} Rd ${pick.round}`
                     const v = valueLookup[getPickKtcName(pick.season, pick.round, pick.order)] ?? 0
                     return (
-                      <View key={i} style={s.rosterRow}>
-                        <Text style={s.rosterPos}>PK</Text>
-                        <Text style={s.rosterName}>{label}</Text>
-                        {v > 0 && <Text style={s.rosterVal}>{fmtValue(v, valueType)}</Text>}
+                      <View key={i} className="flex-row items-center py-0.5">
+                        <Text className="w-7 text-gray-500 text-[11px] font-semibold">PK</Text>
+                        <Text className="flex-1 text-gray-100 text-xs">{label}</Text>
+                        {v > 0 && <Text className="text-blue-400 text-[11px] font-medium ml-1">{fmtValue(v, valueType)}</Text>}
                       </View>
                     )
                   })}
@@ -559,29 +557,29 @@ function TradesContent() {
   const valueTypes: ValueType[] = ['ktc', 'adp', 'auction']
 
   return (
-    <View style={s.container}>
+    <View className="flex-1 bg-gray-900">
       {/* Value type toggle */}
-      <View style={s.valueBar}>
-        <View style={s.segmented}>
+      <View className="flex-row items-center px-4 py-2 border-b border-gray-800">
+        <View className="flex-row bg-gray-800 rounded-lg p-0.5">
           {valueTypes.map((v) => (
             <TouchableOpacity
               key={v}
               onPress={() => setValueType(v)}
-              style={[s.segBtn, valueType === v && s.segBtnActive]}
+              className={`px-3.5 py-1.5 rounded-md ${valueType === v ? 'bg-blue-600' : ''}`}
             >
-              <Text style={[s.segText, valueType === v && s.segTextActive]}>{v.toUpperCase()}</Text>
+              <Text className={`text-xs font-semibold ${valueType === v ? 'text-white' : 'text-gray-500'}`}>{v.toUpperCase()}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
-      <View style={s.tabBar}>
+      <View className="flex-row border-b border-gray-700 px-4">
         {tabs.map((t) => (
           <TouchableOpacity
             key={t.key}
             onPress={() => setTab(t.key)}
-            style={[s.tab, tab === t.key && s.tabActive]}
+            className={`px-4 py-3 mr-1 ${tab === t.key ? 'border-b-2 border-b-blue-400' : ''}`}
           >
-            <Text style={[s.tabText, tab === t.key && s.tabTextActive]}>
+            <Text className={`text-[13px] font-medium ${tab === t.key ? 'text-white' : 'text-gray-500'}`}>
               {t.label}{t.count > 0 ? ` (${t.count})` : ''}
             </Text>
           </TouchableOpacity>
@@ -591,8 +589,8 @@ function TradesContent() {
       {tab === 'create' ? (
         <CreateTradeScreen />
       ) : isLoading && trades.length === 0 ? (
-        <View style={s.center}>
-          <ActivityIndicator size="large" color={colors.blueLight} />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#60A5FA" />
         </View>
       ) : (
         <FlatList
@@ -611,7 +609,7 @@ function TradesContent() {
           )}
           contentContainerStyle={{ padding: 16 }}
           ListEmptyComponent={
-            <Text style={[s.label, { textAlign: 'center', marginTop: 40 }]}>No {tab} trades</Text>
+            <Text className="text-gray-400 text-[11px] text-center mt-10">No {tab} trades</Text>
           }
         />
       )}
@@ -626,49 +624,3 @@ export default function TradesScreen() {
     </ErrorBoundary>
   )
 }
-
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  valueBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.card },
-  segmented: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 8, padding: 2 },
-  segBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 6 },
-  segBtnActive: { backgroundColor: colors.blue },
-  segText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  segTextActive: { color: colors.white },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  card: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 12 },
-  tradeSide: { borderLeftWidth: 3, paddingLeft: 10, marginTop: 8, marginBottom: 4 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  white600: { color: colors.white, fontWeight: '600', fontSize: 14 },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  badgeOrange: { backgroundColor: colors.orangeBg },
-  badgeBlue: { backgroundColor: colors.blueBg },
-  badgeText: { fontSize: 11, fontWeight: '500' },
-  dateText: { color: colors.textMuted, fontSize: 11 },
-  label: { color: colors.textSecondary, fontSize: 11, marginBottom: 4 },
-  playerAdd: { color: colors.green, fontSize: 13 },
-  ktcValue: { color: colors.textMuted, fontSize: 11, marginLeft: 6 },
-  pickText: { color: colors.blueLight, fontSize: 13, marginLeft: 8 },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 16 },
-  tab: { paddingHorizontal: 16, paddingVertical: 12, marginRight: 4 },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: colors.blueLight },
-  tabText: { fontSize: 13, fontWeight: '500', color: colors.textMuted },
-  tabTextActive: { color: colors.white },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  actionBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  acceptBtn: { backgroundColor: colors.greenBg },
-  rejectBtn: { backgroundColor: colors.redBg },
-  actionText: { fontWeight: '600', fontSize: 13 },
-  expandBtn: { alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8 },
-  expandText: { color: colors.blueLight, fontSize: 12, fontWeight: '500' },
-  rosterSection: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 4, paddingTop: 8 },
-  rosterCol: { marginBottom: 12 },
-  rosterHeader: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  rosterGroupLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '600', textTransform: 'uppercase', marginTop: 6, marginBottom: 2 },
-  rosterRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 2 },
-  rosterPos: { width: 28, color: colors.textMuted, fontSize: 11, fontWeight: '600' },
-  rosterName: { flex: 1, color: colors.text, fontSize: 12 },
-  rosterVal: { color: colors.blueLight, fontSize: 11, fontWeight: '500', marginLeft: 4 },
-  sendCounterBtn: { backgroundColor: colors.blue, borderRadius: 12, padding: 14, alignItems: 'center' },
-  sendCounterText: { color: colors.white, fontSize: 15, fontWeight: '700' },
-})

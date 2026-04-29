@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
-  StyleSheet,
 } from 'react-native'
 import { randomId } from '@autogm/shared'
 import type { LeagueDetailed } from '@autogm/shared'
@@ -16,7 +15,6 @@ import { useLeagueCache } from '../../../src/league-cache'
 import { useCreatePoll } from '../../../src/hooks/use-create-poll'
 import { usePolls, addPoll, type PollGroup } from '../../../src/hooks/use-polls'
 import { ErrorBoundary } from '../../../src/components/error-boundary'
-import { colors } from '../../../src/theme'
 
 // ---- Create Poll Form ----
 
@@ -81,72 +79,72 @@ function CreatePollForm({
   const entries = Object.entries(leagues)
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16 }}>
-      <View style={s.card}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-          <Text style={s.heading}>New Poll</Text>
+    <ScrollView className="flex-1 bg-gray-900" contentContainerStyle={{ padding: 16 }}>
+      <View className="bg-gray-800 rounded-xl p-4 mb-3">
+        <View className="flex-row justify-between mb-3">
+          <Text className="text-white font-semibold text-[15px]">New Poll</Text>
           <TouchableOpacity onPress={onDone}>
-            <Text style={s.link}>Cancel</Text>
+            <Text className="text-blue-400 text-[13px]">Cancel</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={s.label}>Question</Text>
+        <Text className="text-gray-400 text-xs font-medium mb-1">Question</Text>
         <TextInput
-          style={s.input}
+          className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-sm"
           value={prompt}
           onChangeText={setPrompt}
           placeholder="Ask a question..."
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor="#6B7280"
         />
 
-        <Text style={[s.label, { marginTop: 12 }]}>Choices</Text>
+        <Text className="text-gray-400 text-xs font-medium mb-1 mt-3">Choices</Text>
         {choices.map((c, i) => (
-          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+          <View key={i} className="flex-row items-center mb-1.5">
             <TextInput
-              style={[s.input, { flex: 1 }]}
+              className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-sm flex-1"
               value={c}
               onChangeText={(v) => updateChoice(i, v)}
               placeholder={`Option ${i + 1}`}
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor="#6B7280"
             />
             {choices.length > 2 && (
-              <TouchableOpacity onPress={() => removeChoice(i)} style={{ marginLeft: 8 }}>
-                <Text style={{ color: colors.red, fontSize: 18 }}>&times;</Text>
+              <TouchableOpacity onPress={() => removeChoice(i)} className="ml-2">
+                <Text className="text-red-400 text-lg">&times;</Text>
               </TouchableOpacity>
             )}
           </View>
         ))}
         <TouchableOpacity onPress={addChoice}>
-          <Text style={s.link}>+ Add choice</Text>
+          <Text className="text-blue-400 text-[13px]">+ Add choice</Text>
         </TouchableOpacity>
 
-        <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.label}>Type</Text>
-            <View style={s.segmented}>
+        <View className="flex-row gap-3 mt-3">
+          <View className="flex-1">
+            <Text className="text-gray-400 text-xs font-medium mb-1">Type</Text>
+            <View className="flex-row rounded-lg overflow-hidden border border-gray-700">
               {(['single', 'multiple'] as const).map((t) => (
                 <TouchableOpacity
                   key={t}
                   onPress={() => setPollType(t)}
-                  style={[s.segBtn, pollType === t && s.segBtnActive]}
+                  className={`flex-1 py-1.5 items-center ${pollType === t ? 'bg-blue-600' : 'bg-gray-900'}`}
                 >
-                  <Text style={[s.segText, pollType === t && s.segTextActive]}>
+                  <Text className={`text-xs font-medium ${pollType === t ? 'text-white' : 'text-gray-500'}`}>
                     {t === 'single' ? 'Single' : 'Multi'}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.label}>Privacy</Text>
-            <View style={s.segmented}>
+          <View className="flex-1">
+            <Text className="text-gray-400 text-xs font-medium mb-1">Privacy</Text>
+            <View className="flex-row rounded-lg overflow-hidden border border-gray-700">
               {(['public', 'anonymous'] as const).map((p) => (
                 <TouchableOpacity
                   key={p}
                   onPress={() => setPrivacy(p)}
-                  style={[s.segBtn, privacy === p && s.segBtnActive]}
+                  className={`flex-1 py-1.5 items-center ${privacy === p ? 'bg-blue-600' : 'bg-gray-900'}`}
                 >
-                  <Text style={[s.segText, privacy === p && s.segTextActive]}>
+                  <Text className={`text-xs font-medium ${privacy === p ? 'text-white' : 'text-gray-500'}`}>
                     {p === 'public' ? 'Public' : 'Anon'}
                   </Text>
                 </TouchableOpacity>
@@ -155,31 +153,31 @@ function CreatePollForm({
           </View>
         </View>
 
-        <Text style={[s.label, { marginTop: 12 }]}>
+        <Text className="text-gray-400 text-xs font-medium mb-1 mt-3">
           Leagues{selected.length > 0 ? ` (${selected.length})` : ''}
         </Text>
-        <View style={s.leagueList}>
+        <View className="border border-gray-700 rounded-lg max-h-40 overflow-hidden">
           {entries.map(([id, league]) => (
             <TouchableOpacity
               key={id}
               onPress={() => toggleLeague(id)}
-              style={[s.leagueRow, selected.includes(id) && s.leagueRowActive]}
+              className={`px-3 py-2 ${selected.includes(id) ? 'bg-blue-600/10' : ''}`}
             >
-              <Text style={[s.leagueText, selected.includes(id) && { color: colors.white }]}>
+              <Text className={`text-[13px] ${selected.includes(id) ? 'text-white' : 'text-gray-400'}`}>
                 {selected.includes(id) ? '☑ ' : '☐ '}{league.name}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {error && <Text style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{error}</Text>}
+        {error && <Text className="text-red-400 text-xs mt-2">{error}</Text>}
 
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={!canSubmit}
-          style={[s.submitBtn, !canSubmit && { opacity: 0.5 }]}
+          className={`bg-blue-600 rounded-lg py-2.5 px-6 items-center mt-3 ${!canSubmit ? 'opacity-50' : ''}`}
         >
-          <Text style={s.submitText}>{loading ? 'Posting...' : 'Create Poll'}</Text>
+          <Text className="text-white font-semibold text-sm">{loading ? 'Posting...' : 'Create Poll'}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -191,17 +189,17 @@ function CreatePollForm({
 function VoteBar({ choice, count, total }: { choice: string; count: number; total: number }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
-    <View style={{ marginVertical: 2 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
-        <Text style={{ color: colors.text, fontSize: 13 }} numberOfLines={1}>
+    <View className="my-0.5">
+      <View className="flex-row justify-between mb-0.5">
+        <Text className="text-white text-[13px]" numberOfLines={1}>
           {choice}
         </Text>
-        <Text style={{ color: colors.textMuted, fontSize: 11 }}>
+        <Text className="text-gray-500 text-[11px]">
           {count} · {pct}%
         </Text>
       </View>
-      <View style={s.barTrack}>
-        <View style={[s.barFill, { width: `${pct}%` }]} />
+      <View className="h-1.5 rounded-full bg-gray-700">
+        <View className="h-1.5 rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
       </View>
     </View>
   )
@@ -225,22 +223,22 @@ function PollGroupCard({
   }
 
   return (
-    <View style={s.card}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.heading}>{group.prompt}</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 11 }}>
+    <View className="bg-gray-800 rounded-xl p-4 mb-3">
+      <View className="flex-row justify-between mb-2">
+        <View className="flex-1">
+          <Text className="text-white font-semibold text-[15px]">{group.prompt}</Text>
+          <Text className="text-gray-500 text-[11px]">
             {group.poll_type} · {group.privacy}
           </Text>
         </View>
         <TouchableOpacity onPress={onRemove}>
-          <Text style={{ color: colors.textMuted, fontSize: 11 }}>Remove</Text>
+          <Text className="text-gray-500 text-[11px]">Remove</Text>
         </TouchableOpacity>
       </View>
 
       {group.polls.length > 1 && (
-        <View style={s.aggregate}>
-          <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 }}>
+        <View className="bg-gray-900/50 rounded-lg p-2.5 mb-1">
+          <Text className="text-gray-400 text-[11px] mb-1">
             Aggregate · {group.polls.length} leagues · {aggTotal} vote{aggTotal !== 1 ? 's' : ''}
           </Text>
           {group.choices.map((choice, i) => (
@@ -256,8 +254,8 @@ function PollGroupCard({
         for (const v of poll.votes) voteCounts[v.choice_id] = (voteCounts[v.choice_id] ?? 0) + 1
         const totalVotes = poll.votes.length
         return (
-          <View key={poll.poll_id} style={{ marginTop: 8 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 2 }}>
+          <View key={poll.poll_id} className="mt-2">
+            <Text className="text-gray-400 text-[11px] mb-0.5">
               {leagueName} · {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
             </Text>
             {poll.choices.map((choice, i) => {
@@ -294,31 +292,31 @@ function PollsContent() {
   }
 
   return (
-    <View style={s.container}>
-      <View style={{ padding: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 12 }}>
+    <View className="flex-1 bg-gray-900">
+      <View className="p-4 items-center flex-row justify-center gap-3">
         <TouchableOpacity
           onPress={() => setShowCreate(true)}
           disabled={leaguesLoading || Object.keys(safeLeagues).length === 0}
-          style={[s.submitBtn, { opacity: leaguesLoading ? 0.5 : 1 }]}
+          className={`bg-blue-600 rounded-lg py-2.5 px-6 items-center mt-3 ${leaguesLoading ? 'opacity-50' : ''}`}
         >
-          <Text style={s.submitText}>Create Poll</Text>
+          <Text className="text-white font-semibold text-sm">Create Poll</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={refetch} style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
-          <Text style={{ color: colors.textMuted, fontSize: 13 }}>Refresh</Text>
+        <TouchableOpacity onPress={refetch} className="px-3 py-2">
+          <Text className="text-gray-500 text-[13px]">Refresh</Text>
         </TouchableOpacity>
       </View>
 
       {(loading || leaguesLoading) && groups.length === 0 ? (
-        <View style={s.center}>
-          <ActivityIndicator size="large" color={colors.blueLight} />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#60A5FA" />
         </View>
       ) : error ? (
-        <View style={s.center}>
-          <Text style={{ color: colors.red }}>{error}</Text>
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-red-400">{error}</Text>
         </View>
       ) : groups.length === 0 ? (
-        <View style={s.center}>
-          <Text style={{ color: colors.textSecondary }}>No polls yet.</Text>
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-gray-400">No polls yet.</Text>
         </View>
       ) : (
         <FlatList
@@ -350,43 +348,3 @@ export default function PollsScreen() {
     </ErrorBoundary>
   )
 }
-
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  card: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 12 },
-  heading: { color: colors.white, fontWeight: '600', fontSize: 15 },
-  label: { color: colors.textSecondary, fontSize: 12, fontWeight: '500', marginBottom: 4 },
-  link: { color: colors.blueLight, fontSize: 13 },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    color: colors.white,
-    fontSize: 14,
-  },
-  segmented: { flexDirection: 'row', borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
-  segBtn: { flex: 1, paddingVertical: 6, alignItems: 'center', backgroundColor: colors.surface },
-  segBtnActive: { backgroundColor: colors.blue },
-  segText: { color: colors.textMuted, fontSize: 12, fontWeight: '500' },
-  segTextActive: { color: colors.white },
-  leagueList: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, maxHeight: 160, overflow: 'hidden' },
-  leagueRow: { paddingHorizontal: 12, paddingVertical: 8 },
-  leagueRowActive: { backgroundColor: 'rgba(37,99,235,0.1)' },
-  leagueText: { color: colors.textSecondary, fontSize: 13 },
-  submitBtn: {
-    backgroundColor: colors.blue,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  submitText: { color: colors.white, fontWeight: '600', fontSize: 14 },
-  aggregate: { backgroundColor: 'rgba(17,24,39,0.5)', borderRadius: 8, padding: 10, marginBottom: 4 },
-  barTrack: { height: 6, borderRadius: 3, backgroundColor: colors.barTrack },
-  barFill: { height: 6, borderRadius: 3, backgroundColor: colors.barFill },
-})
