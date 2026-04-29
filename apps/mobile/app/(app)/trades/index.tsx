@@ -17,6 +17,8 @@ import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { useKtc } from '../../../src/hooks/use-ktc'
 import { useAdp } from '../../../src/hooks/use-adp'
 import { type ValueType, buildValueLookup, formatValue as fmtValue, getPickKtcName } from '../../../src/utils/value-lookup'
+import { useTradeValueFilter } from '../../../src/hooks/use-trade-value-filter'
+import { TradeFilterBar } from '../../../src/components/trade-filter-bar'
 import {
   useTradesByStatus,
   TradeWithLeague,
@@ -513,22 +515,12 @@ function TradesContent() {
   const { leagues, loading: leaguesLoading } = useLeagueCache()
   const { allplayers } = useAllPlayers()
   const { ktc } = useKtc()
-  const [valueType, setValueType] = useState<ValueType>('ktc')
-  const isAdp = valueType === 'adp' || valueType === 'auction'
-  const defaultStart = useMemo(() => {
-    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10)
-  }, [])
-  const { data: adpRows } = useAdp(
-    { startDate: defaultStart, endDate: new Date().toISOString().slice(0, 10), minDrafts: 2 },
-    isAdp,
-  )
-  const valueLookup = useMemo(
-    () => buildValueLookup(valueType, ktc, adpRows),
-    [valueType, ktc, adpRows],
-  )
-  const [tab, setTab] = useState<Tab>('create')
-
   const safeLeagues = leagues ?? {}
+
+  const filter = useTradeValueFilter({ leagues: safeLeagues, allplayers, ktc })
+  const { valueLookup, valueType, formatValue: fmtVal } = filter
+
+  const [tab, setTab] = useState<Tab>('create')
 
   const { trades: pendingTrades, loading: pendingLoading, refetch: refetchPending } =
     useTradesByStatus(safeLeagues, 'proposed')
@@ -559,23 +551,11 @@ function TradesContent() {
     { key: 'rejected', label: 'Rejected', count: rejectedTrades.length },
   ]
 
-  const valueTypes: ValueType[] = ['ktc', 'adp', 'auction']
-
   return (
     <View className="flex-1 bg-gray-900">
-      {/* Value type toggle */}
-      <View className="flex-row items-center px-4 py-2 border-b border-gray-800">
-        <View className="flex-row bg-gray-800 rounded-lg p-0.5">
-          {valueTypes.map((v) => (
-            <TouchableOpacity
-              key={v}
-              onPress={() => setValueType(v)}
-              className={`px-3.5 py-1.5 rounded-md ${valueType === v ? 'bg-blue-600' : ''}`}
-            >
-              <Text className={`text-xs font-semibold ${valueType === v ? 'text-white' : 'text-gray-500'}`}>{v.toUpperCase()}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+      {/* Trade Filter Bar */}
+      <View className="px-3 pt-2">
+        <TradeFilterBar filter={filter} />
       </View>
       <View className="flex-row border-b border-gray-700 px-4">
         {tabs.map((t) => (
