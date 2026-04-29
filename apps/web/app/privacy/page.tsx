@@ -11,9 +11,10 @@ export default function PrivacyPage() {
 
         <Section title="Overview">
           <p>
-            AutoGM is a fantasy football management tool that connects to your Sleeper.com account.
-            We are committed to protecting your privacy. This policy explains what data we collect,
-            how we use it, and your rights.
+            AutoGM is a fantasy football automation tool that connects to your Sleeper.com account
+            to batch trades, waivers, polls, DMs, and research across all your leagues. We are
+            committed to protecting your privacy. This policy explains what data we collect, how
+            we use it, and your rights.
           </p>
         </Section>
 
@@ -26,12 +27,12 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong>Session Token:</strong> Your Sleeper authentication token is stored securely
-              on your device using encrypted storage (SecureStore on iOS, Electron{"'"}s encrypted store
+              on your device using encrypted storage (SecureStore on iOS, Electron safeStorage
               on desktop). It is never transmitted to our servers.
             </li>
             <li>
-              <strong>League Data:</strong> We fetch your league rosters, trades, and draft picks
-              from Sleeper{"'"}s API to display in the app. This data is not stored on our servers.
+              <strong>League Data:</strong> We fetch your league rosters, trades, waivers, draft picks,
+              and messages from Sleeper{"'"}s API to display in the app. This data is not stored on our servers.
             </li>
             <li>
               <strong>Access List:</strong> We maintain a list of authorized user IDs to control
@@ -51,9 +52,11 @@ export default function PrivacyPage() {
 
         <Section title="How We Use Your Data">
           <p>
-            Your Sleeper data is used solely to display your leagues, facilitate trades and polls,
-            and provide fantasy football management features within the app. All API calls are made
-            directly between your device and Sleeper{"'"}s servers.
+            Your Sleeper data is used solely to display your leagues, facilitate trades, waivers,
+            polls, and messages, and provide fantasy football management features within the app.
+            Sleeper API calls are made directly between your device and Sleeper{"'"}s servers.
+            KTC, ADP, and opponent scouting data is served by our API and does not include your
+            personal information.
           </p>
         </Section>
 
@@ -64,8 +67,9 @@ export default function PrivacyPage() {
               expo-secure-store. League data is cached in memory only.
             </li>
             <li>
-              <strong>Desktop (Windows/Mac/Linux):</strong> Session tokens are stored in an
-              encrypted local store. League data is cached in memory only.
+              <strong>Desktop (Windows/Mac/Linux):</strong> Session tokens are encrypted using
+              your operating system{"'"}s secure storage (Electron safeStorage) and stored locally.
+              League data is cached in memory only.
             </li>
           </ul>
         </Section>
@@ -73,7 +77,8 @@ export default function PrivacyPage() {
         <Section title="Third-Party Services">
           <p>AutoGM interacts with the following third-party services:</p>
           <ul className="list-disc pl-5 space-y-2">
-            <li><strong>Sleeper.com:</strong> For league data, trades, polls, and messaging.</li>
+            <li><strong>Sleeper.com:</strong> For league data, trades, waivers, polls, and messaging.</li>
+            <li><strong>KeepTradeCut:</strong> For dynasty player trade values (via our API, no personal data sent).</li>
             <li><strong>Tenor (Google):</strong> For GIF search in chat. Search queries are sent to Tenor{"'"}s API.</li>
           </ul>
         </Section>

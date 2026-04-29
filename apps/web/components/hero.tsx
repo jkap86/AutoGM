@@ -18,8 +18,8 @@ export default function Hero() {
         Fantasy Football on Autopilot
       </h1>
       <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mb-8">
-        Automate trades, polls, and roster analysis across all your Sleeper
-        leagues.
+        Batch trades, waivers, polls, and DMs across all your Sleeper
+        leagues from one dashboard.
       </p>
       <a
         href="#download"

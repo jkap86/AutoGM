@@ -11,7 +11,8 @@ export default function SupportPage() {
         <div className="rounded-xl border border-gray-700 bg-gray-900 p-6 mb-8">
           <h2 className="text-lg font-semibold text-white mb-3">Get Help</h2>
           <p className="text-sm text-gray-300 leading-relaxed mb-4">
-            AutoGM is a fantasy football management tool for Sleeper.com leagues.
+            AutoGM is a fantasy football automation tool for Sleeper.com leagues.
+            Batch trades, waivers, polls, and DMs across all your leagues from one dashboard.
             If you need help or have questions, reach out through one of the channels below.
           </p>
           <div className="space-y-4">
@@ -49,11 +50,23 @@ export default function SupportPage() {
           <div className="space-y-4">
             <Faq
               q="How do I log in?"
-              a="AutoGM uses your Sleeper.com account. Tap 'Sign in with Sleeper' and log in with your Sleeper credentials. AutoGM never sees or stores your password."
+              a="AutoGM uses your Sleeper.com account. Click 'Sign in with Sleeper' and log in with your Sleeper credentials in the browser window that opens. AutoGM never sees or stores your password."
             />
             <Faq
               q="Why do I see 'Access Denied'?"
               a="AutoGM is currently in a closed beta. Access is managed via an invite list. Contact us if you'd like to request access."
+            />
+            <Faq
+              q="What can I do with AutoGM?"
+              a="Batch trades across all your leagues with KTC value comparisons, submit waiver claims with per-league bid control, send polls to multiple leagues, DM any leaguemate, scout opponents' draft history and trades, and view ADP/KTC research data — all from one dashboard."
+            />
+            <Faq
+              q="Will AutoGM send duplicate trades or waivers?"
+              a="No. Every trade, waiver claim, poll, and message goes through idempotency protection that blocks duplicate submissions within a 5-minute window. You'll also see a clear success/failure summary after every batch action."
+            />
+            <Faq
+              q="Is my Sleeper token safe?"
+              a="Yes. Your Sleeper session token is encrypted on disk using your operating system's secure storage. It never leaves your device or touches our servers."
             />
             <Faq
               q="Is AutoGM affiliated with Sleeper?"

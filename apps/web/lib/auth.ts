@@ -33,10 +33,6 @@ async function isAllowed(userId: string): Promise<boolean> {
 
 /**
  * Validates the x-user-id header against the allowlist.
- * Returns the user_id if authorized, or a 401/403 NextResponse if not.
- */
-/**
- * Validates the x-user-id header against the allowlist.
  * Also validates x-desktop-api-key if DESKTOP_API_KEY is configured.
  * Returns the user_id if authorized, or a 401/403 NextResponse if not.
  */
