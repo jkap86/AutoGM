@@ -17,6 +17,7 @@ import { PotentialTrades } from "./potential-trades";
 import { PlayerCombobox } from "../../components/player-combobox";
 import { TradeFilterBar } from "../../components/trade-filter-bar";
 import { DmPanel } from "./dm-panel";
+import { formatTime } from "../../../lib/trade-utils";
 type TransactionType = "trades" | "waivers" | "dms";
 type TradesTab = "create" | "pending" | "expired" | "completed" | "rejected";
 
@@ -108,8 +109,17 @@ export default function TransactionsView(props: {
   );
 }
 
+type DmSortMode = "alpha" | "recent";
+
+// Module-level cache for DM previews
+const dmPreviewCache: Record<string, { text: string; time: number; author: string }> = {};
+const dmFetchedPartners = new Set<string>();
+
 function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: string]: LeagueDetailed } }) {
-  const [selectedPartner, setSelectedPartner] = useState<{ id: string; name: string } | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<DmSortMode>("recent");
+  const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, number>>({});
+  const [previews, setPreviews] = useState<Record<string, { text: string; time: number; author: string }>>(dmPreviewCache);
 
   const partners = useMemo(() => {
     const seen = new Map<string, string>();
@@ -120,66 +130,138 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
         }
       }
     }
-    return [...seen.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    return [...seen.entries()].map(([id, name]) => ({ id, name }));
   }, [leagues, userId]);
 
-  if (selectedPartner) {
-    return (
-      <div className="w-full max-w-3xl">
-        <button
-          onClick={() => setSelectedPartner(null)}
-          className="flex items-center gap-1.5 mb-3 text-sm text-gray-400 hover:text-gray-200 transition"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to DMs
-        </button>
-        <div className="rounded-xl border border-gray-700/80 bg-gray-800/80 overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-gray-700/60">
-            <span className="text-sm font-semibold text-gray-100 font-[family-name:var(--font-heading)]">{selectedPartner.name}</span>
-          </div>
-          <DmPanel userId={userId} partnerId={selectedPartner.id} partnerName={selectedPartner.name} leagues={leagues} />
-        </div>
-      </div>
-    );
+  // Fetch DM previews in batches
+  useEffect(() => {
+    const unfetched = partners.filter((p) => !dmFetchedPartners.has(p.id));
+    if (unfetched.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const batch = 4;
+      for (let i = 0; i < unfetched.length; i += batch) {
+        if (cancelled) break;
+        const chunk = unfetched.slice(i, i + batch);
+        const results = await Promise.allSettled(
+          chunk.map((p) =>
+            window.ipc.invoke<{ get_dm_by_members: { dm_id?: string; last_message_text?: string; last_message_time?: number; last_author_display_name?: string } | null }>("graphql", {
+              name: "getDmByMembers",
+              vars: { members: [userId, p.id] },
+            }).then((r) => ({ partnerId: p.id, dm: r.get_dm_by_members }))
+          ),
+        );
+        if (cancelled) break;
+        const newPreviews: Record<string, { text: string; time: number; author: string }> = {};
+        const newTimes: Record<string, number> = {};
+        for (const r of results) {
+          if (r.status !== "fulfilled") continue;
+          dmFetchedPartners.add(r.value.partnerId);
+          const dm = r.value.dm;
+          if (dm?.last_message_time && dm.last_message_text) {
+            const preview = { text: dm.last_message_text, time: dm.last_message_time, author: dm.last_author_display_name ?? "" };
+            newPreviews[r.value.partnerId] = preview;
+            newTimes[r.value.partnerId] = dm.last_message_time;
+            dmPreviewCache[r.value.partnerId] = preview;
+          }
+        }
+        setPreviews((prev) => ({ ...prev, ...newPreviews }));
+        setLastMessageTimes((prev) => ({ ...prev, ...newTimes }));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [partners, userId]);
+
+  const sorted = useMemo(() => {
+    const list = [...partners];
+    if (sortMode === "alpha") return list.sort((a, b) => a.name.localeCompare(b.name));
+    // Recent: partners with DMs first (by time desc), then alphabetical
+    return list.sort((a, b) => {
+      const ta = lastMessageTimes[a.id] ?? 0;
+      const tb = lastMessageTimes[b.id] ?? 0;
+      if (ta !== tb) return tb - ta;
+      return a.name.localeCompare(b.name);
+    });
+  }, [partners, sortMode, lastMessageTimes]);
+
+  // Freeze sort while expanded
+  const frozenRef = useRef(sorted);
+  if (!expandedId) frozenRef.current = sorted;
+  const displayList = expandedId ? frozenRef.current : sorted;
+
+  if (partners.length === 0) {
+    return <p className="text-gray-400 text-center py-8">No leaguemates found.</p>;
   }
 
   return (
-    <div className="w-full max-w-3xl">
-      <div className="rounded-xl border border-gray-700/80 bg-gray-800/80 overflow-hidden">
-        <div className="px-4 py-2.5 border-b border-gray-700/60">
-          <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Direct Messages</span>
-        </div>
-        <div className="max-h-96 overflow-y-auto">
-          {partners.length === 0 ? (
-            <div className="flex justify-center py-8">
-              <span className="text-sm text-gray-500">No leaguemates found.</span>
-            </div>
-          ) : (
-            partners.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedPartner(p)}
-                className="flex items-center gap-3 w-full px-4 py-3 text-left border-b border-gray-700/30 hover:bg-gray-700/30 transition"
-              >
-                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-bold text-gray-400">{p.name[0]?.toUpperCase()}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm text-gray-200 font-medium truncate block">{p.name}</span>
-                  <span className="text-xs text-gray-500">Tap to open conversation</span>
-                </div>
-                <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            ))
-          )}
-        </div>
+    <div className="w-full max-w-4xl flex flex-col gap-3">
+      {/* Sort controls */}
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mr-1.5">Sort</span>
+        {([
+          { mode: "recent" as DmSortMode, label: "Recent" },
+          { mode: "alpha" as DmSortMode, label: "A-Z" },
+        ]).map(({ mode, label }) => (
+          <button
+            key={mode}
+            onClick={() => setSortMode(mode)}
+            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+              sortMode === mode
+                ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
+                : "bg-gray-700/60 text-gray-500 hover:text-gray-300 hover:bg-gray-700"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
+
+      {/* DM cards */}
+      {displayList.map((p) => {
+        const preview = previews[p.id];
+        const isExpanded = expandedId === p.id;
+        return (
+          <div key={p.id} className="rounded-xl border border-gray-700/80 bg-gray-800 overflow-hidden">
+            {/* Header */}
+            <div
+              className="flex items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-gray-700/30 transition"
+              onClick={() => setExpandedId((prev) => prev === p.id ? null : p.id)}
+            >
+              <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
+                <span className="text-[10px] font-bold text-gray-400">{p.name[0]?.toUpperCase()}</span>
+              </div>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-sm font-medium text-gray-200 truncate">{p.name}</span>
+              </div>
+              {/* Preview */}
+              {!isExpanded && preview && (
+                <div className="hidden sm:flex items-center gap-2 max-w-[40%] min-w-0">
+                  <span className="text-xs text-gray-500 truncate">
+                    <span className="font-medium text-gray-400">{preview.author}:</span>{" "}
+                    {preview.text.slice(0, 60)}
+                  </span>
+                  <span className="text-[10px] text-gray-600 shrink-0">{formatTime(preview.time)}</span>
+                </div>
+              )}
+              {!isExpanded && !preview && (
+                <span className="text-xs text-gray-600">No messages</span>
+              )}
+              <svg
+                className={`w-4 h-4 text-gray-500 transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            {/* Expanded: DM Panel */}
+            {isExpanded && (
+              <div className="border-t border-gray-700/40">
+                <DmPanel userId={userId} partnerId={p.id} partnerName={p.name} leagues={leagues} />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
