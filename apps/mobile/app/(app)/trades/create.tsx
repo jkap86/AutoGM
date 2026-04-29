@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity, TextInput, Alert,
-  ActivityIndicator, StyleSheet, ScrollView, Modal,
+  ActivityIndicator, ScrollView, Modal,
 } from 'react-native'
 import type { LeagueDetailed, Roster, Allplayer } from '@autogm/shared'
 import { getPickId } from '@autogm/shared'
@@ -10,7 +10,6 @@ import { useLeagueCache } from '../../../src/league-cache'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { useKtc } from '../../../src/hooks/use-ktc'
 import { mobileDataClient } from '../../../src/data-client'
-import { colors } from '../../../src/theme'
 
 function PlayerSearchModal({
   visible,
@@ -48,19 +47,19 @@ function PlayerSearchModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={s.modalContainer}>
-        <View style={s.modalHeader}>
-          <Text style={s.modalTitle}>{title}</Text>
+      <View className="flex-1 bg-gray-900">
+        <View className="flex-row justify-between items-center p-4 border-b border-gray-700">
+          <Text className="text-white text-[17px] font-bold">{title}</Text>
           <TouchableOpacity onPress={() => { onClose(); setQuery('') }}>
-            <Text style={{ color: colors.blueLight, fontSize: 15 }}>Done</Text>
+            <Text className="text-blue-400 text-[15px]">Done</Text>
           </TouchableOpacity>
         </View>
         <TextInput
           value={query}
           onChangeText={setQuery}
           placeholder="Search players..."
-          placeholderTextColor={colors.textMuted}
-          style={s.searchInput}
+          placeholderTextColor="#6B7280"
+          className="bg-gray-800 rounded-lg mx-4 mt-2 mb-4 px-3 py-2.5 text-gray-100 text-sm border border-gray-700"
           autoFocus
         />
         <FlatList
@@ -70,12 +69,12 @@ function PlayerSearchModal({
             const p = allplayers[id]
             const value = ktc[id] ?? 0
             return (
-              <TouchableOpacity style={s.searchRow} onPress={() => { onSelect(id); setQuery('') }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.searchName}>{p?.full_name || id}</Text>
-                  <Text style={s.searchDetail}>{p?.position ?? '?'} - {p?.team ?? 'FA'}</Text>
+              <TouchableOpacity className="flex-row items-center px-4 py-2.5 border-b border-gray-700/25" onPress={() => { onSelect(id); setQuery('') }}>
+                <View className="flex-1">
+                  <Text className="text-gray-100 text-sm font-medium">{p?.full_name || id}</Text>
+                  <Text className="text-gray-500 text-xs mt-px">{p?.position ?? '?'} - {p?.team ?? 'FA'}</Text>
                 </View>
-                {value > 0 && <Text style={s.searchKtc}>{value}</Text>}
+                {value > 0 && <Text className="text-blue-400 text-[13px] font-semibold">{value}</Text>}
               </TouchableOpacity>
             )
           }}
@@ -87,11 +86,11 @@ function PlayerSearchModal({
 
 function Chip({ label, value, chipColor, onRemove }: { label: string; value?: number; chipColor: string; onRemove: () => void }) {
   return (
-    <View style={[s.chip, { borderColor: chipColor + '60', backgroundColor: chipColor + '15' }]}>
-      <Text style={[s.chipText, { color: chipColor }]}>{label}</Text>
-      {value != null && value > 0 && <Text style={[s.chipValue, { color: chipColor + 'AA' }]}>{value}</Text>}
+    <View className="flex-row items-center border rounded-full px-2.5 py-1.5 mb-1" style={{ borderColor: chipColor + '60', backgroundColor: chipColor + '15' }}>
+      <Text className="text-xs font-medium" style={{ color: chipColor }}>{label}</Text>
+      {value != null && value > 0 && <Text className="text-[10px] ml-1" style={{ color: chipColor + 'AA' }}>{value}</Text>}
       <TouchableOpacity onPress={onRemove} hitSlop={8}>
-        <Text style={{ color: chipColor, fontSize: 16, marginLeft: 4 }}>x</Text>
+        <Text className="text-base ml-1" style={{ color: chipColor }}>x</Text>
       </TouchableOpacity>
     </View>
   )
@@ -124,34 +123,34 @@ function TradeMatchCard({
   const receiveTotal = playersToReceive.reduce((s, id) => s + (ktc[id] ?? 0), 0)
 
   return (
-    <View style={s.matchCard}>
-      <View style={s.matchHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.matchLeague}>{league.name}</Text>
-          <Text style={s.matchPartner}>with {partner.username} ({partner.wins}-{partner.losses})</Text>
+    <View className="bg-gray-800 rounded-xl p-3.5 mb-2">
+      <View className="flex-row items-center mb-2">
+        <View className="flex-1">
+          <Text className="text-white text-sm font-semibold">{league.name}</Text>
+          <Text className="text-gray-500 text-xs mt-px">with {partner.username} ({partner.wins}-{partner.losses})</Text>
         </View>
         <TouchableOpacity
-          style={[s.sendBtn, sending && { opacity: 0.5 }]}
+          className={`bg-blue-600 rounded-lg px-3.5 py-1.5 ${sending ? 'opacity-50' : ''}`}
           onPress={onSend}
           disabled={sending}
         >
-          <Text style={s.sendBtnText}>{sending ? '...' : 'Send'}</Text>
+          <Text className="text-white text-[13px] font-semibold">{sending ? '...' : 'Send'}</Text>
         </TouchableOpacity>
       </View>
-      <View style={s.matchSummary}>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.matchLabel, { color: colors.red }]}>Give ({giveTotal.toLocaleString()})</Text>
+      <View className="flex-row gap-3">
+        <View className="flex-1">
+          <Text className="text-red-400 text-[11px] font-bold mb-1">Give ({giveTotal.toLocaleString()})</Text>
           {playersToGive.map((id) => (
-            <Text key={id} style={s.matchItem} numberOfLines={1}>{allplayers[id]?.full_name || id}</Text>
+            <Text key={id} className="text-gray-100 text-xs mb-px" numberOfLines={1}>{allplayers[id]?.full_name || id}</Text>
           ))}
-          {picksToGive.map((id) => <Text key={id} style={s.matchItem}>{id}</Text>)}
+          {picksToGive.map((id) => <Text key={id} className="text-gray-100 text-xs mb-px">{id}</Text>)}
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.matchLabel, { color: colors.green }]}>Get ({receiveTotal.toLocaleString()})</Text>
+        <View className="flex-1">
+          <Text className="text-green-400 text-[11px] font-bold mb-1">Get ({receiveTotal.toLocaleString()})</Text>
           {playersToReceive.map((id) => (
-            <Text key={id} style={s.matchItem} numberOfLines={1}>{allplayers[id]?.full_name || id}</Text>
+            <Text key={id} className="text-gray-100 text-xs mb-px" numberOfLines={1}>{allplayers[id]?.full_name || id}</Text>
           ))}
-          {picksToReceive.map((id) => <Text key={id} style={s.matchItem}>{id}</Text>)}
+          {picksToReceive.map((id) => <Text key={id} className="text-gray-100 text-xs mb-px">{id}</Text>)}
         </View>
       </View>
     </View>
@@ -183,6 +182,7 @@ export default function CreateTradeScreen() {
   const [selectedTrades, setSelectedTrades] = useState<Set<string>>(new Set())
   const [batchSending, setBatchSending] = useState(false)
   const [batchProgress, setBatchProgress] = useState(0)
+  const [expiresAt, setExpiresAt] = useState<number | null>(null)
 
   const allPlayerIds = useMemo(() => Object.keys(allplayers), [allplayers])
 
@@ -260,6 +260,7 @@ export default function CreateTradeScreen() {
           }),
         ],
         waiver_budget: [],
+        expires_at: expiresAt,
       })
       Alert.alert('Sent', `Trade sent to ${partner.username} in ${league.name}`)
     } catch (e) {
@@ -267,7 +268,7 @@ export default function CreateTradeScreen() {
     } finally {
       setSendingKey(null)
     }
-  }, [playersToGive, playersToReceive, picksToGive, picksToReceive])
+  }, [playersToGive, playersToReceive, picksToGive, picksToReceive, expiresAt])
 
   const toggleSelected = useCallback((key: string) => {
     setSelectedTrades((prev) => {
@@ -298,115 +299,144 @@ export default function CreateTradeScreen() {
   const receiveTotal = playersToReceive.reduce((s, id) => s + (ktc[id] ?? 0), 0)
 
   if (leaguesLoading) {
-    return <View style={s.center}><ActivityIndicator size="large" color={colors.blueLight} /></View>
+    return <View className="flex-1 bg-gray-900 items-center justify-center"><ActivityIndicator size="large" color="#60A5FA" /></View>
   }
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
+    <ScrollView className="flex-1 bg-gray-900" contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
       {/* You Give */}
-      <View style={s.section}>
-        <View style={s.sectionHeader}>
-          <Text style={[s.sectionTitle, { color: colors.red }]}>You Give</Text>
-          {giveTotal > 0 && <Text style={s.sectionTotal}>{giveTotal.toLocaleString()}</Text>}
+      <View className="bg-gray-800 rounded-xl p-3.5 mb-3">
+        <View className="flex-row justify-between items-center mb-2">
+          <Text className="text-red-400 text-[13px] font-bold uppercase tracking-wide">You Give</Text>
+          {giveTotal > 0 && <Text className="text-gray-500 text-xs">{giveTotal.toLocaleString()}</Text>}
         </View>
-        <View style={s.btnRow}>
-          <TouchableOpacity style={s.addBtn} onPress={() => setShowGiveSearch(true)}>
-            <Text style={s.addBtnText}>+ Player</Text>
+        <View className="flex-row gap-2 mb-2">
+          <TouchableOpacity className="flex-1 bg-gray-900 border border-gray-700 rounded-lg p-2.5 items-center" onPress={() => setShowGiveSearch(true)}>
+            <Text className="text-gray-500 text-[13px] font-medium">+ Player</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.addBtn} onPress={() => setShowGivePicks(true)}>
-            <Text style={s.addBtnText}>+ Pick</Text>
+          <TouchableOpacity className="flex-1 bg-gray-900 border border-gray-700 rounded-lg p-2.5 items-center" onPress={() => setShowGivePicks(true)}>
+            <Text className="text-gray-500 text-[13px] font-medium">+ Pick</Text>
           </TouchableOpacity>
         </View>
         {playersToGive.length > 0 && (
-          <View style={s.chipWrap}>
+          <View className="flex-row flex-wrap gap-1">
             {playersToGive.map((id) => (
-              <Chip key={id} label={allplayers[id]?.full_name || id} value={ktc[id]} chipColor={colors.red}
+              <Chip key={id} label={allplayers[id]?.full_name || id} value={ktc[id]} chipColor="#F87171"
                 onRemove={() => setPlayersToGive((p) => p.filter((x) => x !== id))} />
             ))}
           </View>
         )}
         {picksToGive.map((id) => (
-          <Chip key={id} label={id} chipColor={colors.red}
+          <Chip key={id} label={id} chipColor="#F87171"
             onRemove={() => setPicksToGive((p) => p.filter((x) => x !== id))} />
         ))}
       </View>
 
       {/* You Receive */}
-      <View style={s.section}>
-        <View style={s.sectionHeader}>
-          <Text style={[s.sectionTitle, { color: colors.green }]}>You Receive</Text>
-          {receiveTotal > 0 && <Text style={s.sectionTotal}>{receiveTotal.toLocaleString()}</Text>}
+      <View className="bg-gray-800 rounded-xl p-3.5 mb-3">
+        <View className="flex-row justify-between items-center mb-2">
+          <Text className="text-green-400 text-[13px] font-bold uppercase tracking-wide">You Receive</Text>
+          {receiveTotal > 0 && <Text className="text-gray-500 text-xs">{receiveTotal.toLocaleString()}</Text>}
         </View>
-        <View style={s.btnRow}>
-          <TouchableOpacity style={s.addBtn} onPress={() => setShowReceiveSearch(true)}>
-            <Text style={s.addBtnText}>+ Player</Text>
+        <View className="flex-row gap-2 mb-2">
+          <TouchableOpacity className="flex-1 bg-gray-900 border border-gray-700 rounded-lg p-2.5 items-center" onPress={() => setShowReceiveSearch(true)}>
+            <Text className="text-gray-500 text-[13px] font-medium">+ Player</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.addBtn} onPress={() => setShowReceivePicks(true)}>
-            <Text style={s.addBtnText}>+ Pick</Text>
+          <TouchableOpacity className="flex-1 bg-gray-900 border border-gray-700 rounded-lg p-2.5 items-center" onPress={() => setShowReceivePicks(true)}>
+            <Text className="text-gray-500 text-[13px] font-medium">+ Pick</Text>
           </TouchableOpacity>
         </View>
         {playersToReceive.length > 0 && (
-          <View style={s.chipWrap}>
+          <View className="flex-row flex-wrap gap-1">
             {playersToReceive.map((id) => (
-              <Chip key={id} label={allplayers[id]?.full_name || id} value={ktc[id]} chipColor={colors.green}
+              <Chip key={id} label={allplayers[id]?.full_name || id} value={ktc[id]} chipColor="#4ADE80"
                 onRemove={() => setPlayersToReceive((p) => p.filter((x) => x !== id))} />
             ))}
           </View>
         )}
         {picksToReceive.map((id) => (
-          <Chip key={id} label={id} chipColor={colors.green}
+          <Chip key={id} label={id} chipColor="#4ADE80"
             onRemove={() => setPicksToReceive((p) => p.filter((x) => x !== id))} />
         ))}
       </View>
 
       {/* Roster Filters */}
-      <View style={s.section}>
-        <Text style={[s.sectionTitle, { color: colors.textMuted, marginBottom: 8 }]}>Roster Filters</Text>
-        <View style={s.btnRow}>
-          <TouchableOpacity style={s.addBtn} onPress={() => setShowFilterModal('userOwns')}>
-            <Text style={s.addBtnText}>You Own</Text>
+      <View className="bg-gray-800 rounded-xl p-3.5 mb-3">
+        <Text className="text-gray-500 text-[13px] font-bold uppercase tracking-wide mb-2">Roster Filters</Text>
+        <View className="flex-row gap-2 mb-2">
+          <TouchableOpacity className="flex-1 bg-gray-900 border border-gray-700 rounded-lg p-2.5 items-center" onPress={() => setShowFilterModal('userOwns')}>
+            <Text className="text-gray-500 text-[13px] font-medium">You Own</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.addBtn} onPress={() => setShowFilterModal('userLacks')}>
-            <Text style={s.addBtnText}>You Lack</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={s.btnRow}>
-          <TouchableOpacity style={s.addBtn} onPress={() => setShowFilterModal('partnerOwns')}>
-            <Text style={s.addBtnText}>Ptr Owns</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.addBtn} onPress={() => setShowFilterModal('partnerLacks')}>
-            <Text style={s.addBtnText}>Ptr Lacks</Text>
+          <TouchableOpacity className="flex-1 bg-gray-900 border border-gray-700 rounded-lg p-2.5 items-center" onPress={() => setShowFilterModal('userLacks')}>
+            <Text className="text-gray-500 text-[13px] font-medium">You Lack</Text>
           </TouchableOpacity>
         </View>
-        {userOwnsFilter.length > 0 && <View style={s.chipWrap}>{userOwnsFilter.map((id) => (
-          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor={colors.blueLight} onRemove={() => setUserOwnsFilter((p) => p.filter((x) => x !== id))} />
+        <View className="flex-row gap-2 mb-2">
+          <TouchableOpacity className="flex-1 bg-gray-900 border border-gray-700 rounded-lg p-2.5 items-center" onPress={() => setShowFilterModal('partnerOwns')}>
+            <Text className="text-gray-500 text-[13px] font-medium">Ptr Owns</Text>
+          </TouchableOpacity>
+          <TouchableOpacity className="flex-1 bg-gray-900 border border-gray-700 rounded-lg p-2.5 items-center" onPress={() => setShowFilterModal('partnerLacks')}>
+            <Text className="text-gray-500 text-[13px] font-medium">Ptr Lacks</Text>
+          </TouchableOpacity>
+        </View>
+        {userOwnsFilter.length > 0 && <View className="flex-row flex-wrap gap-1">{userOwnsFilter.map((id) => (
+          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor="#60A5FA" onRemove={() => setUserOwnsFilter((p) => p.filter((x) => x !== id))} />
         ))}</View>}
-        {userLacksFilter.length > 0 && <View style={s.chipWrap}>{userLacksFilter.map((id) => (
-          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor={colors.orange} onRemove={() => setUserLacksFilter((p) => p.filter((x) => x !== id))} />
+        {userLacksFilter.length > 0 && <View className="flex-row flex-wrap gap-1">{userLacksFilter.map((id) => (
+          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor="#FB923C" onRemove={() => setUserLacksFilter((p) => p.filter((x) => x !== id))} />
         ))}</View>}
-        {partnerOwnsFilter.length > 0 && <View style={s.chipWrap}>{partnerOwnsFilter.map((id) => (
-          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor={colors.blueLight} onRemove={() => setPartnerOwnsFilter((p) => p.filter((x) => x !== id))} />
+        {partnerOwnsFilter.length > 0 && <View className="flex-row flex-wrap gap-1">{partnerOwnsFilter.map((id) => (
+          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor="#60A5FA" onRemove={() => setPartnerOwnsFilter((p) => p.filter((x) => x !== id))} />
         ))}</View>}
-        {partnerLacksFilter.length > 0 && <View style={s.chipWrap}>{partnerLacksFilter.map((id) => (
-          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor={colors.orange} onRemove={() => setPartnerLacksFilter((p) => p.filter((x) => x !== id))} />
+        {partnerLacksFilter.length > 0 && <View className="flex-row flex-wrap gap-1">{partnerLacksFilter.map((id) => (
+          <Chip key={id} label={allplayers[id]?.full_name || id} chipColor="#FB923C" onRemove={() => setPartnerLacksFilter((p) => p.filter((x) => x !== id))} />
         ))}</View>}
+      </View>
+
+      {/* Expiration */}
+      <View className="bg-gray-800 rounded-xl p-3.5 mb-3">
+        <Text className="text-gray-500 text-[13px] font-bold uppercase tracking-wide mb-2">Expiration</Text>
+        <View className="flex-row gap-2">
+          {([
+            { label: 'None', days: null },
+            { label: '1 Day', days: 1 },
+            { label: '3 Days', days: 3 },
+            { label: '7 Days', days: 7 },
+          ] as const).map(({ label, days }) => {
+            const isSelected = days === null ? expiresAt === null : (expiresAt != null && Math.round((expiresAt - Date.now()) / 86400000) === days)
+            return (
+              <TouchableOpacity
+                key={label}
+                className={`flex-1 rounded-lg p-2.5 items-center border ${isSelected ? 'bg-blue-600/20 border-blue-400' : 'bg-gray-900 border-gray-700'}`}
+                onPress={() => setExpiresAt(days === null ? null : Date.now() + days * 86400000)}
+              >
+                <Text className={`text-[13px] font-medium ${isSelected ? 'text-blue-400' : 'text-gray-500'}`}>{label}</Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+        {expiresAt != null && (
+          <Text className="text-gray-400 text-xs mt-2">
+            Expires: {new Date(expiresAt).toLocaleDateString()} {new Date(expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        )}
       </View>
 
       {/* Potential Trades */}
       {filteredMatches.length > 0 ? (
         <View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={s.matchesTitle}>
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-gray-400 text-sm font-semibold mb-2 mt-1">
               {filteredMatches.length} potential {filteredMatches.length === 1 ? 'trade' : 'trades'}
               {selectedTrades.size > 0 ? ` · ${selectedTrades.size} selected` : ''}
             </Text>
             {selectedTrades.size > 0 && (
               <TouchableOpacity
-                style={[s.sendBtn, batchSending && { opacity: 0.5 }]}
+                className={`bg-blue-600 rounded-lg px-3.5 py-1.5 ${batchSending ? 'opacity-50' : ''}`}
                 onPress={batchSend}
                 disabled={batchSending}
               >
-                <Text style={s.sendBtnText}>
+                <Text className="text-white text-[13px] font-semibold">
                   {batchSending ? `${batchProgress}/${selectedTrades.size}...` : `Send ${selectedTrades.size}`}
                 </Text>
               </TouchableOpacity>
@@ -416,7 +446,7 @@ export default function CreateTradeScreen() {
             const key = `${league.league_id}-${partner.roster_id}`
             return (
               <TouchableOpacity key={key} onLongPress={() => toggleSelected(key)} activeOpacity={0.8}>
-                <View style={selectedTrades.has(key) ? [s.matchCard, { borderWidth: 1, borderColor: colors.blueLight }] : undefined}>
+                <View className={selectedTrades.has(key) ? 'bg-gray-800 rounded-xl p-3.5 mb-2 border border-blue-400' : ''}>
             <TradeMatchCard
               key={`${league.league_id}-${partner.roster_id}`}
               league={league}
@@ -440,9 +470,9 @@ export default function CreateTradeScreen() {
           })}
         </View>
       ) : (playersToGive.length + playersToReceive.length + picksToGive.length + picksToReceive.length > 0) ? (
-        <Text style={s.noMatches}>No matching leagues for these players/picks.</Text>
+        <Text className="text-gray-500 text-[13px] text-center mt-6">No matching leagues for these players/picks.</Text>
       ) : (
-        <Text style={s.noMatches}>Select players or picks above to find trades.</Text>
+        <Text className="text-gray-500 text-[13px] text-center mt-6">Select players or picks above to find trades.</Text>
       )}
 
       {/* Modals */}
@@ -530,38 +560,3 @@ export default function CreateTradeScreen() {
   )
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  section: { backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 12 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
-  sectionTotal: { color: colors.textMuted, fontSize: 12 },
-  btnRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  addBtn: { flex: 1, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, alignItems: 'center' },
-  addBtnText: { color: colors.textMuted, fontSize: 13, fontWeight: '500' },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  chip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 4 },
-  chipText: { fontSize: 12, fontWeight: '500' },
-  chipValue: { fontSize: 10, marginLeft: 4 },
-  matchesTitle: { color: colors.textSecondary, fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 4 },
-  noMatches: { color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 24 },
-  matchCard: { backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 8 },
-  matchHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  matchLeague: { color: colors.white, fontSize: 14, fontWeight: '600' },
-  matchPartner: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
-  matchSummary: { flexDirection: 'row', gap: 12 },
-  matchLabel: { fontSize: 11, fontWeight: '700', marginBottom: 4 },
-  matchItem: { color: colors.text, fontSize: 12, marginBottom: 1 },
-  sendBtn: { backgroundColor: colors.blue, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
-  sendBtnText: { color: colors.white, fontSize: 13, fontWeight: '600' },
-  // Modal
-  modalContainer: { flex: 1, backgroundColor: colors.bg },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle: { color: colors.white, fontSize: 17, fontWeight: '700' },
-  searchInput: { backgroundColor: colors.card, borderRadius: 8, margin: 16, marginTop: 8, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, fontSize: 14, borderWidth: 1, borderColor: colors.border },
-  searchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border + '40' },
-  searchName: { color: colors.text, fontSize: 14, fontWeight: '500' },
-  searchDetail: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
-  searchKtc: { color: colors.blueLight, fontSize: 13, fontWeight: '600' },
-})

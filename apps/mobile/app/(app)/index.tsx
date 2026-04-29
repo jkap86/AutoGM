@@ -32,7 +32,7 @@ const EMOJI_CATEGORIES = [
 ]
 
 function computeRosterValue(
-  roster: Roster, filter: PositionFilter, values: Record<string, number>, allplayers: Record<string, Allplayer>, currentSeason?: string,
+  roster: Roster, filter: PositionFilter, values: Record<string, number>, allplayers: Record<string, Allplayer>, currentSeason?: string, topN?: number,
 ): number {
   const vals: number[] = []
   if (filter !== 'PICKS') {
@@ -49,6 +49,10 @@ function computeRosterValue(
       vals.push(values[getPickKtcName(pick.season, pick.round, pick.order)] ?? 0)
     }
   }
+  if (topN && topN > 0) {
+    vals.sort((a, b) => b - a)
+    return vals.slice(0, topN).reduce((a, b) => a + b, 0)
+  }
   return vals.reduce((a, b) => a + b, 0)
 }
 
@@ -59,16 +63,16 @@ function rankColor(rank: number | null, total: number): string {
   return '#F3F4F6'
 }
 
-function getRank(league: LeagueDetailed, rosterId: number, filter: PositionFilter, values: Record<string, number>, allplayers: Record<string, Allplayer>): number {
-  const totals = league.rosters.map((r) => ({ rid: r.roster_id, total: computeRosterValue(r, filter, values, allplayers, league.season) }))
+function getRank(league: LeagueDetailed, rosterId: number, filter: PositionFilter, values: Record<string, number>, allplayers: Record<string, Allplayer>, topN?: number): number {
+  const totals = league.rosters.map((r) => ({ rid: r.roster_id, total: computeRosterValue(r, filter, values, allplayers, league.season, topN) }))
   totals.sort((a, b) => b.total - a.total)
   return totals.findIndex((t) => t.rid === rosterId) + 1
 }
 
 function LeagueRankCard({
-  league, values, allplayers, valueType,
+  league, values, allplayers, valueType, topN,
 }: {
-  league: LeagueDetailed; values: Record<string, number>; allplayers: Record<string, Allplayer>; valueType: ValueType
+  league: LeagueDetailed; values: Record<string, number>; allplayers: Record<string, Allplayer>; valueType: ValueType; topN?: Record<string, number>
 }) {
   const [expanded, setExpanded] = useState(false)
   const [expandedFilter, setExpandedFilter] = useState<PositionFilter>('ALL')
@@ -94,8 +98,9 @@ function LeagueRankCard({
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 6, paddingBottom: 12 }}>
         {RANK_CATEGORIES.map(({ label, filter }) => {
-          const rank = getRank(league, league.user_roster.roster_id, filter, values, allplayers)
-          const value = computeRosterValue(league.user_roster, filter, values, allplayers)
+          const n = topN?.[filter] || undefined
+          const rank = getRank(league, league.user_roster.roster_id, filter, values, allplayers, n)
+          const value = computeRosterValue(league.user_roster, filter, values, allplayers, undefined, n)
           return (
             <View key={filter} className="items-center bg-gray-900 rounded-lg px-2.5 py-1.5 min-w-[60px]">
               <Text className="text-gray-500 text-[10px] font-medium">{label}</Text>
@@ -135,21 +140,40 @@ function LeagueRankCard({
   )
 }
 
+const DRAFT_TYPES = ['', 'snake', 'auction', 'linear'] as const
+const TOP_N_POSITIONS: PositionFilter[] = ['ALL', 'PLAYERS', 'QB', 'RB', 'WR', 'TE', 'PICKS']
+const TOP_N_LABELS: Record<string, string> = {
+  ALL: 'Overall', PLAYERS: 'Players', QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', PICKS: 'Picks',
+}
+
 function RanksView({ leagues, allplayers, ktc }: {
   leagues: LeagueDetailed[]; allplayers: Record<string, Allplayer>; ktc: Record<string, number>
 }) {
   const [valueType, setValueType] = useState<ValueType>('ktc')
   const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
   const defaultStart = useMemo(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10) }, [])
+
+  // ADP filter state
+  const [startDate, setStartDate] = useState(defaultStart)
+  const [endDate, setEndDate] = useState(today)
+  const [draftType, setDraftType] = useState<string>('')
+  const [minDrafts, setMinDrafts] = useState(2)
+  const [filtersExpanded, setFiltersExpanded] = useState(false)
+
+  // Top N state
+  const [topNByCategory, setTopNByCategory] = useState<Record<string, number>>({})
+  const [topNExpanded, setTopNExpanded] = useState(false)
+
   const isAdp = valueType === 'adp' || valueType === 'auction'
   const { data: adpRows, stats, loading: adpLoading } = useAdp(
-    { startDate: defaultStart, endDate: today, minDrafts: 2 }, isAdp,
+    { startDate, endDate, draftType: draftType || null, minDrafts } as any, isAdp,
   )
   const valueLookup = useMemo(() => buildValueLookup(valueType, ktc, adpRows), [valueType, ktc, adpRows])
   const valueTypes: ValueType[] = ['ktc', 'adp', 'auction']
 
   return (
     <View className="flex-1">
+      {/* Value type toggle */}
       <View className="flex-row items-center px-3 py-2 border-b border-gray-800">
         <View className="flex-row bg-gray-800 rounded-lg p-0.5">
           {valueTypes.map((v) => (
@@ -164,11 +188,81 @@ function RanksView({ leagues, allplayers, ktc }: {
         )}
         {adpLoading && <ActivityIndicator size="small" color="#60A5FA" className="ml-2" />}
       </View>
+
+      {/* ADP/Auction filter controls */}
+      {isAdp && (
+        <View className="border-b border-gray-800">
+          <TouchableOpacity onPress={() => setFiltersExpanded(p => !p)} className="flex-row items-center justify-center py-1.5">
+            <Text className="text-[10px] text-gray-500 font-semibold uppercase">
+              ADP Filters {filtersExpanded ? '▲' : '▼'}
+            </Text>
+          </TouchableOpacity>
+          {filtersExpanded && (
+            <View className="px-3 pb-2 gap-2">
+              <View className="flex-row items-center gap-1.5 flex-wrap">
+                <Text className="text-[10px] text-gray-500 font-semibold uppercase">From</Text>
+                <TextInput value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" placeholderTextColor="#6B7280"
+                  className="bg-gray-900 rounded-md px-2 py-1 text-[11px] text-gray-300 border border-gray-700 w-[100px]" />
+                <Text className="text-[10px] text-gray-500 font-semibold uppercase">To</Text>
+                <TextInput value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD" placeholderTextColor="#6B7280"
+                  className="bg-gray-900 rounded-md px-2 py-1 text-[11px] text-gray-300 border border-gray-700 w-[100px]" />
+              </View>
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-[10px] text-gray-500 font-semibold uppercase">Draft</Text>
+                <View className="flex-row bg-gray-900 rounded-lg p-0.5">
+                  {DRAFT_TYPES.map((t) => (
+                    <TouchableOpacity key={t} onPress={() => setDraftType(t)}
+                      className={`px-2.5 py-1 rounded-md ${draftType === t ? 'bg-blue-600' : ''}`}>
+                      <Text className={`text-[11px] font-medium capitalize ${draftType === t ? 'text-white' : 'text-gray-500'}`}>
+                        {t || 'Any'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text className="text-[10px] text-gray-500 font-semibold uppercase ml-1">Min</Text>
+                <TextInput value={String(minDrafts)} keyboardType="number-pad"
+                  onChangeText={(v) => setMinDrafts(Math.max(1, Number(v) || 1))}
+                  className="bg-gray-900 rounded-md px-2 py-1 text-[11px] text-gray-300 border border-gray-700 w-10 text-center" />
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Top N per category */}
+      <View className="border-b border-gray-800">
+        <TouchableOpacity onPress={() => setTopNExpanded(p => !p)} className="flex-row items-center justify-center py-1.5">
+          <Text className="text-[10px] text-gray-500 font-semibold uppercase">
+            Rank by Top N {topNExpanded ? '▲' : '▼'}
+          </Text>
+        </TouchableOpacity>
+        {topNExpanded && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 12, gap: 6, paddingBottom: 8 }}>
+            {TOP_N_POSITIONS.map((pos) => (
+              <View key={pos} className="items-center bg-gray-900 rounded-lg px-2 py-1.5">
+                <Text className="text-[10px] text-gray-500 font-medium">{TOP_N_LABELS[pos]}</Text>
+                <TextInput
+                  keyboardType="number-pad"
+                  placeholder="All"
+                  placeholderTextColor="#4B5563"
+                  value={topNByCategory[pos] ? String(topNByCategory[pos]) : ''}
+                  onChangeText={(v) => setTopNByCategory(p => ({
+                    ...p, [pos]: v === '' ? 0 : Math.max(0, Number(v)),
+                  }))}
+                  className="w-10 mt-1 rounded-md bg-gray-800 border border-gray-700 px-1 py-0.5 text-sm text-gray-200 text-center font-bold"
+                />
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+
       <FlatList
         data={leagues}
         keyExtractor={(l) => l.league_id}
         renderItem={({ item }) => (
-          <LeagueRankCard league={item} values={valueLookup} allplayers={allplayers} valueType={valueType} />
+          <LeagueRankCard league={item} values={valueLookup} allplayers={allplayers} valueType={valueType} topN={topNByCategory} />
         )}
         contentContainerStyle={{ padding: 12 }}
       />

@@ -27,7 +27,7 @@ import { ErrorBoundary } from '../../../src/components/error-boundary'
 
 import CreateTradeScreen from './create'
 
-type Tab = 'create' | 'pending' | 'completed' | 'rejected'
+type Tab = 'create' | 'pending' | 'expired' | 'completed' | 'rejected'
 
 function TradeCard({
   trade,
@@ -534,22 +534,27 @@ function TradesContent() {
     useTradesByStatus(safeLeagues, 'proposed')
   const { trades: completedTrades, loading: completedLoading } =
     useTradesByStatus(safeLeagues, 'complete')
+  const { trades: expiredTrades, loading: expiredLoading } =
+    useTradesByStatus(safeLeagues, 'expired')
   const { trades: rejectedTrades, loading: rejectedLoading } =
     useTradesByStatus(safeLeagues, 'rejected')
 
   const trades =
     tab === 'pending' ? pendingTrades
-      : tab === 'completed' ? completedTrades
-        : rejectedTrades
+      : tab === 'expired' ? expiredTrades
+        : tab === 'completed' ? completedTrades
+          : rejectedTrades
   const isLoading =
     leaguesLoading ||
     (tab === 'pending' && pendingLoading) ||
+    (tab === 'expired' && expiredLoading) ||
     (tab === 'completed' && completedLoading) ||
     (tab === 'rejected' && rejectedLoading)
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: 'create', label: 'Create', count: 0 },
     { key: 'pending', label: 'Pending', count: pendingTrades.length },
+    { key: 'expired', label: 'Expired', count: expiredTrades.length },
     { key: 'completed', label: 'Completed', count: completedTrades.length },
     { key: 'rejected', label: 'Rejected', count: rejectedTrades.length },
   ]

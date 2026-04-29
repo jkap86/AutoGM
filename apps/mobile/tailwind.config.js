@@ -6,7 +6,15 @@ module.exports = {
   ],
   presets: [require('nativewind/preset')],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        heading: ['SpaceGrotesk_700Bold'],
+        sans: ['Rajdhani_400Regular'],
+        medium: ['Rajdhani_500Medium'],
+        semibold: ['Rajdhani_600SemiBold'],
+        bold: ['Rajdhani_700Bold'],
+      },
+    },
   },
   plugins: [],
 }
