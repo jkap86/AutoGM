@@ -274,6 +274,7 @@ export function getRostersUserInfo(
           roster.settings.fpts_against_decimal || 0
         }`,
       ),
+      waiver_budget_used: roster.settings.waiver_budget_used ?? 0,
     };
   });
 }

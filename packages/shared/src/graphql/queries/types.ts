@@ -232,6 +232,29 @@ export type LeaguePlayersResult = {
   league_players: LeaguePlayer[];
 };
 
+export type SubmitWaiverClaimVars = {
+  league_id: string;
+  k_adds: string[];
+  v_adds: number[];
+  k_drops?: string[];
+  v_drops?: number[];
+  k_settings?: string[];
+  v_settings?: number[];
+};
+
+export type SubmitWaiverClaimResult = {
+  submit_waiver_claim: Transaction;
+};
+
+export type CancelWaiverClaimVars = {
+  league_id: string;
+  transaction_id: string;
+};
+
+export type CancelWaiverClaimResult = {
+  cancel_waiver_claim: Transaction;
+};
+
 export type QueryMap = {
   proposeTrade: { vars: ProposeTradeVars; result: ProposeTradeResult };
   acceptTrade: { vars: AcceptTradeVars; result: AcceptTradeResult };
@@ -254,6 +277,14 @@ export type QueryMap = {
   createLeagueMessage: {
     vars: CreateLeagueMessageVars;
     result: CreateMessageResult;
+  };
+  submitWaiverClaim: {
+    vars: SubmitWaiverClaimVars;
+    result: SubmitWaiverClaimResult;
+  };
+  cancelWaiverClaim: {
+    vars: CancelWaiverClaimVars;
+    result: CancelWaiverClaimResult;
   };
 };
 

@@ -23,6 +23,7 @@ export type LeagueSettings = {
   trade_deadline: number;
   disable_trades: number;
   daily_waivers: number;
+  waiver_budget?: number;
 };
 
 export type Draft = {
@@ -51,6 +52,7 @@ export type SleeperRoster = {
     fpts_decimal?: number;
     fpts_against?: number;
     fpts_against_decimal?: number;
+    waiver_budget_used?: number;
   };
   starters: string[] | null;
   taxi?: string[];
@@ -100,6 +102,7 @@ export type Roster = {
   ties: number;
   fp: number;
   fpa: number;
+  waiver_budget_used: number;
 };
 
 export type LeagueDetailed = League & {

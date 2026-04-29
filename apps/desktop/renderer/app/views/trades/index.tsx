@@ -17,6 +17,7 @@ import { PotentialTrades } from "./potential-trades";
 import { PlayerCombobox } from "../../components/player-combobox";
 import { TradeFilterBar } from "../../components/trade-filter-bar";
 import { DmPanel } from "./dm-panel";
+import WaiversView from "./waivers-view";
 import { formatTime } from "../../../lib/trade-utils";
 import { Avatar } from "../../components/avatar";
 type TransactionType = "trades" | "waivers" | "dms";
@@ -102,9 +103,13 @@ export default function TransactionsView(props: {
       {txType === "trades" && <TradesContent {...props} />}
       {txType === "dms" && <DmsInbox userId={props.userId} leagues={props.leagues} />}
       {txType === "waivers" && (
-        <div className="flex flex-col items-center py-12 gap-3">
-          <p className="text-gray-500 text-sm">Waivers coming soon.</p>
-        </div>
+        <WaiversView
+          leagues={props.leagues}
+          allplayers={props.allplayers}
+          userId={props.userId}
+          ktc={props.ktc}
+          playerShares={props.playerShares}
+        />
       )}
     </div>
   );
