@@ -383,7 +383,7 @@ export default function WaiversView({
             <div className="flex flex-col gap-3">
               {filteredLeagues.map((league) => {
                 const totalBudget = league.settings.waiver_budget ?? 100;
-                const used = league.user_roster.waiver_budget_used;
+                const used = league.user_roster.waiver_budget_used ?? 0;
                 const remaining = totalBudget - used;
                 const usedPct = totalBudget > 0 ? (used / totalBudget) * 100 : 0;
                 const effectiveBid = getEffectiveBid(league.league_id);
@@ -436,7 +436,7 @@ export default function WaiversView({
                       <input
                         type="number"
                         min={0}
-                        max={remaining}
+                        max={remaining || undefined}
                         placeholder={String(effectiveBid)}
                         value={bidOverrides[league.league_id] ?? ""}
                         onChange={(e) => {
