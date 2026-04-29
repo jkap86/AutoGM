@@ -80,9 +80,9 @@ function CreatePollForm({
 
   return (
     <ScrollView className="flex-1 bg-gray-900" contentContainerStyle={{ padding: 16 }}>
-      <View className="bg-gray-800 rounded-xl p-4 mb-3">
+      <View className="bg-gray-800 rounded-xl border border-gray-700/80 p-4 mb-3">
         <View className="flex-row justify-between mb-3">
-          <Text className="text-white font-semibold text-[15px]">New Poll</Text>
+          <Text className="text-white font-semibold text-[15px] font-heading">New Poll</Text>
           <TouchableOpacity onPress={onDone}>
             <Text className="text-blue-400 text-[13px]">Cancel</Text>
           </TouchableOpacity>
@@ -223,10 +223,10 @@ function PollGroupCard({
   }
 
   return (
-    <View className="bg-gray-800 rounded-xl p-4 mb-3">
+    <View className="bg-gray-800 rounded-xl border border-gray-700/80 p-4 mb-3">
       <View className="flex-row justify-between mb-2">
         <View className="flex-1">
-          <Text className="text-white font-semibold text-[15px]">{group.prompt}</Text>
+          <Text className="text-white font-semibold text-[15px] font-heading">{group.prompt}</Text>
           <Text className="text-gray-500 text-[11px]">
             {group.poll_type} · {group.privacy}
           </Text>

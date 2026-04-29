@@ -50,7 +50,7 @@ export default function AppLayout() {
     return (
       <View className="flex-1 bg-gray-900 items-center justify-center p-6">
         <ActivityIndicator size="large" color="#60A5FA" />
-        <Text className="text-gray-400 text-center mt-2">Checking access...</Text>
+        <Text className="text-gray-400 text-center mt-2 font-heading">Checking access...</Text>
       </View>
     )
   }
@@ -58,7 +58,7 @@ export default function AppLayout() {
   if (!accessAllowed) {
     return (
       <View className="flex-1 bg-gray-900 items-center justify-center p-6">
-        <Text className="text-white text-xl font-bold mb-2">Access Denied</Text>
+        <Text className="text-white text-xl font-bold mb-2 font-heading">Access Denied</Text>
         <Text className="text-gray-400 text-center mt-2">
           Your account ({session.user_id}) is not on the access list.
         </Text>

@@ -188,9 +188,9 @@ function TradeCard({
   }, [trade, userRoster, partnerRoster, counterGive, counterReceive, counterPicksGive, counterPicksReceive, onAction])
 
   return (
-    <View className="bg-gray-800 rounded-xl p-4 mb-3">
+    <View className="bg-gray-800 rounded-xl border border-gray-700/80 p-4 mb-3">
       <View className="flex-row items-center justify-between mb-2">
-        <Text className="text-white font-semibold text-sm">{trade.league_name}</Text>
+        <Text className="text-white font-semibold text-sm font-heading">{trade.league_name}</Text>
         <View className="flex-row items-center gap-2">
           <View className={`px-2 py-0.5 rounded ${isReceived ? 'bg-orange-500/20' : 'bg-blue-500/20'}`}>
             <Text className={`text-[11px] font-medium ${isReceived ? 'text-orange-400' : 'text-blue-400'}`}>
@@ -343,7 +343,7 @@ function TradeCard({
       <Modal visible={counterOpen} animationType="slide" presentationStyle="pageSheet">
         <View className="flex-1 bg-gray-900">
           <View className="flex-row justify-between items-center p-4 border-b border-gray-700">
-            <Text className="text-white text-[17px] font-bold">Counter Offer</Text>
+            <Text className="text-white text-[17px] font-bold font-heading">Counter Offer</Text>
             <TouchableOpacity onPress={() => setCounterOpen(false)}>
               <Text className="text-blue-400 text-[15px]">Cancel</Text>
             </TouchableOpacity>
@@ -564,7 +564,7 @@ function TradesContent() {
             onPress={() => setTab(t.key)}
             className={`px-4 py-3 mr-1 ${tab === t.key ? 'border-b-2 border-b-blue-400' : ''}`}
           >
-            <Text className={`text-[13px] font-medium ${tab === t.key ? 'text-white' : 'text-gray-500'}`}>
+            <Text className={`text-[13px] font-medium font-heading ${tab === t.key ? 'text-white' : 'text-gray-500'}`}>
               {t.label}{t.count > 0 ? ` (${t.count})` : ''}
             </Text>
           </TouchableOpacity>

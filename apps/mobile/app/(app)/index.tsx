@@ -10,6 +10,7 @@ import { type ValueType, buildValueLookup, formatValue, getPickKtcName } from '.
 import { mobileDataClient } from '../../src/data-client'
 import type { Message, MessagesResult, CreateMessageResult } from '@autogm/shared'
 import { useCallback, useRef } from 'react'
+import { useLeagueFilter, LeagueFilterBar } from '../../src/components/league-filter'
 
 type LeaguesTab = 'ranks' | 'chats'
 type PositionFilter = 'ALL' | 'PLAYERS' | 'PLAYERS+CUR' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
@@ -79,7 +80,7 @@ function LeagueRankCard({
   const total = league.rosters.length
 
   return (
-    <View className="bg-gray-800 rounded-xl mb-2.5 overflow-hidden">
+    <View className="bg-gray-800 rounded-xl border border-gray-700/80 mb-2.5 overflow-hidden">
       <TouchableOpacity onPress={() => setExpanded((p) => !p)} className="flex-row items-center p-3">
         {league.avatar ? (
           <Image source={{ uri: `https://sleepercdn.com/avatars/thumbs/${league.avatar}` }} className="w-8 h-8 rounded-full mr-2.5" />
@@ -89,7 +90,7 @@ function LeagueRankCard({
           </View>
         )}
         <View className="flex-1">
-          <Text className="text-white font-semibold text-[15px]">{league.name}</Text>
+          <Text className="text-white font-semibold text-[15px] font-heading">{league.name}</Text>
           <Text className="text-gray-400 text-xs mt-0.5">
             {league.season} · {league.settings.type === 2 ? 'Dynasty' : league.settings.type === 1 ? 'Keeper' : 'Redraft'} · {total} teams · {league.user_roster.wins}-{league.user_roster.losses}{league.user_roster.ties > 0 ? `-${league.user_roster.ties}` : ''}
           </Text>
@@ -318,10 +319,10 @@ function ChatCard({ league, userId, onLastMessage }: {
   const lastMsg = sorted.length > 0 ? sorted[sorted.length - 1] : null
 
   return (
-    <View className="bg-gray-800 rounded-xl mb-2.5 overflow-hidden">
+    <View className="bg-gray-800 rounded-xl border border-gray-700/80 mb-2.5 overflow-hidden">
       <TouchableOpacity onPress={() => setExpanded((p) => !p)} className="flex-row items-center p-3">
         <View className="flex-1">
-          <Text className="text-white font-semibold text-[15px]">{league.name}</Text>
+          <Text className="text-white font-semibold text-[15px] font-heading">{league.name}</Text>
           {!expanded && lastMsg ? (
             <Text className="text-gray-400 text-xs mt-0.5" numberOfLines={1}>{lastMsg.author_display_name}: {lastMsg.text || '...'}</Text>
           ) : (
@@ -473,6 +474,9 @@ export default function LeaguesScreen() {
   const [tab, setTab] = useState<LeaguesTab>('ranks')
 
   const leagueList = useMemo(() => (leagues ? Object.values(leagues) : []), [leagues])
+  const leaguesRecord = useMemo(() => leagues ?? {}, [leagues])
+  const { filters, setFilters, filteredLeagues, activeFilterCount } = useLeagueFilter(leaguesRecord)
+  const filteredLeagueList = useMemo(() => Object.values(filteredLeagues), [filteredLeagues])
 
   if ((loading || ktcLoading || apLoading) && leagueList.length === 0) {
     return (
@@ -493,17 +497,19 @@ export default function LeaguesScreen() {
         {(['ranks', 'chats'] as LeaguesTab[]).map((t) => (
           <TouchableOpacity key={t} onPress={() => setTab(t)}
             className={`px-5 py-1.5 rounded-lg ${tab === t ? 'bg-blue-600' : ''}`}>
-            <Text className={`text-[13px] font-semibold uppercase ${tab === t ? 'text-white' : 'text-gray-500'}`}>
+            <Text className={`text-[13px] font-semibold uppercase font-heading ${tab === t ? 'text-white' : 'text-gray-500'}`}>
               {t === 'ranks' ? 'Ranks' : 'Chats'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
+      <LeagueFilterBar filters={filters} setFilters={setFilters} totalCount={leagueList.length} filteredCount={filteredLeagueList.length} />
+
       {tab === 'ranks' ? (
-        <RanksView leagues={leagueList} allplayers={allplayers} ktc={ktc} />
+        <RanksView leagues={filteredLeagueList} allplayers={allplayers} ktc={ktc} />
       ) : (
-        <ChatsView leagues={leagueList} userId={session?.user_id ?? ''} />
+        <ChatsView leagues={filteredLeagueList} userId={session?.user_id ?? ''} />
       )}
     </View>
   )

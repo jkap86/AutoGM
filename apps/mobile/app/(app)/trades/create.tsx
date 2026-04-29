@@ -10,6 +10,7 @@ import { useLeagueCache } from '../../../src/league-cache'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { useKtc } from '../../../src/hooks/use-ktc'
 import { mobileDataClient } from '../../../src/data-client'
+import { RosterColumn } from '../../../src/components/roster-column'
 
 function PlayerSearchModal({
   visible,
@@ -183,6 +184,7 @@ export default function CreateTradeScreen() {
   const [batchSending, setBatchSending] = useState(false)
   const [batchProgress, setBatchProgress] = useState(0)
   const [expiresAt, setExpiresAt] = useState<number | null>(null)
+  const [rostersExpanded, setRostersExpanded] = useState(false)
 
   const allPlayerIds = useMemo(() => Object.keys(allplayers), [allplayers])
 
@@ -421,6 +423,38 @@ export default function CreateTradeScreen() {
           </Text>
         )}
       </View>
+
+      {/* Rosters */}
+      {filteredMatches.length > 0 && (
+        <View className="bg-gray-800 rounded-xl p-3.5 mb-3">
+          <TouchableOpacity
+            className="flex-row justify-between items-center"
+            onPress={() => setRostersExpanded((v) => !v)}
+          >
+            <Text className="text-gray-400 text-[13px] font-bold uppercase tracking-wide">
+              View Rosters {rostersExpanded ? '\u25B2' : '\u25BC'}
+            </Text>
+          </TouchableOpacity>
+          {rostersExpanded && filteredMatches[0] && (
+            <View className="flex-row gap-2 mt-2">
+              <RosterColumn
+                roster={filteredMatches[0].league.user_roster}
+                allplayers={allplayers}
+                label={filteredMatches[0].league.user_roster.username ?? 'You'}
+                valueLookup={ktc}
+                formatValue={(n) => Math.round(n).toLocaleString()}
+              />
+              <RosterColumn
+                roster={filteredMatches[0].partner}
+                allplayers={allplayers}
+                label={filteredMatches[0].partner.username ?? 'Partner'}
+                valueLookup={ktc}
+                formatValue={(n) => Math.round(n).toLocaleString()}
+              />
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Potential Trades */}
       {filteredMatches.length > 0 ? (
