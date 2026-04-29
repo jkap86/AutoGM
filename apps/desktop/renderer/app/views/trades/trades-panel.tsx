@@ -788,13 +788,14 @@ function TradeCards({
 
                   {/* Tab content */}
                   {activeTab === "Rosters" && (
-                    <>
+                    <div className="px-4 py-3">
                       {isCounter && (
-                        <div className="px-4 py-2 bg-yellow-500/10 border-b border-yellow-600/30">
-                          <span className="text-xs text-yellow-300">Click players or picks to add/remove from counter-offer</span>
+                        <div className="flex items-center gap-2 rounded-lg bg-yellow-500/10 border border-yellow-600/25 px-3 py-2 mb-3">
+                          <span className="text-yellow-400 text-sm">&#9998;</span>
+                          <span className="text-xs text-yellow-300/90 font-medium">Click players or picks to add/remove from counter-offer</span>
                         </div>
                       )}
-                      <div className="grid grid-cols-2 gap-3 px-4 py-3">
+                      <div className="grid grid-cols-2 gap-4">
                         {sides.map((side) => {
                           const isUserSide = side.roster_id === userRosterId;
                           return (
@@ -819,7 +820,7 @@ function TradeCards({
                           );
                         })}
                       </div>
-                    </>
+                    </div>
                   )}
 
                   {activeTab === "DM" && (() => {
