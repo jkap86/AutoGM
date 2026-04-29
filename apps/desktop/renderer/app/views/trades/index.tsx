@@ -16,7 +16,8 @@ import { TradesPanel } from "./trades-panel";
 import { PotentialTrades } from "./potential-trades";
 import { PlayerCombobox } from "../../components/player-combobox";
 import { TradeFilterBar } from "../../components/trade-filter-bar";
-type TransactionType = "trades" | "waivers";
+import { DmPanel } from "./dm-panel";
+type TransactionType = "trades" | "waivers" | "dms";
 type TradesTab = "create" | "pending" | "expired" | "completed" | "rejected";
 
 // Convert a UI pick_id like "2026 1.03" or "2026 Round 2" into the KTC-compatible name
@@ -79,6 +80,7 @@ export default function TransactionsView(props: {
       <div className="flex gap-1 rounded-lg bg-gray-900/60 p-0.5">
         {([
           { key: "trades" as TransactionType, label: "Trades" },
+          { key: "dms" as TransactionType, label: "DMs" },
           { key: "waivers" as TransactionType, label: "Waivers" },
         ]).map(({ key, label }) => (
           <button
@@ -96,11 +98,88 @@ export default function TransactionsView(props: {
       </div>
 
       {txType === "trades" && <TradesContent {...props} />}
+      {txType === "dms" && <DmsInbox userId={props.userId} leagues={props.leagues} />}
       {txType === "waivers" && (
         <div className="flex flex-col items-center py-12 gap-3">
           <p className="text-gray-500 text-sm">Waivers coming soon.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: string]: LeagueDetailed } }) {
+  const [selectedPartner, setSelectedPartner] = useState<{ id: string; name: string } | null>(null);
+
+  const partners = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const league of Object.values(leagues)) {
+      for (const roster of league.rosters) {
+        if (roster.user_id && roster.user_id !== userId && !seen.has(roster.user_id)) {
+          seen.set(roster.user_id, roster.username ?? `User ${roster.user_id}`);
+        }
+      }
+    }
+    return [...seen.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [leagues, userId]);
+
+  if (selectedPartner) {
+    return (
+      <div className="w-full max-w-3xl">
+        <button
+          onClick={() => setSelectedPartner(null)}
+          className="flex items-center gap-1.5 mb-3 text-sm text-gray-400 hover:text-gray-200 transition"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to DMs
+        </button>
+        <div className="rounded-xl border border-gray-700/80 bg-gray-800/80 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-gray-700/60">
+            <span className="text-sm font-semibold text-gray-100 font-[family-name:var(--font-heading)]">{selectedPartner.name}</span>
+          </div>
+          <DmPanel userId={userId} partnerId={selectedPartner.id} partnerName={selectedPartner.name} leagues={leagues} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-3xl">
+      <div className="rounded-xl border border-gray-700/80 bg-gray-800/80 overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-gray-700/60">
+          <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Direct Messages</span>
+        </div>
+        <div className="max-h-96 overflow-y-auto">
+          {partners.length === 0 ? (
+            <div className="flex justify-center py-8">
+              <span className="text-sm text-gray-500">No leaguemates found.</span>
+            </div>
+          ) : (
+            partners.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedPartner(p)}
+                className="flex items-center gap-3 w-full px-4 py-3 text-left border-b border-gray-700/30 hover:bg-gray-700/30 transition"
+              >
+                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
+                  <span className="text-xs font-bold text-gray-400">{p.name[0]?.toUpperCase()}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-gray-200 font-medium truncate block">{p.name}</span>
+                  <span className="text-xs text-gray-500">Tap to open conversation</span>
+                </div>
+                <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }
