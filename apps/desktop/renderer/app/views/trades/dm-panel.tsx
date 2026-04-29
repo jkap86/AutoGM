@@ -44,7 +44,7 @@ function parseAttachment(raw: unknown): Record<string, unknown> | null {
   return obj;
 }
 
-export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, leagues }: { userId: string; partnerId: string; partnerName: string; leagues: { [league_id: string]: LeagueDetailed } }) {
+export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, leagues, onNewMessage }: { userId: string; partnerId: string; partnerName: string; leagues: { [league_id: string]: LeagueDetailed }; onNewMessage?: (text: string, time: number, author: string) => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [dmId, setDmId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -98,13 +98,14 @@ export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, l
         v_attachment_data: [],
       });
       if (inputRef.current) inputRef.current.value = "";
+      onNewMessage?.(text, Date.now(), "You");
       await fetchMessages();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSending(false);
     }
-  }, [dmId, fetchMessages]);
+  }, [dmId, fetchMessages, onNewMessage]);
 
   const sorted = useMemo(() => [...messages].sort((a, b) => a.created - b.created), [messages]);
 

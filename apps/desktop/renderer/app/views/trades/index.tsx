@@ -256,7 +256,14 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
             {/* Expanded: DM Panel */}
             {isExpanded && (
               <div className="border-t border-gray-700/40">
-                <DmPanel userId={userId} partnerId={p.id} partnerName={p.name} leagues={leagues} />
+                <DmPanel userId={userId} partnerId={p.id} partnerName={p.name} leagues={leagues}
+                  onNewMessage={(text, time, author) => {
+                    const preview = { text, time, author };
+                    dmPreviewCache[p.id] = preview;
+                    setPreviews((prev) => ({ ...prev, [p.id]: preview }));
+                    setLastMessageTimes((prev) => ({ ...prev, [p.id]: time }));
+                  }}
+                />
               </div>
             )}
           </div>
