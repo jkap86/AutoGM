@@ -18,6 +18,7 @@ import { PlayerCombobox } from "../../components/player-combobox";
 import { TradeFilterBar } from "../../components/trade-filter-bar";
 import { DmPanel } from "./dm-panel";
 import { formatTime } from "../../../lib/trade-utils";
+import { Avatar } from "../../components/avatar";
 type TransactionType = "trades" | "waivers" | "dms";
 type TradesTab = "create" | "pending" | "expired" | "completed" | "rejected";
 
@@ -124,20 +125,21 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
   const [leagueFilter, setLeagueFilter] = useState<string>("");
 
   const partners = useMemo(() => {
-    const map = new Map<string, { name: string; leagueIds: Set<string> }>();
+    const map = new Map<string, { name: string; avatar: string | null; leagueIds: Set<string> }>();
     for (const league of Object.values(leagues)) {
       for (const roster of league.rosters) {
         if (roster.user_id && roster.user_id !== userId) {
           const existing = map.get(roster.user_id);
           if (existing) {
             existing.leagueIds.add(league.league_id);
+            if (!existing.avatar && roster.avatar) existing.avatar = roster.avatar;
           } else {
-            map.set(roster.user_id, { name: roster.username ?? `User ${roster.user_id}`, leagueIds: new Set([league.league_id]) });
+            map.set(roster.user_id, { name: roster.username ?? `User ${roster.user_id}`, avatar: roster.avatar ?? null, leagueIds: new Set([league.league_id]) });
           }
         }
       }
     }
-    return [...map.entries()].map(([id, { name, leagueIds }]) => ({ id, name, leagueIds }));
+    return [...map.entries()].map(([id, { name, avatar, leagueIds }]) => ({ id, name, avatar, leagueIds }));
   }, [leagues, userId]);
 
   const leagueList = useMemo(() =>
@@ -272,9 +274,7 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
               className="flex items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-gray-700/30 transition"
               onClick={() => setExpandedId((prev) => prev === p.id ? null : p.id)}
             >
-              <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
-                <span className="text-[10px] font-bold text-gray-400">{p.name[0]?.toUpperCase()}</span>
-              </div>
+              <Avatar hash={p.avatar} alt={p.name} size={24} />
               <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-sm font-medium text-gray-200 truncate">{p.name}</span>
               </div>
