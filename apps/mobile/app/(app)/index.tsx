@@ -9,8 +9,10 @@ import { useAuth } from '@autogm/shared/react'
 import { type ValueType, buildValueLookup, formatValue, getPickKtcName } from '../../src/utils/value-lookup'
 import { mobileDataClient } from '../../src/data-client'
 import type { Message, MessagesResult, CreateMessageResult } from '@autogm/shared'
+import { SleeperTopics, messageFromSocket } from '@autogm/shared'
 import { useCallback, useRef } from 'react'
 import { useLeagueFilter, LeagueFilterBar } from '../../src/components/league-filter'
+import { useGatewayTopic } from '../../src/contexts/socket-context'
 
 type LeaguesTab = 'ranks' | 'chats'
 type PositionFilter = 'ALL' | 'PLAYERS' | 'PLAYERS+CUR' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
@@ -304,6 +306,21 @@ function ChatCard({ league, userId, onLastMessage }: {
 
   useEffect(() => { fetchMsgs(true) }, [])
   useEffect(() => { if (expanded) fetchMsgs() }, [expanded])
+
+  // Real-time message updates via socket
+  useGatewayTopic(
+    expanded ? SleeperTopics.league(league.league_id) : null,
+    useCallback((event: string, payload: unknown) => {
+      if (event === 'message_created') {
+        const msg = messageFromSocket(payload as any)
+        setMessages((prev) => {
+          if (prev.some((m) => m.message_id === msg.message_id)) return prev
+          return [...prev, msg]
+        })
+        if (onLastMessage) onLastMessage(league.league_id, msg.created)
+      }
+    }, [league.league_id, onLastMessage]),
+  )
 
   const sendMsg = useCallback(async () => {
     const text = draftRef.current.trim()

@@ -10,6 +10,7 @@ import { SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk'
 import { Rajdhani_400Regular, Rajdhani_500Medium, Rajdhani_600SemiBold, Rajdhani_700Bold } from '@expo-google-fonts/rajdhani'
 import { setSession } from '@autogm/shared'
 import { AuthProvider, useAuth } from '@autogm/shared/react'
+import { SocketProvider } from '../src/contexts/socket-context'
 
 function HydrateSession() {
   const { setSession: setAuthSession, setRestoring } = useAuth()
@@ -52,9 +53,11 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <HydrateSession />
-      <StatusBar style="light" />
-      <Slot />
+      <SocketProvider>
+        <HydrateSession />
+        <StatusBar style="light" />
+        <Slot />
+      </SocketProvider>
     </AuthProvider>
   )
 }

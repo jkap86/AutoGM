@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { useAuth } from '@autogm/shared/react'
 import type { Allplayer, LeagueDetailed, Roster } from '@autogm/shared'
 import { getPickId } from '@autogm/shared'
+import { SleeperTopics } from '@autogm/shared'
 import { useLeagueCache } from '../../../src/league-cache'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { useKtc } from '../../../src/hooks/use-ktc'
@@ -26,6 +27,7 @@ import {
 import { useTradeAction } from '../../../src/hooks/use-trade-action'
 import { mobileDataClient } from '../../../src/data-client'
 import { ErrorBoundary } from '../../../src/components/error-boundary'
+import { useGatewayTopic } from '../../../src/contexts/socket-context'
 
 import CreateTradeScreen from './create'
 
@@ -530,6 +532,21 @@ function TradesContent() {
     useTradesByStatus(safeLeagues, 'expired')
   const { trades: rejectedTrades, loading: rejectedLoading } =
     useTradesByStatus(safeLeagues, 'rejected')
+
+  // Real-time trade updates via socket
+  const IGNORE_EVENTS = useMemo(() => new Set([
+    'phx_reply', 'phx_join', 'phx_close', 'presence_diff', 'presence_state',
+    'message_created', 'typing', 'read_receipt',
+  ]), [])
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useGatewayTopic(
+    session?.user_id ? SleeperTopics.user(session.user_id) : null,
+    useCallback((event: string) => {
+      if (IGNORE_EVENTS.has(event)) return
+      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+      refetchTimerRef.current = setTimeout(() => { refetchPending() }, 2000)
+    }, [IGNORE_EVENTS, refetchPending]),
+  )
 
   const trades =
     tab === 'pending' ? pendingTrades

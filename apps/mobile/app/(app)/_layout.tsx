@@ -5,6 +5,7 @@ import * as SecureStore from 'expo-secure-store'
 import { clearSession } from '@autogm/shared'
 import { useAuth } from '@autogm/shared/react'
 import { LeagueCacheProvider } from '../../src/league-cache'
+import { useSocketContext } from '../../src/contexts/socket-context'
 import { checkAccess } from '../../src/access'
 import { DEMO_SESSION } from '../../src/demo-data'
 
@@ -69,10 +70,16 @@ export default function AppLayout() {
     )
   }
 
-  const logoutButton = () => (
-    <TouchableOpacity onPress={handleLogout} className="mr-2">
-      <Text className="text-gray-500 text-xs">Sign Out</Text>
-    </TouchableOpacity>
+  const { gatewayStatus } = useSocketContext()
+  const statusColor = gatewayStatus === 'connected' ? '#4ADE80' : gatewayStatus === 'connecting' ? '#FBBF24' : '#F87171'
+
+  const headerRight = () => (
+    <View className="flex-row items-center mr-2 gap-2">
+      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: statusColor }} />
+      <TouchableOpacity onPress={handleLogout}>
+        <Text className="text-gray-500 text-xs">Sign Out</Text>
+      </TouchableOpacity>
+    </View>
   )
 
   return (
@@ -84,7 +91,7 @@ export default function AppLayout() {
           tabBarStyle: { backgroundColor: '#111827', borderTopColor: '#1F2937' },
           tabBarActiveTintColor: '#60A5FA',
           tabBarInactiveTintColor: '#6B7280',
-          headerRight: logoutButton,
+          headerRight: headerRight,
         }}
       >
         <Tabs.Screen

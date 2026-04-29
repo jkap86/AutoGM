@@ -4,7 +4,7 @@ import {
   ActivityIndicator, ScrollView, Modal,
 } from 'react-native'
 import type { LeagueDetailed, Roster, Allplayer } from '@autogm/shared'
-import { getPickId } from '@autogm/shared'
+import { getPickId, buildPlayerAttachment, buildUserAttachment } from '@autogm/shared'
 import { useAuth } from '@autogm/shared/react'
 import { useLeagueCache } from '../../../src/league-cache'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
@@ -264,13 +264,63 @@ export default function CreateTradeScreen() {
         waiver_budget: [],
         expires_at: expiresAt,
       })
+
+      // Send DM notification (non-blocking)
+      try {
+        const partnerId = partner.user_id
+        const userId = session?.user_id
+        if (partnerId && userId) {
+          const dmResult = await mobileDataClient.graphql('getDmByMembers', { members: [userId, partnerId] })
+          let dmId = (dmResult as any).get_dm_by_members?.dm_id
+          if (!dmId) {
+            const newDm = await mobileDataClient.graphql('createDm', { members: [userId, partnerId], dm_type: 'direct' })
+            dmId = (newDm as any).create_dm?.dm_id
+          }
+          if (dmId) {
+            const transactionsByRoster: Record<string, unknown> = {
+              [userRoster.roster_id]: {
+                adds: playersToReceive.map((pid) => buildPlayerAttachment(allplayers[pid])),
+                drops: [],
+                added_picks: picksToReceive.flatMap((pickId) => {
+                  const pick = partner.draftpicks.find((d) => getPickId(d) === pickId)
+                  if (!pick) return []
+                  return [{ roster_id: String(pick.roster_id), season: pick.season, round: String(pick.round), owner_id: userId, previous_owner_id: partnerId }]
+                }),
+                dropped_picks: [], added_budget: [], dropped_budget: [],
+                status: 'proposed',
+                user: buildUserAttachment(userRoster, league.league_id),
+              },
+              [partner.roster_id]: {
+                adds: playersToGive.map((pid) => buildPlayerAttachment(allplayers[pid])),
+                drops: [],
+                added_picks: picksToGive.flatMap((pickId) => {
+                  const pick = userRoster.draftpicks.find((d) => getPickId(d) === pickId)
+                  if (!pick) return []
+                  return [{ roster_id: String(pick.roster_id), season: pick.season, round: String(pick.round), owner_id: partnerId, previous_owner_id: userId }]
+                }),
+                dropped_picks: [], added_budget: [], dropped_budget: [],
+                status: 'proposed',
+                user: buildUserAttachment(partner, league.league_id),
+              },
+            }
+            await mobileDataClient.graphql('createMessage', {
+              parent_id: dmId,
+              text: `Trade proposed in ${league.name}`,
+              attachment_type: 'trade_dm',
+              k_attachment_data: ['status', 'transactions_by_roster', 'league_id'],
+              v_attachment_data: ['proposed', JSON.stringify(transactionsByRoster), league.league_id],
+            } as any)
+          }
+        }
+      } catch {} // DM failure shouldn't block trade
+
       Alert.alert('Sent', `Trade sent to ${partner.username} in ${league.name}`)
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e))
     } finally {
       setSendingKey(null)
     }
-  }, [playersToGive, playersToReceive, picksToGive, picksToReceive, expiresAt])
+  }, [playersToGive, playersToReceive, picksToGive, picksToReceive, expiresAt, session?.user_id, allplayers])
 
   const toggleSelected = useCallback((key: string) => {
     setSelectedTrades((prev) => {
