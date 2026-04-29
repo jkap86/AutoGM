@@ -38,6 +38,12 @@ jobs:
       - name: Build shared package
         run: pnpm --filter @autogm/shared build
 
+      - name: Typecheck
+        run: pnpm --filter autogm-desktop typecheck
+
+      - name: Lint
+        run: pnpm --filter autogm-desktop lint
+
       - name: Create desktop .env
         working-directory: apps/desktop
         run: |
@@ -49,6 +55,9 @@ jobs:
         run: pnpm build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List desktop dist
+        run: find apps/desktop/dist -maxdepth 2 -type f || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

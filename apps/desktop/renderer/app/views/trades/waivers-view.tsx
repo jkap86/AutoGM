@@ -8,11 +8,11 @@ import type {
 } from "@autogm/shared";
 import { PlayerCombobox } from "../../components/player-combobox";
 import { Avatar } from "../../components/avatar";
-import { useGraphqlMutation } from "../../../hooks/use-ipc-mutation";
+import { useIpcMutation } from "../../../hooks/use-ipc-mutation";
 
 type BidMode = "amount" | "percent";
 type LeagueTypeFilter = "all" | "dynasty" | "keeper" | "redraft";
-type SubmitStatus = "pending" | "success" | "error";
+type SubmitResult = { status: "success" } | { status: "error"; message: string };
 
 export default function WaiversView({
   leagues,
@@ -34,13 +34,13 @@ export default function WaiversView({
   const [bidOverrides, setBidOverrides] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
-  const [submitResults, setSubmitResults] = useState<Record<string, SubmitStatus>>({});
+  const [submitResults, setSubmitResults] = useState<Record<string, SubmitResult>>({});
   const [leagueTypeFilter, setLeagueTypeFilter] = useState<LeagueTypeFilter>("all");
   // Roster filters
   const [mustHave, setMustHave] = useState<string[]>([]);
   const [mustNotHave, setMustNotHave] = useState<string[]>([]);
 
-  const { mutate: submitWaiver } = useGraphqlMutation("submitWaiverClaim");
+  const { mutate: submitWaiver } = useIpcMutation<"submitWaiverClaim">("waiver:submit");
 
   const allPlayerIds = useMemo(() => Object.keys(allplayers), [allplayers]);
 
@@ -95,7 +95,7 @@ export default function WaiversView({
     setSubmitProgress(0);
     setSubmitResults({});
 
-    const results: Record<string, SubmitStatus> = {};
+    const results: Record<string, SubmitResult> = {};
     for (let i = 0; i < filteredLeagues.length; i++) {
       const league = filteredLeagues[i];
       const rosterId = league.user_roster.roster_id;
@@ -110,10 +110,10 @@ export default function WaiversView({
           k_settings: ["waiver_bid"],
           v_settings: [bidAmount],
         });
-        results[league.league_id] = "success";
+        results[league.league_id] = { status: "success" };
       } catch (e) {
-        console.error(`Waiver claim failed for ${league.name}:`, e);
-        results[league.league_id] = "error";
+        const errMsg = e instanceof Error ? e.message : String(e);
+        results[league.league_id] = { status: "error", message: errMsg };
       }
       setSubmitProgress(i + 1);
       setSubmitResults({ ...results });
@@ -130,8 +130,9 @@ export default function WaiversView({
   const dropKtc = playerToDrop ? (ktc[playerToDrop] ?? 0) : 0;
   const netKtc = addKtc - dropKtc;
 
-  const successCount = Object.values(submitResults).filter((s) => s === "success").length;
-  const errorCount = Object.values(submitResults).filter((s) => s === "error").length;
+  const successCount = Object.values(submitResults).filter((r) => r.status === "success").length;
+  const errorEntries = Object.entries(submitResults).filter(([, r]) => r.status === "error") as [string, { status: "error"; message: string }][];
+  const errorCount = errorEntries.length;
 
   return (
     <div className="flex flex-col flex-1 items-center w-full gap-6 p-6">
@@ -298,7 +299,8 @@ export default function WaiversView({
           </div>
 
           {/* Submit bar */}
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col gap-2 mb-3">
+           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {successCount > 0 && (
                 <span className="text-xs text-green-400 font-medium">{successCount} submitted</span>
@@ -316,6 +318,24 @@ export default function WaiversView({
                 ? `Submitting ${submitProgress}/${filteredLeagues.length}...`
                 : `Submit to ${filteredLeagues.length} ${filteredLeagues.length === 1 ? "League" : "Leagues"}`}
             </button>
+           </div>
+           {/* Error details */}
+           {errorEntries.length > 0 && !submitting && (
+             <div className="rounded-lg border border-red-800/50 bg-red-900/15 px-3 py-2">
+               <p className="text-[11px] font-semibold text-red-400 mb-1">
+                 Submitted {successCount} of {successCount + errorCount}. Failed:
+               </p>
+               <ul className="flex flex-col gap-0.5">
+                 {errorEntries.map(([lid, r]) => (
+                   <li key={lid} className="text-[11px] text-red-300/80">
+                     <span className="font-medium text-red-300">{leagues[lid]?.name ?? lid}</span>
+                     {": "}
+                     <span className="text-red-400/70">{r.message}</span>
+                   </li>
+                 ))}
+               </ul>
+             </div>
+           )}
           </div>
 
           {filteredLeagues.length === 0 ? (
@@ -328,7 +348,8 @@ export default function WaiversView({
                 const remaining = totalBudget - used;
                 const remainingPct = totalBudget > 0 ? (remaining / totalBudget) * 100 : 0;
                 const effectiveBid = getEffectiveBid(league.league_id);
-                const status = submitResults[league.league_id];
+                const result = submitResults[league.league_id];
+                const status = result?.status;
 
                 return (
                   <div

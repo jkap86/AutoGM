@@ -29,6 +29,8 @@ const ALLOWED_CHANNELS = new Set([
   'league-message:create',
   'opponent:drafts',
   'opponent:trades',
+  'waiver:submit',
+  'waiver:cancel',
 ])
 
 const handler = {

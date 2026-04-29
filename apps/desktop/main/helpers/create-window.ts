@@ -1,5 +1,6 @@
 import {
   screen,
+  shell,
   BrowserWindow,
   BrowserWindowConstructorOptions,
   Rectangle,
@@ -71,8 +72,8 @@ export const createWindow = (
   state = ensureVisibleOnSomeDisplay(restore())
 
   const win = new BrowserWindow({
-    ...state,
     ...options,
+    ...state,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -81,6 +82,22 @@ export const createWindow = (
   })
 
   win.on('close', saveState)
+
+  // Prevent external URLs from loading inside the app window
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url)
+    return { action: 'deny' }
+  })
+
+  win.webContents.on('will-navigate', (event, url) => {
+    const allowed =
+      url.startsWith('app://') ||
+      url.startsWith('http://localhost:')
+    if (!allowed) {
+      event.preventDefault()
+      shell.openExternal(url)
+    }
+  })
 
   return win
 }

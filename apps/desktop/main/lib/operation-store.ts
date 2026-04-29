@@ -202,3 +202,38 @@ export function leagueMessageOperationKey(vars: {
     vars.v_attachment_data ?? [],
   ]);
 }
+
+/** Idempotency key for submitWaiverClaim. */
+export function waiverSubmitOperationKey(vars: {
+  league_id: string;
+  k_adds: string[];
+  v_adds: number[];
+  k_drops?: string[];
+  v_drops?: number[];
+  k_settings?: string[];
+  v_settings?: number[];
+}): string {
+  const adds = vars.k_adds
+    .map((k, i) => [k, vars.v_adds[i]] as const)
+    .sort(([a], [b]) => a.localeCompare(b));
+  const drops = (vars.k_drops ?? [])
+    .map((k, i) => [k, (vars.v_drops ?? [])[i]] as const)
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  return makeKey([
+    "submitWaiverClaim",
+    vars.league_id,
+    adds,
+    drops,
+    vars.k_settings ?? [],
+    vars.v_settings ?? [],
+  ]);
+}
+
+/** Idempotency key for cancelWaiverClaim. */
+export function waiverCancelOperationKey(vars: {
+  league_id: string;
+  transaction_id: string;
+}): string {
+  return makeKey(["cancelWaiverClaim", vars.league_id, vars.transaction_id]);
+}
