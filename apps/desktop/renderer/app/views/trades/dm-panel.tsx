@@ -123,23 +123,21 @@ export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, l
     fetchMessages();
   }, [fetchMessages]);
 
-  // Real-time: append new messages from the WebSocket
+  // Real-time: append new messages from the WebSocket (subscribe to dm:{dmId} like league chat does with league:{id})
   const onNewMessageRef = useRef(onNewMessage);
   onNewMessageRef.current = onNewMessage;
   useGatewayTopic(
-    SleeperTopics.user(userId),
+    dmId ? SleeperTopics.dm(dmId) : null,
     useCallback((event: string, payload: unknown) => {
       if (event === "message_created") {
         const p = payload as MessageCreatedPayload;
-        if (p.parent_id === dmId) {
-          setMessages((prev) => {
-            if (prev.some((m) => m.message_id === p.message_id)) return prev;
-            return [...prev, messageFromSocket(p)];
-          });
-          onNewMessageRef.current?.(p.text || "Attachment", p.created, p.author_display_name);
-        }
+        setMessages((prev) => {
+          if (prev.some((m) => m.message_id === p.message_id)) return prev;
+          return [...prev, messageFromSocket(p)];
+        });
+        onNewMessageRef.current?.(p.text || "Attachment", p.created, p.author_display_name);
       }
-    }, [dmId]),
+    }, []),
   );
 
   const sendMessage = useCallback(async () => {

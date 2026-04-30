@@ -143,6 +143,7 @@ export const SleeperTopics = {
   // Gateway topics
   user: (userId: string) => `user:${userId}`,
   league: (leagueId: string) => `league:${leagueId}`,
+  dm: (dmId: string) => `dm:${dmId}`,
   draft: (draftId: string) => `draft:${draftId}`,
   // Presence topics
   userPresence: (userId: string) => `presence_presence:${userId}`,
