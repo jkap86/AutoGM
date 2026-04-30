@@ -71,6 +71,19 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$MACOS_KEYCHAIN_PWD" $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
+      - name: Verify macOS notarization secrets
+        if: matrix.platform == 'mac'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          echo "APPLE_ID length: ${#APPLE_ID}"
+          echo "APPLE_ID_PASSWORD length: ${#APPLE_ID_PASSWORD}"
+          echo "APPLE_TEAM_ID length: ${#APPLE_TEAM_ID}"
+          echo "APPLE_ID starts with: ${APPLE_ID:0:3}..."
+          echo "APPLE_TEAM_ID: $APPLE_TEAM_ID"
+
       - name: Build desktop (macOS)
         if: matrix.platform == 'mac'
         working-directory: apps/desktop
