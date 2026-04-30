@@ -117,14 +117,15 @@ export default function TransactionsView(props: {
 
 type DmSortMode = "alpha" | "recent";
 
-// Module-level cache for DM previews
+// Module-level cache for DM previews (survives unmount/remount)
 const dmPreviewCache: Record<string, { text: string; time: number; author: string }> = {};
+const dmTimesCache: Record<string, number> = {};
 const dmFetchedPartners = new Set<string>();
 
 function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: string]: LeagueDetailed } }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<DmSortMode>("recent");
-  const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, number>>({});
+  const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, number>>(dmTimesCache);
   const [previews, setPreviews] = useState<Record<string, { text: string; time: number; author: string }>>(dmPreviewCache);
   const [search, setSearch] = useState("");
   const [leagueFilter, setLeagueFilter] = useState<string>("");
@@ -182,6 +183,7 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
             newPreviews[r.value.partnerId] = preview;
             newTimes[r.value.partnerId] = dm.last_message_time;
             dmPreviewCache[r.value.partnerId] = preview;
+            dmTimesCache[r.value.partnerId] = dm.last_message_time;
           }
         }
         setPreviews((prev) => ({ ...prev, ...newPreviews }));
@@ -310,6 +312,7 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
                   onNewMessage={(text, time, author) => {
                     const preview = { text, time, author };
                     dmPreviewCache[p.id] = preview;
+                    dmTimesCache[p.id] = time;
                     setPreviews((prev) => ({ ...prev, [p.id]: preview }));
                     setLastMessageTimes((prev) => ({ ...prev, [p.id]: time }));
                   }}
