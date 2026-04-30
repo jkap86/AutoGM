@@ -84,7 +84,7 @@ export function RosterColumn({
   const showValue = !!valueLookup;
   const fmt = formatValue ?? ((n: number) => Math.round(n).toLocaleString());
 
-  const renderPlayer = (id: string, slotLabel?: string) => {
+  const renderPlayer = (id: string, slotLabel?: string, index?: number) => {
     const isEmpty = id === "0";
     const p = isEmpty ? undefined : allplayers[id];
     const name = isEmpty ? "Empty" : (p?.full_name || id);
@@ -96,7 +96,7 @@ export function RosterColumn({
 
     return (
       <div
-        key={`${id}-${slotLabel}`}
+        key={index != null ? `${index}-${id}` : id}
         className={`group flex items-center gap-2 px-2 py-[5px] rounded-md border-l-2 transition-colors ${
           isHighlighted
             ? `${hlBg} ${hlBorder}`
@@ -159,7 +159,7 @@ export function RosterColumn({
             <div className="flex flex-col gap-px px-1 pb-1">
               {starters.map((id, i) => {
                 const slot = starterSlots[i];
-                return renderPlayer(id, slot);
+                return renderPlayer(id, slot, i);
               })}
             </div>
           </div>
