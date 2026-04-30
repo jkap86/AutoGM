@@ -253,6 +253,7 @@ type TradeTransaction = {
   adds: Record<string, number> | null;
   drops: Record<string, number> | null;
   draft_picks: string[] | null;
+  roster_names: Record<number, string>;
 };
 
 function RecentTradesSection({
@@ -341,8 +342,9 @@ function RecentTradesSection({
                   .filter(([, r]) => r === rid)
                   .map(([pid]) => ({ pid, name: allplayers[pid]?.full_name ?? pid, pos: allplayers[pid]?.position, involved: involvedSet.has(pid) }));
                 if (got.length === 0 && gave.length === 0) return null;
-                const rosterUser = leagues[tx.league_id]?.rosters.find((r) => r.roster_id === rid);
-                const rosterName = rosterUser?.username ?? `Roster ${rid}`;
+                const rosterName = tx.roster_names?.[rid]
+                  ?? leagues[tx.league_id]?.rosters.find((r) => r.roster_id === rid)?.username
+                  ?? `Roster ${rid}`;
                 return (
                   <div key={rid} className="flex-1 min-w-0 px-3 py-2">
                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{rosterName}</span>
