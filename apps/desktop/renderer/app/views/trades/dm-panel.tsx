@@ -1,5 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { LeagueDetailed, Message, GetDmByMembersResult, MessagesResult } from "@autogm/shared";
+import type { LeagueDetailed, Message, GetDmByMembersResult, MessagesResult, MessageCreatedPayload } from "@autogm/shared";
+import { SleeperTopics, messageFromSocket } from "@autogm/shared";
+import { useGatewayTopic } from "../../../contexts/socket-context";
 import { formatTime } from "../../../lib/trade-utils";
 
 function decodeHtmlEntities(text: string): string {
@@ -31,6 +33,10 @@ function deepParseJson(val: unknown): unknown {
     return out;
   }
   return val;
+}
+
+function cleanText(text: string): string {
+  return decodeHtmlEntities(text).replace(/<@([^>]+)>/g, "@$1");
 }
 
 function parseAttachment(raw: unknown): Record<string, unknown> | null {
@@ -99,17 +105,42 @@ export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, l
         name: "messages",
         vars: { parent_id: id },
       });
-      setMessages(msgResult.messages ?? []);
+      const msgs = msgResult.messages ?? [];
+      setMessages(msgs);
+      // Update preview with the latest message
+      if (msgs.length > 0) {
+        const latest = msgs.reduce((a, b) => (a.created > b.created ? a : b));
+        onNewMessage?.(latest.text || "Attachment", latest.created, latest.author_display_name);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [userId, partnerId]);
+  }, [userId, partnerId, onNewMessage]);
 
   useEffect(() => {
     fetchMessages();
   }, [fetchMessages]);
+
+  // Real-time: append new messages from the WebSocket
+  const onNewMessageRef = useRef(onNewMessage);
+  onNewMessageRef.current = onNewMessage;
+  useGatewayTopic(
+    SleeperTopics.user(userId),
+    useCallback((event: string, payload: unknown) => {
+      if (event === "message_created") {
+        const p = payload as MessageCreatedPayload;
+        if (p.parent_id === dmId) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.message_id === p.message_id)) return prev;
+            return [...prev, messageFromSocket(p)];
+          });
+          onNewMessageRef.current?.(p.text || "Attachment", p.created, p.author_display_name);
+        }
+      }
+    }, [dmId]),
+  );
 
   const sendMessage = useCallback(async () => {
     const text = inputRef.current?.value.trim();
@@ -166,8 +197,8 @@ export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, l
                   </span>
                   <span className="text-xs text-gray-600">{formatTime(msg.created)}</span>
                 </div>
-                {msg.text && <p className="text-xs text-gray-200 whitespace-pre-wrap">{decodeHtmlEntities(msg.text)}</p>}
-                {att && <AttachmentView attachment={att} leagues={leagues} />}
+                {msg.text && <p className="text-xs text-gray-200 whitespace-pre-wrap">{cleanText(msg.text)}</p>}
+                {att && <AttachmentView attachment={att} leagues={leagues} messages={sorted} />}
               </div>
             </div>
           );
@@ -260,7 +291,19 @@ function formatPickLabel(
   return `${pk.season} Round ${pk.round}`;
 }
 
-function AttachmentView({ attachment, leagues }: { attachment: Record<string, unknown>; leagues?: { [league_id: string]: LeagueDetailed } }) {
+function AttachmentView({ attachment, leagues, messages }: { attachment: Record<string, unknown>; leagues?: { [league_id: string]: LeagueDetailed }; messages?: Message[] }) {
+  // If this is a notification referencing another message (e.g. trade proposal), resolve it
+  const refMessageId = attachment.messageId as string | number | undefined;
+  if (refMessageId && messages) {
+    const refMsg = messages.find((m) => m.message_id === String(refMessageId));
+    if (refMsg?.attachment) {
+      const refAtt = parseAttachment(refMsg.attachment);
+      if (refAtt) {
+        return <AttachmentView attachment={refAtt} leagues={leagues} messages={messages} />;
+      }
+    }
+  }
+
   const txByRoster = attachment.transactions_by_roster as Record<string, RosterTransaction> | undefined;
   const leagueId = attachment.league_id as string | undefined;
   if (txByRoster) {
@@ -346,6 +389,16 @@ function AttachmentView({ attachment, leagues }: { attachment: Record<string, un
     return (
       <div className="mt-1">
         <img src={url} alt="attachment" className="max-w-full max-h-40 rounded" />
+      </div>
+    );
+  }
+
+  // Trade notification or other text-bearing attachment (no trade details available)
+  const attText = attachment.text as string | undefined;
+  if (attText) {
+    return (
+      <div className="mt-1 rounded bg-gray-800 px-2 py-1.5">
+        <p className="text-xs text-gray-400 mt-0.5 italic">{cleanText(attText)}</p>
       </div>
     );
   }

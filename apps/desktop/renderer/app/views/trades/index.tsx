@@ -7,7 +7,8 @@ import type {
   PlayerShares,
   ProposeTradeVars,
 } from "@autogm/shared";
-import { getPickId, buildPlayerAttachment, buildUserAttachment } from "@autogm/shared";
+import { getPickId, buildPlayerAttachment, buildUserAttachment, SleeperTopics } from "@autogm/shared";
+import type { MessageCreatedPayload } from "@autogm/shared";
 import { useTradesByStatus } from "../../../hooks/use-trades-by-status";
 import { useIpcMutation, useGraphqlMutation } from "../../../hooks/use-ipc-mutation";
 import { useTradeValueFilter } from "../../../hooks/use-trade-value-filter";
@@ -17,6 +18,7 @@ import { PotentialTrades } from "./potential-trades";
 import { PlayerCombobox } from "../../components/player-combobox";
 import { TradeFilterBar } from "../../components/trade-filter-bar";
 import { DmPanel } from "./dm-panel";
+import { useGatewayTopic } from "../../../contexts/socket-context";
 import WaiversView from "./waivers-view";
 import { formatTime } from "../../../lib/trade-utils";
 import { Avatar } from "../../components/avatar";
@@ -194,6 +196,28 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
     })();
     return () => { cancelled = true; };
   }, [partners, userId]);
+
+  // Real-time: update DM previews from WebSocket
+  const partnerSet = useMemo(() => new Set(partners.map((p) => p.id)), [partners]);
+  useGatewayTopic(
+    SleeperTopics.user(userId),
+    useCallback((event: string, payload: unknown) => {
+      if (event === "message_created") {
+        const p = payload as MessageCreatedPayload;
+        // Find which partner this message is from/to
+        const partnerId = p.author_id === userId
+          ? undefined  // we sent it — DmPanel's onNewMessage handles this
+          : p.author_id;
+        if (partnerId && partnerSet.has(partnerId)) {
+          const preview = { text: p.text || "Attachment", time: p.created, author: p.author_display_name };
+          dmPreviewCache[partnerId] = preview;
+          dmTimesCache[partnerId] = p.created;
+          setPreviews((prev) => ({ ...prev, [partnerId]: preview }));
+          setLastMessageTimes((prev) => ({ ...prev, [partnerId]: p.created }));
+        }
+      }
+    }, [userId, partnerSet]),
+  );
 
   const sorted = useMemo(() => {
     let list = [...partners];

@@ -614,6 +614,40 @@ function TradeCards({
         const isExpanded = expandedCards.has(trade.transaction_id);
         const isCounter = counterTradeId === trade.transaction_id;
 
+        // When in counter mode, override sides to reflect the counter selections
+        if (isCounter) {
+          for (const side of sides) {
+            const isUserSide = side.roster_id === userRid;
+            const playerGive = isUserSide ? counterGive : counterReceive;
+            const playerRecv = isUserSide ? counterReceive : counterGive;
+            const pickGive = isUserSide ? counterPicksGive : counterPicksReceive;
+            const pickRecv = isUserSide ? counterPicksReceive : counterPicksGive;
+            const partnerRid2 = sortedRosterIds.find((rid) => rid !== side.roster_id);
+            const partnerRoster2 = league?.rosters.find((r) => r.roster_id === partnerRid2);
+
+            side.receiving = [
+              ...[...playerRecv].map((pid) => ({ type: 'player' as const, label: allplayers[pid]?.full_name ?? pid, position: allplayers[pid]?.position, value: lookup?.[pid] ?? 0 })),
+              ...[...pickRecv].flatMap((pickId) => {
+                const source = isUserSide ? partnerRoster2 : league?.user_roster;
+                const rp = source?.draftpicks.find((d) => getPickId(d) === pickId);
+                if (!rp) return [];
+                return [{ type: 'pick' as const, label: formatPick(trade.league_id, { roster_id: rp.roster_id, season: rp.season, round: rp.round, previous_owner_id: side.roster_id }), position: undefined as string | null | undefined, value: lookup ? (lookup[pickId] ?? 0) : 0 }];
+              }),
+            ];
+            side.giving = [
+              ...[...playerGive].map((pid) => ({ type: 'player' as const, label: allplayers[pid]?.full_name ?? pid, position: allplayers[pid]?.position, value: lookup?.[pid] ?? 0 })),
+              ...[...pickGive].flatMap((pickId) => {
+                const source = isUserSide ? league?.user_roster : partnerRoster2;
+                const rp = source?.draftpicks.find((d) => getPickId(d) === pickId);
+                if (!rp) return [];
+                return [{ type: 'pick' as const, label: formatPick(trade.league_id, { roster_id: rp.roster_id, season: rp.season, round: rp.round, previous_owner_id: side.roster_id }), position: undefined as string | null | undefined, value: lookup ? (lookup[pickId] ?? 0) : 0 }];
+              }),
+            ];
+            side.vReceiving = side.receiving.reduce((sum, item) => sum + item.value, 0);
+            side.vGiving = side.giving.reduce((sum, item) => sum + item.value, 0);
+          }
+        }
+
         // Collect player IDs involved in the trade for highlighting
         const userRosterId = userRid;
         const userAdds = Object.entries(trade.adds ?? {}).filter(([, rId]) => rId === userRosterId).map(([pid]) => pid);
