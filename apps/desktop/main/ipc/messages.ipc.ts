@@ -52,17 +52,14 @@ export function registerMessagesIpc() {
     async (_event, vars: QueryMap["createDm"]["vars"]) => {
       await requireAccess();
       requireStringArray(vars.members, "members");
-      if (vars.members.length < 2) {
-        throw new Error("DM requires at least 2 members");
-      }
       requireString(vars.dm_type, "dm_type");
 
+      // create_dm is idempotent (returns existing DM if already created),
+      // so check if we already have a successful result we can return.
       const opKey = dmOperationKey(vars);
       const existing = findBlockingRecord(opKey);
-      if (existing) {
-        throw new Error(
-          `Duplicate DM creation blocked (status: ${existing.status})`,
-        );
+      if (existing?.status === "success" && existing.result_id) {
+        return { create_dm: { dm_id: existing.result_id } };
       }
       recordOperation(opKey, "pending");
       try {

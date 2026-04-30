@@ -175,9 +175,10 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
         if (cancelled) break;
         const newPreviews: Record<string, { text: string; time: number; author: string }> = {};
         const newTimes: Record<string, number> = {};
-        for (const r of results) {
+        for (let ri = 0; ri < results.length; ri++) {
+          const r = results[ri];
+          dmFetchedPartners.add(chunk[ri].id);
           if (r.status !== "fulfilled") continue;
-          dmFetchedPartners.add(r.value.partnerId);
           const dm = r.value.dm;
           if (dm?.last_message_time && dm.last_message_text) {
             const preview = { text: dm.last_message_text, time: dm.last_message_time, author: dm.last_author_display_name ?? "" };
@@ -448,10 +449,15 @@ function TradesContent({
       },
     };
 
-    const dmResult = await getDm({ members: [userId, partnerId] });
-    let dmId = dmResult.get_dm_by_members?.dm_id;
+    let dmId: string | undefined;
+    try {
+      const dmResult = await getDm({ members: [userId, partnerId] });
+      dmId = dmResult.get_dm_by_members?.dm_id;
+    } catch {
+      // DM doesn't exist yet
+    }
     if (!dmId) {
-      const newDm = await createDm({ members: [userId, partnerId], dm_type: "direct" });
+      const newDm = await createDm({ members: [partnerId], dm_type: "direct" });
       dmId = newDm.create_dm.dm_id;
     }
 

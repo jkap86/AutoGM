@@ -58,11 +58,37 @@ export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, l
     setLoading(true);
     setError(null);
     try {
-      const dmResult = await window.ipc.invoke<GetDmByMembersResult>("graphql", {
-        name: "getDmByMembers",
-        vars: { members: [userId, partnerId] },
-      });
-      const id = dmResult.get_dm_by_members?.dm_id;
+      let id: string | undefined;
+      try {
+        const dmResult = await window.ipc.invoke<GetDmByMembersResult>("graphql", {
+          name: "getDmByMembers",
+          vars: { members: [userId, partnerId] },
+        });
+        id = dmResult.get_dm_by_members?.dm_id;
+      } catch {
+        // DM doesn't exist yet or pending invite — check inbound requests
+        try {
+          const result = await window.ipc.invoke<{ inbound_requests: Array<{ requester_id: string; type_id: string }> }>("graphql", {
+            name: "inboundRequests",
+            vars: { request_type: "dm_single" },
+          });
+          const match = result.inbound_requests?.find((r) => r.requester_id === partnerId);
+          if (match) {
+            // Accept the pending DM invite
+            try {
+              await window.ipc.invoke("graphql", {
+                name: "acceptRequest",
+                vars: { request_type: "dm_single", requester_id: partnerId, type_id: match.type_id },
+              });
+            } catch {
+              // may already be accepted
+            }
+            id = match.type_id;
+          }
+        } catch {
+          // fallback failed
+        }
+      }
       setDmId(id ?? null);
       if (!id) {
         setMessages([]);

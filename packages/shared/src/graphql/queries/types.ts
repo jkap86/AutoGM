@@ -255,6 +255,32 @@ export type CancelWaiverClaimResult = {
   cancel_waiver_claim: Transaction;
 };
 
+export type InboundRequestsVars = {
+  request_type: string;
+};
+
+export type InboundRequest = {
+  requester_id: string;
+  request_type: string;
+  type_id: string;
+  requester_display_name: string | null;
+  requester_avatar: string | null;
+};
+
+export type InboundRequestsResult = {
+  inbound_requests: InboundRequest[];
+};
+
+export type AcceptRequestVars = {
+  request_type: string;
+  requester_id: string;
+  type_id: string;
+};
+
+export type AcceptRequestResult = {
+  accept_request: unknown;
+};
+
 export type QueryMap = {
   proposeTrade: { vars: ProposeTradeVars; result: ProposeTradeResult };
   acceptTrade: { vars: AcceptTradeVars; result: AcceptTradeResult };
@@ -286,6 +312,8 @@ export type QueryMap = {
     vars: CancelWaiverClaimVars;
     result: CancelWaiverClaimResult;
   };
+  acceptRequest: { vars: AcceptRequestVars; result: AcceptRequestResult };
+  inboundRequests: { vars: InboundRequestsVars; result: InboundRequestsResult };
 };
 
 export type QueryName = keyof QueryMap;

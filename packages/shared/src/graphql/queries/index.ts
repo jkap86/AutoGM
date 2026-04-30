@@ -1,3 +1,5 @@
+import { acceptRequest } from "./accept-request";
+import { inboundRequests } from "./inbound-requests";
 import { acceptTrade } from "./accept-trade";
 import { createDm } from "./create-dm";
 import { createLeagueMessage } from "./create-league-message";
@@ -22,6 +24,8 @@ type QueryRegistry = {
 };
 
 const queries: QueryRegistry = {
+  acceptRequest,
+  inboundRequests,
   proposeTrade,
   acceptTrade,
   rejectTrade,

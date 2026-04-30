@@ -5,12 +5,17 @@ import type { QueryMap, QueryName } from "@autogm/shared";
 
 /** Read-only queries allowed through the generic GraphQL channel. */
 const READONLY_GRAPHQL_QUERIES = new Set<QueryName>([
+  "acceptRequest",
+  "inboundRequests",
   "getDmByMembers",
   "leaguePlayers",
   "leagueTransactions",
   "messages",
   "listPollVotes",
 ]);
+
+/** Errors that are expected and should not be logged to console. */
+const SILENT_ERRORS = ["doesn't seem to exist"];
 
 export function registerReadonlyGraphqlIpc() {
   ipcMain.handle(
@@ -25,7 +30,15 @@ export function registerReadonlyGraphqlIpc() {
         throw new Error(`"${args.name}" must use a dedicated IPC route`);
       }
 
-      return runQuery(args.name, args.vars as never);
+      try {
+        return await runQuery(args.name, args.vars as never);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        if (!SILENT_ERRORS.some((s) => msg.includes(s))) {
+          console.error(`Error in graphql handler (${args.name}):`, msg);
+        }
+        throw err;
+      }
     },
   );
 }
