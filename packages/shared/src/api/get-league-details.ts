@@ -8,10 +8,8 @@ import type {
   Roster,
 } from "../types";
 
-import { BROWSER_HEADERS } from '../browser-headers'
-
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: BROWSER_HEADERS });
+  const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`GET ${url} failed: ${res.status}`);
   }
@@ -26,6 +24,7 @@ export type LeagueWithRosters = League & {
 async function getOneLeagueDetails(
   league: League,
   user_id: string,
+  attempt = 0,
 ): Promise<LeagueWithRosters | null> {
   try {
     const isDynasty = league.settings.type === 2;
@@ -85,6 +84,10 @@ async function getOneLeagueDetails(
       user_roster,
     };
   } catch (err) {
+    if (attempt < 2) {
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      return getOneLeagueDetails(league, user_id, attempt + 1);
+    }
     console.warn(
       `[get-league-details] failed to load league ${league.league_id} (${league.name}):`,
       err instanceof Error ? err.message : err,
