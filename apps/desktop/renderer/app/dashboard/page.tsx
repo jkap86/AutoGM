@@ -140,6 +140,7 @@ export default function DashboardPage() {
         <ResearchView
           leagues={filteredLeagues}
           allplayers={allplayers ?? {}}
+          ktc={ktc}
         />
       )}
     </main>
