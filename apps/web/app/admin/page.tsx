@@ -12,12 +12,12 @@ type AllowedUser = {
 
 export default function AdminPage() {
   const [users, setUsers] = useState<AllowedUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addInput, setAddInput] = useState("");
   const [resolving, setResolving] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [resolvedUser, setResolvedUser] = useState<AllowedUser | null>(null);
+  const [resolvedUsers, setResolvedUsers] = useState<AllowedUser[]>([]);
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
 
@@ -48,16 +48,16 @@ export default function AdminPage() {
     const input = addInput.trim();
     if (!input) return;
     setResolving(true);
-    setResolvedUser(null);
+    setResolvedUsers([]);
     setError(null);
     try {
       const res = await fetch(`/api/admin/resolve-user?username=${encodeURIComponent(input)}`, { headers });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "User not found");
+        throw new Error(data.error || "Search failed");
       }
       const data = await res.json();
-      setResolvedUser(data);
+      setResolvedUsers(data.users ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Resolve failed");
     } finally {
@@ -79,7 +79,7 @@ export default function AdminPage() {
         throw new Error(data.error || `HTTP ${res.status}`);
       }
       setAddInput("");
-      setResolvedUser(null);
+      setResolvedUsers([]);
       await fetchUsers();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Add failed");
@@ -155,7 +155,7 @@ export default function AdminPage() {
             <input
               type="text"
               value={addInput}
-              onChange={(e) => { setAddInput(e.target.value); setResolvedUser(null); }}
+              onChange={(e) => { setAddInput(e.target.value); setResolvedUsers([]); }}
               onKeyDown={(e) => { if (e.key === "Enter") resolveUser(); }}
               placeholder="Sleeper username or user_id..."
               className="flex-1 rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
@@ -169,26 +169,32 @@ export default function AdminPage() {
             </button>
           </div>
 
-          {resolvedUser && (
-            <div className="mt-3 flex items-center gap-3 rounded-lg bg-gray-800/60 px-4 py-3">
-              {resolvedUser.avatar && (
-                <img
-                  src={`https://sleepercdn.com/avatars/thumbs/${resolvedUser.avatar}`}
-                  alt=""
-                  className="w-8 h-8 rounded-full"
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-200">{resolvedUser.display_name}</p>
-                <p className="text-xs text-gray-500 font-mono">{resolvedUser.user_id}</p>
-              </div>
-              <button
-                onClick={() => addUser(resolvedUser.user_id)}
-                disabled={adding || users.some((u) => u.user_id === resolvedUser.user_id)}
-                className="rounded-lg bg-green-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-500 disabled:opacity-50 transition"
-              >
-                {users.some((u) => u.user_id === resolvedUser.user_id) ? "Already added" : adding ? "Adding..." : "Add"}
-              </button>
+          {resolvedUsers.length > 0 && (
+            <div className="mt-3 flex flex-col gap-1 max-h-60 overflow-y-auto">
+              {resolvedUsers.map((u) => (
+                <div key={u.user_id} className="flex items-center gap-3 rounded-lg bg-gray-800/60 px-4 py-2">
+                  {u.avatar ? (
+                    <img
+                      src={`https://sleepercdn.com/avatars/thumbs/${u.avatar}`}
+                      alt=""
+                      className="w-8 h-8 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs text-gray-400">?</div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-200">{u.display_name}</p>
+                    <p className="text-xs text-gray-500 font-mono">{u.user_id}</p>
+                  </div>
+                  <button
+                    onClick={() => addUser(u.user_id)}
+                    disabled={adding || users.some((x) => x.user_id === u.user_id)}
+                    className="rounded-lg bg-green-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-500 disabled:opacity-50 transition"
+                  >
+                    {users.some((x) => x.user_id === u.user_id) ? "Already added" : adding ? "Adding..." : "Add"}
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>
