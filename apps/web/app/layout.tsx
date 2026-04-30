@@ -16,9 +16,24 @@ const rajdhani = Rajdhani({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://autogm-8d8d424e3286.herokuapp.com"),
   title: "AutoGM - Fantasy Football Automation",
   description:
     "Batch trades, waivers, polls, DMs, and opponent scouting across all your Sleeper.com leagues from one desktop app.",
+  openGraph: {
+    title: "AutoGM - Fantasy Football Automation",
+    description:
+      "Batch trades, waivers, polls, DMs, and opponent scouting across all your Sleeper.com leagues from one desktop app.",
+    images: [{ url: "/images/logo.png", width: 256, height: 256, alt: "AutoGM logo" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "AutoGM - Fantasy Football Automation",
+    description:
+      "Batch trades, waivers, polls, DMs, and opponent scouting across all your Sleeper.com leagues from one desktop app.",
+    images: ["/images/logo.png"],
+  },
 };
 
 export default function RootLayout({
