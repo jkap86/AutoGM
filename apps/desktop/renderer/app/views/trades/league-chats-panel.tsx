@@ -4,6 +4,7 @@ import { SleeperTopics, messageFromSocket } from "@autogm/shared";
 import { useGatewayTopic } from "../../../contexts/socket-context";
 import { Avatar } from "../../components/avatar";
 import { formatTime } from "../../../lib/trade-utils";
+import { parseAttachment, AttachmentView, cleanText } from "./dm-panel";
 
 type SortMode = "original" | "alpha" | "recent";
 
@@ -135,6 +136,7 @@ export function LeagueChatsPanel({
         <LeagueChatCard
           key={league.league_id}
           league={league}
+          leagues={leagues}
           userId={userId}
           onLastMessage={updateLastMessage}
           previewMessage={previews[league.league_id] ?? null}
@@ -275,6 +277,7 @@ function EmojiPicker({ onSelect, onClose }: { onSelect: (emoji: string) => void;
 
 function LeagueChatCard({
   league,
+  leagues,
   userId,
   onLastMessage,
   previewMessage,
@@ -282,6 +285,7 @@ function LeagueChatCard({
   onToggleExpand,
 }: {
   league: LeagueDetailed;
+  leagues: { [league_id: string]: LeagueDetailed };
   userId: string;
   onLastMessage: (leagueId: string, time: number) => void;
   previewMessage: Message | null;
@@ -470,6 +474,7 @@ function LeagueChatCard({
               <div className="flex flex-col gap-1">
                 {sorted.map((msg) => {
                   const isUser = msg.author_id === userId;
+                  const att = parseAttachment(msg.attachment);
                   return (
                     <div key={msg.message_id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
                       <div className={`max-w-[75%] rounded-lg px-3 py-1.5 ${isUser ? "bg-blue-600/20" : "bg-gray-700/60"}`}>
@@ -479,7 +484,8 @@ function LeagueChatCard({
                           </span>
                           <span className="text-xs text-gray-600">{formatTime(msg.created)}</span>
                         </div>
-                        {msg.text && <p className="text-xs text-gray-200 whitespace-pre-wrap">{decodeHtmlEntities(msg.text)}</p>}
+                        {msg.text && <p className="text-xs text-gray-200 whitespace-pre-wrap">{cleanText(msg.text)}</p>}
+                        {att && <AttachmentView attachment={att} leagues={leagues} messages={sorted} leagueId={league.league_id} />}
                       </div>
                     </div>
                   );

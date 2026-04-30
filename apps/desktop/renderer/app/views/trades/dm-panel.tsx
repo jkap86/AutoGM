@@ -35,11 +35,11 @@ function deepParseJson(val: unknown): unknown {
   return val;
 }
 
-function cleanText(text: string): string {
+export function cleanText(text: string): string {
   return decodeHtmlEntities(text).replace(/<@([^>]+)>/g, "@$1");
 }
 
-function parseAttachment(raw: unknown): Record<string, unknown> | null {
+export function parseAttachment(raw: unknown): Record<string, unknown> | null {
   if (!raw) return null;
   const parsed = deepParseJson(raw);
   if (!parsed || typeof parsed !== "object") return null;
@@ -278,6 +278,12 @@ function formatPickLabel(
     }
   }
 
+  // Also check the pick's own order field from the attachment
+  if (!order && pk.order != null) {
+    const parsed = typeof pk.order === "string" ? parseInt(pk.order, 10) : pk.order;
+    if (parsed && parsed > 0) order = parsed;
+  }
+
   if (order) {
     return `${pk.season} ${pk.round}.${String(order).padStart(2, "0")}`;
   }
@@ -291,7 +297,7 @@ function formatPickLabel(
   return `${pk.season} Round ${pk.round}`;
 }
 
-function AttachmentView({ attachment, leagues, messages }: { attachment: Record<string, unknown>; leagues?: { [league_id: string]: LeagueDetailed }; messages?: Message[] }) {
+export function AttachmentView({ attachment, leagues, messages, leagueId: propLeagueId }: { attachment: Record<string, unknown>; leagues?: { [league_id: string]: LeagueDetailed }; messages?: Message[]; leagueId?: string }) {
   // If this is a notification referencing another message (e.g. trade proposal), resolve it
   const refMessageId = attachment.messageId as string | number | undefined;
   if (refMessageId && messages) {
@@ -299,13 +305,19 @@ function AttachmentView({ attachment, leagues, messages }: { attachment: Record<
     if (refMsg?.attachment) {
       const refAtt = parseAttachment(refMsg.attachment);
       if (refAtt) {
-        return <AttachmentView attachment={refAtt} leagues={leagues} messages={messages} />;
+        return <AttachmentView attachment={refAtt} leagues={leagues} messages={messages} leagueId={propLeagueId} />;
       }
     }
   }
 
+  // Handle league chat "transactions" wrapper: { data: [{ transactions_by_roster, ... }] }
+  const dataArray = attachment.data as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(dataArray) && dataArray.length > 0 && dataArray[0].transactions_by_roster) {
+    return <AttachmentView attachment={dataArray[0]} leagues={leagues} messages={messages} leagueId={propLeagueId ?? attachment.league_id as string} />;
+  }
+
   const txByRoster = attachment.transactions_by_roster as Record<string, RosterTransaction> | undefined;
-  const leagueId = attachment.league_id as string | undefined;
+  const leagueId = propLeagueId ?? attachment.league_id as string | undefined;
   if (txByRoster) {
     return (
       <div className="mt-1 rounded bg-gray-800 px-2 py-1.5">
@@ -393,6 +405,24 @@ function AttachmentView({ attachment, leagues, messages }: { attachment: Record<
     );
   }
 
+  // Nickname changes: { changes: [{ nickname, player: { first_name, last_name, position, team } }] }
+  const changes = attachment.changes as Array<{ nickname?: string; player?: { first_name?: string; last_name?: string; position?: string; team?: string } }> | undefined;
+  if (Array.isArray(changes) && changes.length > 0) {
+    return (
+      <div className="mt-1 rounded bg-gray-800 px-2 py-1.5">
+        <div className="flex flex-col gap-0.5 mt-0.5">
+          {changes.map((c, i) => (
+            <div key={i} className="text-xs text-gray-300 ml-1">
+              <span className="text-gray-400">{c.player?.first_name} {c.player?.last_name}</span>
+              {c.player?.position && <span className="text-gray-500 text-[10px] ml-1">{c.player.position} - {c.player.team}</span>}
+              {c.nickname && <span className="text-blue-400 ml-1.5">&rarr; &ldquo;{c.nickname}&rdquo;</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // Trade notification or other text-bearing attachment (no trade details available)
   const attText = attachment.text as string | undefined;
   if (attText) {
@@ -403,15 +433,6 @@ function AttachmentView({ attachment, leagues, messages }: { attachment: Record<
     );
   }
 
-  const type = attachment.type as string | undefined;
-  return (
-    <div className="mt-1 rounded bg-gray-800 px-2 py-1.5">
-      <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
-        {type ?? "Attachment"}
-      </span>
-      <p className="text-xs text-gray-500 mt-0.5 break-all">
-        {JSON.stringify(attachment, null, 0).slice(0, 200)}
-      </p>
-    </div>
-  );
+  // Fallback: hide unknown attachments silently (no raw JSON dump)
+  return null;
 }
