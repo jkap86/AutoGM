@@ -141,6 +141,7 @@ export default function DashboardPage() {
           leagues={filteredLeagues}
           allplayers={allplayers ?? {}}
           ktc={ktc}
+          userId={session.user_id}
         />
       )}
     </main>

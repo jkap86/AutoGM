@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Allplayer } from "@autogm/shared";
+import type { Allplayer, LeagueDetailed } from "@autogm/shared";
 import { useAdp, type AdpFilters, type AdpRow } from "../../hooks/use-adp";
 
 const ROSTER_SLOT_OPTIONS = [
@@ -24,8 +24,14 @@ type PositionFilter = (typeof POSITION_FILTER_OPTIONS)[number];
 
 export default function AdpView({
   allplayers,
+  ktc,
+  leagues,
+  userId,
 }: {
   allplayers: { [id: string]: Allplayer };
+  ktc?: Record<string, number>;
+  leagues?: { [league_id: string]: LeagueDetailed };
+  userId?: string;
 }) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const defaultStart = useMemo(() => {
@@ -51,6 +57,21 @@ export default function AdpView({
   const [search, setSearch] = useState("");
 
   const { data, stats, loading, error } = useAdp(filters);
+
+  // Compute ownership counts from filtered leagues
+  const ownership = useMemo(() => {
+    if (!leagues || !userId) return null;
+    const counts: Record<string, number> = {};
+    const leagueCount = Object.keys(leagues).length;
+    for (const league of Object.values(leagues)) {
+      const userRoster = league.user_roster;
+      if (!userRoster) continue;
+      for (const pid of userRoster.players) {
+        counts[pid] = (counts[pid] ?? 0) + 1;
+      }
+    }
+    return { counts, total: leagueCount };
+  }, [leagues, userId]);
 
   const filtered = useMemo(() => {
     return data.filter((row) => {
@@ -177,6 +198,8 @@ export default function AdpView({
                 <th className="text-left px-3 py-2 font-semibold">Player</th>
                 <th className="text-left px-3 py-2 font-semibold">Pos</th>
                 <th className="text-left px-3 py-2 font-semibold">Team</th>
+                {ktc && <th className="text-right px-3 py-2 font-semibold">KTC</th>}
+                {ownership && <th className="text-right px-3 py-2 font-semibold">Owned</th>}
                 <th className="text-right px-3 py-2 font-semibold">ADP</th>
                 <th className="text-right px-3 py-2 font-semibold">Min</th>
                 <th className="text-right px-3 py-2 font-semibold">Max</th>
@@ -192,11 +215,11 @@ export default function AdpView({
             </thead>
             <tbody>
               {filtered.slice(0, 500).map((row) => (
-                <AdpRowItem key={row.player_id} row={row} allplayers={allplayers} hasAuction={hasAuction} />
+                <AdpRowItem key={row.player_id} row={row} allplayers={allplayers} hasAuction={hasAuction} ktc={ktc} ownership={ownership} />
               ))}
               {filtered.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={hasAuction ? 10 : 8} className="text-center py-8 text-gray-500">
+                  <td colSpan={(ktc ? 1 : 0) + (ownership ? 1 : 0) + (hasAuction ? 10 : 8)} className="text-center py-8 text-gray-500">
                     No data
                   </td>
                 </tr>
@@ -226,13 +249,19 @@ function AdpRowItem({
   row,
   allplayers,
   hasAuction,
+  ktc,
+  ownership,
 }: {
   row: AdpRow;
   allplayers: { [id: string]: Allplayer };
   hasAuction: boolean;
+  ktc?: Record<string, number>;
+  ownership?: { counts: Record<string, number>; total: number } | null;
 }) {
   const player = allplayers[row.player_id];
   if (!player) return null;
+  const ktcValue = ktc?.[row.player_id];
+  const ownedCount = ownership?.counts[row.player_id] ?? 0;
   return (
     <tr className="border-t border-gray-700/40 hover:bg-gray-800/40">
       <td className="px-3 py-1.5 text-gray-100">
@@ -240,6 +269,16 @@ function AdpRowItem({
       </td>
       <td className="px-3 py-1.5 text-gray-400">{player.position}</td>
       <td className="px-3 py-1.5 text-gray-400">{player.team || "—"}</td>
+      {ktc && (
+        <td className="px-3 py-1.5 text-right text-emerald-400 font-semibold">
+          {ktcValue != null ? ktcValue.toLocaleString() : "—"}
+        </td>
+      )}
+      {ownership && (
+        <td className="px-3 py-1.5 text-right text-gray-400">
+          {ownedCount > 0 ? `${ownedCount}/${ownership.total}` : "—"}
+        </td>
+      )}
       <td className="px-3 py-1.5 text-right text-blue-400 font-semibold">
         {row.adp.toFixed(1)}
       </td>

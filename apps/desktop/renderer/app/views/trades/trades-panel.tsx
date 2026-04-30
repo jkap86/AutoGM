@@ -631,7 +631,7 @@ function TradeCards({
                 const source = isUserSide ? partnerRoster2 : league?.user_roster;
                 const rp = source?.draftpicks.find((d) => getPickId(d) === pickId);
                 if (!rp) return [];
-                return [{ type: 'pick' as const, label: formatPick(trade.league_id, { roster_id: rp.roster_id, season: rp.season, round: rp.round, previous_owner_id: side.roster_id }), position: undefined as string | null | undefined, value: lookup ? (lookup[pickId] ?? 0) : 0 }];
+                return [{ type: 'pick' as const, label: formatPick(trade.league_id, { roster_id: rp.roster_id, season: rp.season, round: rp.round, previous_owner_id: side.roster_id }), position: undefined, value: lookup ? (lookup[pickId] ?? 0) : 0 }];
               }),
             ];
             side.giving = [
@@ -640,7 +640,7 @@ function TradeCards({
                 const source = isUserSide ? league?.user_roster : partnerRoster2;
                 const rp = source?.draftpicks.find((d) => getPickId(d) === pickId);
                 if (!rp) return [];
-                return [{ type: 'pick' as const, label: formatPick(trade.league_id, { roster_id: rp.roster_id, season: rp.season, round: rp.round, previous_owner_id: side.roster_id }), position: undefined as string | null | undefined, value: lookup ? (lookup[pickId] ?? 0) : 0 }];
+                return [{ type: 'pick' as const, label: formatPick(trade.league_id, { roster_id: rp.roster_id, season: rp.season, round: rp.round, previous_owner_id: side.roster_id }), position: undefined, value: lookup ? (lookup[pickId] ?? 0) : 0 }];
               }),
             ];
             side.vReceiving = side.receiving.reduce((sum, item) => sum + item.value, 0);

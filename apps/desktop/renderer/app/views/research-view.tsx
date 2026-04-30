@@ -4,18 +4,19 @@ import { useState } from "react";
 import type { Allplayer, LeagueDetailed } from "@autogm/shared";
 import PollsView from "./polls-view";
 import AdpView from "./adp-view";
-import KtcView from "./ktc-view";
 
-type ResearchTab = "polls" | "adp" | "ktc";
+type ResearchTab = "polls" | "players";
 
 export default function ResearchView({
   leagues,
   allplayers,
   ktc,
+  userId,
 }: {
   leagues: { [league_id: string]: LeagueDetailed };
   allplayers: { [player_id: string]: Allplayer };
   ktc: Record<string, number>;
+  userId: string;
 }) {
   const [tab, setTab] = useState<ResearchTab>("polls");
 
@@ -25,8 +26,7 @@ export default function ResearchView({
       <div className="flex gap-1 rounded-lg bg-gray-900/60 p-0.5">
         {([
           { key: "polls" as ResearchTab, label: "Polls" },
-          { key: "adp" as ResearchTab, label: "ADP" },
-          { key: "ktc" as ResearchTab, label: "KTC" },
+          { key: "players" as ResearchTab, label: "Players" },
         ]).map(({ key, label }) => (
           <button
             key={key}
@@ -44,10 +44,8 @@ export default function ResearchView({
 
       {tab === "polls" ? (
         <PollsView leagues={leagues} />
-      ) : tab === "adp" ? (
-        <AdpView allplayers={allplayers} />
       ) : (
-        <KtcView allplayers={allplayers} ktc={ktc} />
+        <AdpView allplayers={allplayers} ktc={ktc} leagues={leagues} userId={userId} />
       )}
     </div>
   );
