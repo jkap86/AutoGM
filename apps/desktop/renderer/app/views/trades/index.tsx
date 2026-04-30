@@ -20,6 +20,7 @@ import { DmPanel } from "./dm-panel";
 import WaiversView from "./waivers-view";
 import { formatTime } from "../../../lib/trade-utils";
 import { Avatar } from "../../components/avatar";
+import { useNflState } from "../../../hooks/use-nfl-state";
 type TransactionType = "trades" | "waivers" | "dms";
 type TradesTab = "create" | "pending" | "expired" | "completed" | "rejected";
 
@@ -347,6 +348,7 @@ function TradesContent({
   interestByLeague?: InterestByLeague;
   tradeBlockByLeague?: InterestByLeague;
 }) {
+  const nflState = useNflState();
   const [playersToGive, setPlayerstoGive] = useState<string[]>([]);
   const [playersToReceive, setPlayersToReceive] = useState<string[]>([]);
   const [picksToGive, setPicksToGive] = useState<string[]>([]);
@@ -639,8 +641,17 @@ function TradesContent({
     picksToGive: string[],
     picksToReceive: string[],
     rosterFilters: { userOwns: string[]; userLacks: string[]; partnerOwns: string[]; partnerLacks: string[] },
+    nflWeek: number | null,
   ) => {
     return leagues.filter((league) => {
+      // Skip leagues where trading is disabled
+      if (league.settings.disable_trades === 1) return false;
+      // Skip leagues where the trade deadline has passed
+      if (
+        league.settings.trade_deadline > 0 &&
+        nflWeek != null &&
+        nflWeek > league.settings.trade_deadline
+      ) return false;
       const hasPlayersToGive = playersToGive.every((player_id) =>
         league.user_roster.players.includes(player_id),
       );
@@ -706,6 +717,7 @@ function TradesContent({
         picksToGive,
         picksToReceive,
         rosterFilters,
+        nflState?.leg ?? null,
       ).map((league) => {
         const tradingWith = league.rosters.filter(
           (roster) =>
@@ -719,7 +731,7 @@ function TradesContent({
         );
         return { ...league, tradingWith };
       }),
-    [leagues, playersToGive, playersToReceive, picksToGive, picksToReceive, rosterFilters, partnerOwnsFilter, partnerLacksFilter],
+    [leagues, playersToGive, playersToReceive, picksToGive, picksToReceive, rosterFilters, partnerOwnsFilter, partnerLacksFilter, nflState],
   );
 
   const tradeCount = useMemo(
