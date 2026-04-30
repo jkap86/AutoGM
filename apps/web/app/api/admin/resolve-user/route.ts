@@ -14,21 +14,15 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const res = await fetch("https://sleeper.com/graphql", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `query($prefix: String!) { search_users(prefix: $prefix) { user_id display_name avatar } }`,
-        variables: { prefix: username },
-      }),
-    });
+    const res = await fetch(`https://api.sleeper.app/v1/user/${username}`);
     if (!res.ok) {
-      return NextResponse.json({ error: "Search failed" }, { status: 502 });
+      return NextResponse.json({ users: [] });
     }
-    const json = await res.json();
-    const users = json.data?.search_users ?? [];
-    return NextResponse.json({ users });
+    const data = await res.json();
+    return NextResponse.json({
+      users: [{ user_id: data.user_id, display_name: data.display_name, avatar: data.avatar }],
+    });
   } catch {
-    return NextResponse.json({ error: "Failed to search users" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to resolve user" }, { status: 500 });
   }
 }
