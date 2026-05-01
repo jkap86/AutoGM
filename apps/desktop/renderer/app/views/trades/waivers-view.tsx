@@ -87,7 +87,7 @@ export default function WaiversView({
   const [waiverTab, setWaiverTab] = useState<WaiverTab>("claim");
   const [expandedClaimLeague, setExpandedClaimLeague] = useState<string | null>(null);
   const [dropOverrides, setDropOverrides] = useState<Record<string, string | null>>({});
-  const [deselectedLeagues, setDeselectedLeagues] = useState<Set<string>>(new Set());
+  const [selectedLeagueIds, setSelectedLeagueIds] = useState<Set<string>>(new Set());
   // Roster filters
   const [mustHave, setMustHave] = useState<string[]>([]);
   const [mustNotHave, setMustNotHave] = useState<string[]>([]);
@@ -160,8 +160,8 @@ export default function WaiversView({
   }, [leagues, playerToAdd, playerToDrop, leagueTypeFilter, mustHave, mustNotHave, allplayers, waiverSort]);
 
   const selectedLeagues = useMemo(
-    () => filteredLeagues.filter((l) => !deselectedLeagues.has(l.league_id)),
-    [filteredLeagues, deselectedLeagues],
+    () => filteredLeagues.filter((l) => selectedLeagueIds.has(l.league_id)),
+    [filteredLeagues, selectedLeagueIds],
   );
 
   const handleSubmitAll = useCallback(async () => {
@@ -234,8 +234,7 @@ export default function WaiversView({
         <WaiverTransactionsList
           leagues={leagues}
           allplayers={allplayers}
-          userId={userId}
-          status={waiverTab === "pending" ? "proposed" : waiverTab}
+          status={waiverTab === "pending" ? "pending" : waiverTab === "completed" ? "complete" : waiverTab}
           statusLabel={waiverTab === "pending" ? "Pending" : waiverTab === "completed" ? "Completed" : "Failed"}
           ktc={ktc}
         />
@@ -421,15 +420,15 @@ export default function WaiversView({
             <span className="text-[10px] text-gray-500 ml-auto flex items-center gap-2">
               <button
                 onClick={() => {
-                  if (deselectedLeagues.size === 0) {
-                    setDeselectedLeagues(new Set(filteredLeagues.map((l) => l.league_id)));
+                  if (selectedLeagueIds.size === filteredLeagues.length) {
+                    setSelectedLeagueIds(new Set());
                   } else {
-                    setDeselectedLeagues(new Set());
+                    setSelectedLeagueIds(new Set(filteredLeagues.map((l) => l.league_id)));
                   }
                 }}
                 className="text-gray-400 hover:text-gray-200 underline"
               >
-                {deselectedLeagues.size === 0 ? "Deselect all" : "Select all"}
+                {selectedLeagueIds.size === filteredLeagues.length ? "Deselect all" : "Select all"}
               </button>
               {selectedLeagues.length}/{filteredLeagues.length} selected
             </span>
@@ -499,8 +498,8 @@ export default function WaiversView({
                   playerToAdd={playerToAdd}
                   playerToDrop={dropOverrides[league.league_id] ?? playerToDrop}
                   onDropOverride={(pid) => setDropOverrides((prev) => ({ ...prev, [league.league_id]: pid }))}
-                  selected={!deselectedLeagues.has(league.league_id)}
-                  onToggleSelect={() => setDeselectedLeagues((prev) => {
+                  selected={selectedLeagueIds.has(league.league_id)}
+                  onToggleSelect={() => setSelectedLeagueIds((prev: Set<string>) => {
                     const next = new Set(prev);
                     if (next.has(league.league_id)) next.delete(league.league_id);
                     else next.add(league.league_id);
@@ -860,14 +859,12 @@ const MAX_CONCURRENT = 4;
 function WaiverTransactionsList({
   leagues,
   allplayers,
-  userId,
   status,
   statusLabel,
   ktc,
 }: {
   leagues: { [league_id: string]: LeagueDetailed };
   allplayers: { [id: string]: Allplayer };
-  userId: string;
   status: string;
   statusLabel: string;
   ktc: Record<string, number>;
@@ -892,10 +889,13 @@ function WaiverTransactionsList({
             try {
               const result = await window.ipc.invoke<LeagueTransactionsResult>("graphql", {
                 name: "leagueTransactions",
-                vars: { league_id, status, type: "waiver" },
+                vars: { league_id, status },
               });
               return result.league_transactions
-                .filter((tx) => tx.roster_ids.includes(league.user_roster.roster_id))
+                .filter((tx) =>
+                  tx.type !== "trade" &&
+                  tx.roster_ids.includes(league.user_roster.roster_id),
+                )
                 .map((tx) => ({ ...tx, league_name: league.name }));
             } catch {
               return [];
@@ -985,9 +985,23 @@ function WaiverTransactionsList({
                 })}
               </div>
             </div>
-            {bid != null && bid > 0 && (
+            {bid != null && (
               <span className="text-xs text-blue-400 font-semibold shrink-0">${bid}</span>
             )}
+            {league && (() => {
+              const totalBudget = league.settings.waiver_budget ?? 100;
+              const used = league.user_roster.waiver_budget_used ?? 0;
+              const remaining = totalBudget - used;
+              const remainingPct = totalBudget > 0 ? (remaining / totalBudget) * 100 : 0;
+              return (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="w-14 h-1.5 rounded-full bg-gray-700 overflow-hidden">
+                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(remainingPct, 100)}%` }} />
+                  </div>
+                  <span className="text-[10px] text-gray-500 tabular-nums">${remaining}</span>
+                </div>
+              );
+            })()}
             <span className="text-[10px] text-gray-500 shrink-0">{formatTime(tx.status_updated)}</span>
           </div>
         );
