@@ -85,6 +85,9 @@ export default function WaiversView({
   const [leagueTypeFilter, setLeagueTypeFilter] = useState<LeagueTypeFilter>("all");
   const [waiverSort, setWaiverSort] = useState<WaiverSort>("name");
   const [waiverTab, setWaiverTab] = useState<WaiverTab>("claim");
+  const [expandedClaimLeague, setExpandedClaimLeague] = useState<string | null>(null);
+  const [dropOverrides, setDropOverrides] = useState<Record<string, string | null>>({});
+  const [deselectedLeagues, setDeselectedLeagues] = useState<Set<string>>(new Set());
   // Roster filters
   const [mustHave, setMustHave] = useState<string[]>([]);
   const [mustNotHave, setMustNotHave] = useState<string[]>([]);
@@ -156,29 +159,30 @@ export default function WaiversView({
     });
   }, [leagues, playerToAdd, playerToDrop, leagueTypeFilter, mustHave, mustNotHave, allplayers, waiverSort]);
 
-  const getLeagueType = (league: LeagueDetailed): string => {
-    const t = league.settings.type;
-    return t === 2 ? "Dynasty" : t === 1 ? "Keeper" : "Redraft";
-  };
+  const selectedLeagues = useMemo(
+    () => filteredLeagues.filter((l) => !deselectedLeagues.has(l.league_id)),
+    [filteredLeagues, deselectedLeagues],
+  );
 
   const handleSubmitAll = useCallback(async () => {
-    if (!playerToAdd || filteredLeagues.length === 0) return;
+    if (!playerToAdd || selectedLeagues.length === 0) return;
     setSubmitting(true);
     setSubmitProgress(0);
     setSubmitResults({});
 
     const results: Record<string, SubmitResult> = {};
-    for (let i = 0; i < filteredLeagues.length; i++) {
-      const league = filteredLeagues[i];
+    for (let i = 0; i < selectedLeagues.length; i++) {
+      const league = selectedLeagues[i];
       const rosterId = league.user_roster.roster_id;
       const bidAmount = getEffectiveBid(league.league_id);
+      const drop = dropOverrides[league.league_id] ?? playerToDrop;
       try {
         await submitWaiver({
           league_id: league.league_id,
           k_adds: [playerToAdd],
           v_adds: [rosterId],
-          k_drops: playerToDrop ? [playerToDrop] : [],
-          v_drops: playerToDrop ? [rosterId] : [],
+          k_drops: drop ? [drop] : [],
+          v_drops: drop ? [rosterId] : [],
           k_settings: ["waiver_bid"],
           v_settings: [bidAmount],
         });
@@ -189,12 +193,12 @@ export default function WaiversView({
       }
       setSubmitProgress(i + 1);
       setSubmitResults({ ...results });
-      if (i < filteredLeagues.length - 1) {
+      if (i < selectedLeagues.length - 1) {
         await new Promise((r) => setTimeout(r, 2000 + Math.random() * 2000));
       }
     }
     setSubmitting(false);
-  }, [playerToAdd, playerToDrop, filteredLeagues, getEffectiveBid, submitWaiver]);
+  }, [playerToAdd, playerToDrop, selectedLeagues, getEffectiveBid, submitWaiver, dropOverrides]);
 
   const addPlayer = allplayers[playerToAdd ?? ""];
   const dropPlayer = allplayers[playerToDrop ?? ""];
@@ -414,8 +418,20 @@ export default function WaiversView({
               ))}
             </div>
 
-            <span className="text-[10px] text-gray-500 ml-auto">
-              {filteredLeagues.length} of {Object.keys(leagues).length} leagues
+            <span className="text-[10px] text-gray-500 ml-auto flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (deselectedLeagues.size === 0) {
+                    setDeselectedLeagues(new Set(filteredLeagues.map((l) => l.league_id)));
+                  } else {
+                    setDeselectedLeagues(new Set());
+                  }
+                }}
+                className="text-gray-400 hover:text-gray-200 underline"
+              >
+                {deselectedLeagues.size === 0 ? "Deselect all" : "Select all"}
+              </button>
+              {selectedLeagues.length}/{filteredLeagues.length} selected
             </span>
           </div>
 
@@ -432,12 +448,12 @@ export default function WaiversView({
             </div>
             <button
               onClick={handleSubmitAll}
-              disabled={submitting || filteredLeagues.length === 0}
+              disabled={submitting || selectedLeagues.length === 0}
               className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50 shadow-sm shadow-blue-600/20"
             >
               {submitting
-                ? `Submitting ${submitProgress}/${filteredLeagues.length}...`
-                : `Submit to ${filteredLeagues.length} ${filteredLeagues.length === 1 ? "League" : "Leagues"}`}
+                ? `Submitting ${submitProgress}/${selectedLeagues.length}...`
+                : `Submit to ${selectedLeagues.length} ${selectedLeagues.length === 1 ? "League" : "Leagues"}`}
             </button>
            </div>
            {/* Error details */}
@@ -463,73 +479,37 @@ export default function WaiversView({
             <p className="text-gray-500 text-sm py-6 text-center">No eligible leagues for this claim.</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {filteredLeagues.map((league) => {
-                const totalBudget = league.settings.waiver_budget ?? 100;
-                const used = league.user_roster.waiver_budget_used ?? 0;
-                const remaining = totalBudget - used;
-                const remainingPct = totalBudget > 0 ? (remaining / totalBudget) * 100 : 0;
-                const effectiveBid = getEffectiveBid(league.league_id);
-                const result = submitResults[league.league_id];
-                const status = result?.status;
-
-                return (
-                  <div
-                    key={league.league_id}
-                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition ${
-                      status === "success"
-                        ? "border-green-700/60 bg-green-900/10"
-                        : status === "error"
-                        ? "border-red-700/60 bg-red-900/10"
-                        : "border-gray-700/80 bg-gray-800"
-                    }`}
-                  >
-                    <Avatar hash={league.avatar} alt={league.name} size={24} />
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="text-sm font-medium text-gray-200 truncate">{league.name}</span>
-                      <span className="text-[10px] text-gray-500">
-                        {getLeagueType(league)} · {league.rosters.length} teams
-                        {(() => {
-                          const clearTime = getNextWaiverClear(league);
-                          if (!clearTime) return null;
-                          return <> · Clears in {formatClearTime(clearTime)}</>;
-                        })()}
-                      </span>
-                    </div>
-
-                    {/* Budget bar — shows remaining */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="w-20 h-1.5 rounded-full bg-gray-700 overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(remainingPct, 100)}%` }} />
-                      </div>
-                      <span className="text-[10px] text-gray-500 tabular-nums w-16 text-right">${remaining} left</span>
-                    </div>
-
-                    {/* Per-league bid override */}
-                    <input
-                      type="number"
-                      min={0}
-                      max={remaining || undefined}
-                      placeholder={String(effectiveBid)}
-                      value={bidOverrides[league.league_id] ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setBidOverrides((prev) => {
-                          if (val === "") {
-                            const { [league.league_id]: _, ...rest } = prev;
-                            return rest;
-                          }
-                          return { ...prev, [league.league_id]: Math.max(0, parseInt(val) || 0) };
-                        });
-                      }}
-                      className="w-14 rounded-md border border-gray-700 bg-gray-900 px-1.5 py-1 text-xs text-gray-100 text-center focus:border-blue-500 focus:outline-none placeholder:text-gray-600"
-                    />
-
-                    {/* Status indicator */}
-                    {status === "success" && <span className="text-green-400 text-xs shrink-0">✓</span>}
-                    {status === "error" && <span className="text-red-400 text-xs shrink-0">✗</span>}
-                  </div>
-                );
-              })}
+              {filteredLeagues.map((league) => (
+                <WaiverLeagueCard
+                  key={league.league_id}
+                  league={league}
+                  allplayers={allplayers}
+                  effectiveBid={getEffectiveBid(league.league_id)}
+                  bidOverride={bidOverrides[league.league_id]}
+                  onBidChange={(val) => {
+                    setBidOverrides((prev) => {
+                      if (val == null) {
+                        const { [league.league_id]: _, ...rest } = prev;
+                        return rest;
+                      }
+                      return { ...prev, [league.league_id]: val };
+                    });
+                  }}
+                  result={submitResults[league.league_id]}
+                  playerToAdd={playerToAdd}
+                  playerToDrop={dropOverrides[league.league_id] ?? playerToDrop}
+                  onDropOverride={(pid) => setDropOverrides((prev) => ({ ...prev, [league.league_id]: pid }))}
+                  selected={!deselectedLeagues.has(league.league_id)}
+                  onToggleSelect={() => setDeselectedLeagues((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(league.league_id)) next.delete(league.league_id);
+                    else next.add(league.league_id);
+                    return next;
+                  })}
+                  expanded={expandedClaimLeague === league.league_id}
+                  onToggleExpand={() => setExpandedClaimLeague((p) => p === league.league_id ? null : league.league_id)}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -541,6 +521,335 @@ export default function WaiversView({
         </div>
       )}
       </>
+      )}
+    </div>
+  );
+}
+
+// ── Roster warnings ─────────────────────────────────────────────────
+
+const IR_STATUS_MAP: Record<string, string> = {
+  Out: "reserve_allow_out",
+  IR: "reserve_allow_out",
+  Doubtful: "reserve_allow_doubtful",
+  "Non-Football Injury": "reserve_allow_na",
+  Suspended: "reserve_allow_sus",
+  COV: "reserve_allow_cov",
+  DNR: "reserve_allow_dnr",
+};
+
+function getRosterWarnings(
+  league: LeagueDetailed,
+  allplayers: { [id: string]: Allplayer },
+  playerToAdd: string | null,
+  playerToDrop: string | null,
+): string[] {
+  const warnings: string[] = [];
+  const roster = league.user_roster;
+  const positions = league.roster_positions;
+  const settings = league.settings;
+
+  // Simulate roster after the claim
+  const rosterPlayers = [...roster.players];
+  if (playerToAdd && !rosterPlayers.includes(playerToAdd)) rosterPlayers.push(playerToAdd);
+  if (playerToDrop) {
+    const idx = rosterPlayers.indexOf(playerToDrop);
+    if (idx !== -1) rosterPlayers.splice(idx, 1);
+  }
+
+  // Roster limit: active roster = non-taxi, non-reserve players
+  const taxiSet = new Set(roster.taxi);
+  const reserveSet = new Set(roster.reserve);
+  const activeCount = rosterPlayers.filter((pid) => !taxiSet.has(pid) && !reserveSet.has(pid)).length;
+  const maxActive = positions.length; // roster_positions includes BN slots
+  if (activeCount > maxActive) {
+    warnings.push(`Over roster limit (${activeCount}/${maxActive}) — must drop a player`);
+  }
+
+  // IR eligibility: check players in reserve slots
+  for (const pid of roster.reserve) {
+    const p = allplayers[pid];
+    if (!p) continue;
+    const injStatus = p.injury_status;
+    if (!injStatus || injStatus === "Questionable" || injStatus === "Probable") {
+      warnings.push(`${p.full_name} is ${injStatus || "healthy"} — ineligible for IR`);
+      continue;
+    }
+    const settingKey = IR_STATUS_MAP[injStatus];
+    if (settingKey && !(settings as Record<string, unknown>)[settingKey]) {
+      warnings.push(`${p.full_name} (${injStatus}) not allowed on IR in this league`);
+    }
+  }
+
+  // Taxi eligibility: check players on taxi squad for experience
+  if (settings.taxi_slots > 0) {
+    const maxYears = settings.taxi_years ?? 2;
+    const allowVets = settings.taxi_allow_vets === 1;
+    if (!allowVets) {
+      for (const pid of roster.taxi) {
+        const p = allplayers[pid];
+        if (!p) continue;
+        const exp = p.years_exp ?? 0;
+        if (exp > maxYears) {
+          warnings.push(`${p.full_name} (${exp}yr exp) exceeds taxi limit of ${maxYears}yr`);
+        }
+      }
+    }
+  }
+
+  return warnings;
+}
+
+function WaiverLeagueCard({
+  league,
+  allplayers,
+  effectiveBid,
+  bidOverride,
+  onBidChange,
+  result,
+  playerToAdd,
+  playerToDrop,
+  onDropOverride,
+  selected,
+  onToggleSelect,
+  expanded,
+  onToggleExpand,
+}: {
+  league: LeagueDetailed;
+  allplayers: { [id: string]: Allplayer };
+  effectiveBid: number;
+  bidOverride: number | undefined;
+  onBidChange: (val: number | null) => void;
+  result: SubmitResult | undefined;
+  playerToAdd: string | null;
+  playerToDrop: string | null;
+  onDropOverride: (pid: string | null) => void;
+  selected: boolean;
+  onToggleSelect: () => void;
+  expanded: boolean;
+  onToggleExpand: () => void;
+}) {
+  const totalBudget = league.settings.waiver_budget ?? 100;
+  const used = league.user_roster.waiver_budget_used ?? 0;
+  const remaining = totalBudget - used;
+  const remainingPct = totalBudget > 0 ? (remaining / totalBudget) * 100 : 0;
+  const status = result?.status;
+
+  const warnings = useMemo(
+    () => getRosterWarnings(league, allplayers, playerToAdd, playerToDrop),
+    [league, allplayers, playerToAdd, playerToDrop],
+  );
+
+  const roster = league.user_roster;
+  const taxiSet = new Set(roster.taxi);
+  const reserveSet = new Set(roster.reserve);
+
+  const rosterGroups = useMemo(() => {
+    const active: string[] = [];
+    const taxi: string[] = [];
+    const ir: string[] = [];
+    for (const pid of roster.players) {
+      if (taxiSet.has(pid)) taxi.push(pid);
+      else if (reserveSet.has(pid)) ir.push(pid);
+      else active.push(pid);
+    }
+    return { active, taxi, ir };
+  }, [roster.players, taxiSet, reserveSet]);
+
+  return (
+    <div
+      className={`rounded-xl border overflow-hidden transition-all duration-200 ${
+        status === "success"
+          ? "border-green-700/60 bg-green-900/10"
+          : status === "error"
+          ? "border-red-700/60 bg-red-900/10"
+          : selected
+          ? "border-yellow-500 bg-gradient-to-b from-yellow-500/5 to-gray-800 shadow-xl shadow-yellow-500/15 -translate-y-0.5"
+          : "border-gray-700/80 bg-gray-800 opacity-50"
+      }`}
+    >
+      {/* Header row */}
+      <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-700/20 transition" onClick={onToggleSelect}>
+        <Avatar hash={league.avatar} alt={league.name} size={24} />
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="text-sm font-medium text-gray-200 truncate">{league.name}</span>
+          <span className="text-[10px] text-gray-500">
+            {league.settings.type === 2 ? "Dynasty" : league.settings.type === 1 ? "Keeper" : "Redraft"} · {league.rosters.length} teams
+            {(() => {
+              const clearTime = getNextWaiverClear(league);
+              if (!clearTime) return null;
+              return <> · Clears in {formatClearTime(clearTime)}</>;
+            })()}
+          </span>
+        </div>
+
+        {playerToDrop && allplayers[playerToDrop] && (
+          <span className="text-[10px] text-red-400 shrink-0 truncate max-w-[100px]" title={`Dropping: ${allplayers[playerToDrop].full_name}`}>
+            -{allplayers[playerToDrop].last_name}
+          </span>
+        )}
+        {warnings.length > 0 && (
+          <span className="text-yellow-400 text-xs shrink-0" title={warnings.join("\n")}>
+            {warnings.length} warning{warnings.length > 1 ? "s" : ""}
+          </span>
+        )}
+
+        {/* Budget bar */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-20 h-1.5 rounded-full bg-gray-700 overflow-hidden">
+            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(remainingPct, 100)}%` }} />
+          </div>
+          <span className="text-[10px] text-gray-500 tabular-nums w-16 text-right">${remaining} left</span>
+        </div>
+
+        {/* Per-league bid override */}
+        <input
+          type="number"
+          min={0}
+          max={remaining || undefined}
+          placeholder={String(effectiveBid)}
+          value={bidOverride ?? ""}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => {
+            const val = e.target.value;
+            onBidChange(val === "" ? null : Math.max(0, parseInt(val) || 0));
+          }}
+          className="w-14 rounded-md border border-gray-700 bg-gray-900 px-1.5 py-1 text-xs text-gray-100 text-center focus:border-blue-500 focus:outline-none placeholder:text-gray-600"
+        />
+
+        {status === "success" && <span className="text-green-400 text-xs shrink-0">✓</span>}
+        {status === "error" && <span className="text-red-400 text-xs shrink-0">✗</span>}
+
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+          className="text-gray-500 hover:text-gray-300 transition shrink-0"
+          title={expanded ? "Collapse" : "Expand roster"}
+        >
+          <svg
+            className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Expanded: roster + warnings */}
+      {expanded && (
+        <div className="border-t border-gray-700/40 px-4 py-3">
+          {/* Warnings */}
+          {warnings.length > 0 && (
+            <div className="flex flex-col gap-1 mb-3">
+              {warnings.map((w, i) => (
+                <div key={i} className="flex items-start gap-1.5 rounded-md bg-yellow-500/10 border border-yellow-600/25 px-2.5 py-1.5">
+                  <span className="text-yellow-400 text-xs shrink-0">!</span>
+                  <span className="text-xs text-yellow-300/90">{w}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Roster */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5">
+            {/* Active roster */}
+            <div className="col-span-full mb-1">
+              <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                Active ({rosterGroups.active.length}/{league.roster_positions.length})
+              </span>
+            </div>
+            {rosterGroups.active.map((pid) => {
+              const p = allplayers[pid];
+              if (!p) return null;
+              const isAdd = pid === playerToAdd;
+              const isDrop = pid === playerToDrop;
+              return (
+                <button
+                  key={pid}
+                  onClick={() => {
+                    if (isAdd) return;
+                    onDropOverride(isDrop ? null : pid);
+                  }}
+                  disabled={isAdd}
+                  className={`flex items-center gap-1.5 py-0.5 text-left rounded px-1 -mx-1 transition ${
+                    isAdd ? "text-green-400 cursor-default"
+                    : isDrop ? "text-red-400 line-through bg-red-500/10"
+                    : "text-gray-300 hover:bg-gray-700/40 cursor-pointer"
+                  }`}
+                >
+                  <span className="text-[10px] font-bold text-gray-500 w-5">{p.position}</span>
+                  <span className="text-xs truncate">{p.full_name}</span>
+                  {p.injury_status && <span className="text-[9px] text-red-500 shrink-0">{p.injury_status}</span>}
+                  {isDrop && <span className="text-[9px] text-red-400 ml-auto shrink-0">DROP</span>}
+                </button>
+              );
+            })}
+
+            {/* Taxi */}
+            {rosterGroups.taxi.length > 0 && (
+              <>
+                <div className="col-span-full mt-2 mb-1">
+                  <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                    Taxi ({rosterGroups.taxi.length}/{league.settings.taxi_slots})
+                  </span>
+                </div>
+                {rosterGroups.taxi.map((pid) => {
+                  const p = allplayers[pid];
+                  if (!p) return null;
+                  const exp = p.years_exp ?? 0;
+                  const maxYears = league.settings.taxi_years ?? 2;
+                  const overLimit = league.settings.taxi_allow_vets !== 1 && exp > maxYears;
+                  return (
+                    <div key={pid} className={`flex items-center gap-1.5 py-0.5 ${overLimit ? "text-yellow-400" : "text-gray-400"}`}>
+                      <span className="text-[10px] font-bold text-gray-500 w-5">{p.position}</span>
+                      <span className="text-xs truncate">{p.full_name}</span>
+                      <span className="text-[9px] text-gray-600 shrink-0">{exp}yr</span>
+                      {overLimit && (
+                        <button
+                          onClick={() => onDropOverride(pid)}
+                          className="text-[9px] text-yellow-400 hover:text-yellow-200 ml-auto shrink-0 underline"
+                        >
+                          Drop
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* IR */}
+            {rosterGroups.ir.length > 0 && (
+              <>
+                <div className="col-span-full mt-2 mb-1">
+                  <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                    IR ({rosterGroups.ir.length}/{league.settings.reserve_slots})
+                  </span>
+                </div>
+                {rosterGroups.ir.map((pid) => {
+                  const p = allplayers[pid];
+                  if (!p) return null;
+                  const injStatus = p.injury_status;
+                  const ineligible = !injStatus || injStatus === "Questionable" || injStatus === "Probable";
+                  return (
+                    <div key={pid} className={`flex items-center gap-1.5 py-0.5 ${ineligible ? "text-yellow-400" : "text-gray-400"}`}>
+                      <span className="text-[10px] font-bold text-gray-500 w-5">{p.position}</span>
+                      <span className="text-xs truncate">{p.full_name}</span>
+                      <span className={`text-[9px] shrink-0 ${ineligible ? "text-yellow-500" : "text-red-500"}`}>{injStatus || "Healthy"}</span>
+                      {ineligible && (
+                        <button
+                          onClick={() => onDropOverride(pid)}
+                          className="text-[9px] text-yellow-400 hover:text-yellow-200 ml-auto shrink-0 underline"
+                        >
+                          Drop
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

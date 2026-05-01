@@ -13,7 +13,13 @@ export type League = {
 
 export type LeagueSettings = {
   taxi_slots: number;
+  taxi_years?: number;
+  taxi_allow_vets?: number;
   reserve_slots: number;
+  reserve_allow_out?: number;
+  reserve_allow_sus?: number;
+  reserve_allow_cov?: number;
+  reserve_allow_dnr?: number;
   best_ball: number;
   type: number;
   reserve_allow_na: number;
@@ -157,4 +163,6 @@ export type Allplayer = {
   fantasy_positions: string[] | null;
   years_exp: number | null;
   active: boolean;
+  injury_status: string | null;
+  status: string | null;
 };
