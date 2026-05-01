@@ -7,7 +7,7 @@ import type {
   LeagueDetailed,
 } from '@autogm/shared'
 import { SleeperTopics } from '@autogm/shared'
-import { useGatewayTopic } from '../contexts/socket-context'
+import { useGatewayTopic, useSocketContext } from '../contexts/socket-context'
 
 export type TradeWithLeague = Transaction & {
   league_name: string;
@@ -167,20 +167,42 @@ export function useTradesByStatus(
     fetchFn()
   }, [fetchFn])
 
-  // Refetch on trade-related WebSocket events from user channel (debounced)
+  // Refetch on trade-related WebSocket events from user and league channels (debounced)
   const fetchRef = useRef(fetchFn)
   fetchRef.current = fetchFn
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const debouncedRefetch = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => fetchRef.current(), 2000)
+  }, [])
+
   useGatewayTopic(
     userId ? SleeperTopics.user(userId) : null,
     useCallback((event: string) => {
-      if (!IGNORE_EVENTS.has(event)) {
-        if (debounceRef.current) clearTimeout(debounceRef.current)
-        debounceRef.current = setTimeout(() => fetchRef.current(), 2000)
-      }
-    }, []),
+      if (!IGNORE_EVENTS.has(event)) debouncedRefetch()
+    }, [debouncedRefetch]),
   )
+
+  // Subscribe to all league topics for transaction events
+  const { gateway } = useSocketContext()
+  const leagueIdsRef = useRef<string[]>([])
+
+  useEffect(() => {
+    if (!gateway) return
+    const leagueIds = Object.keys(leagues)
+    leagueIdsRef.current = leagueIds
+
+    const unsubs = leagueIds.map((lid) =>
+      gateway.join(SleeperTopics.league(lid), (event: string) => {
+        if (event === 'transaction_updated' || event === 'transaction_created') {
+          debouncedRefetch()
+        }
+      }),
+    )
+
+    return () => { unsubs.forEach((unsub) => unsub()) }
+  }, [gateway, leagues, debouncedRefetch])
 
   return { ...state, refetch: fetchFn }
 }

@@ -6,6 +6,7 @@ import type {
 } from "@autogm/shared";
 import { CURRENT_SEASON } from "@autogm/shared";
 import { Avatar } from "../../components/avatar";
+import { PlayerCombobox } from "../../components/player-combobox";
 import { formatRecord, formatTime } from "../../../lib/trade-utils";
 
 // ── Fetch all player shares for a user across all their leagues ──────
@@ -256,6 +257,8 @@ type TradeTransaction = {
   roster_names: Record<number, string>;
 };
 
+const opponentTradesCache: Record<string, (TradeTransaction & { league_name: string })[]> = {};
+
 function RecentTradesSection({
   partnerId,
   allplayers,
@@ -267,65 +270,100 @@ function RecentTradesSection({
   involvedPlayerIds: string[];
   leagues: { [league_id: string]: LeagueDetailed };
 }) {
-  const [trades, setTrades] = useState<(TradeTransaction & { league_name: string })[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [allTrades, setAllTrades] = useState<(TradeTransaction & { league_name: string })[]>(
+    () => opponentTradesCache[partnerId] ?? [],
+  );
+  const [loading, setLoading] = useState(!opponentTradesCache[partnerId]);
+  const [filterPlayerIds, setFilterPlayerIds] = useState<string[]>([]);
+  const fetchedRef = useRef<string | null>(opponentTradesCache[partnerId] ? partnerId : null);
 
-  const playerKey = useMemo(() => [...involvedPlayerIds].sort().join(","), [involvedPlayerIds]);
+  const allPlayerIds = useMemo(() => Object.keys(allplayers), [allplayers]);
 
   useEffect(() => {
-    if (involvedPlayerIds.length === 0) {
-      setTrades([]);
-      setLoading(false);
-      return;
-    }
+    if (fetchedRef.current === partnerId) return;
     let cancelled = false;
     setLoading(true);
     window.ipc
       .invoke<(TradeTransaction & { league_name: string })[]>("opponent:trades", {
         opponentUserId: partnerId,
-        playerIds: involvedPlayerIds,
+        playerIds: [],
       })
       .then((r) => {
-        if (!cancelled) setTrades(r);
+        if (cancelled) return;
+        fetchedRef.current = partnerId;
+        opponentTradesCache[partnerId] = r;
+        setAllTrades(r);
       })
       .catch((err) => {
-        console.warn('[opponent-panel] Failed to fetch opponent trades:', err)
-        if (!cancelled) setTrades([]);
+        console.warn('[opponent-panel] Failed to fetch opponent trades:', err);
+        if (!cancelled) setAllTrades([]);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [partnerId, playerKey]);
+  }, [partnerId]);
+
+  const filteredTrades = useMemo(() => {
+    if (filterPlayerIds.length === 0) return allTrades;
+    const filterSet = new Set(filterPlayerIds);
+    return allTrades.filter((tx) => {
+      const pids = [...Object.keys(tx.adds ?? {}), ...Object.keys(tx.drops ?? {})];
+      return pids.some((pid) => filterSet.has(pid));
+    });
+  }, [allTrades, filterPlayerIds]);
+
+  const highlightSet = useMemo(
+    () => new Set([...involvedPlayerIds, ...filterPlayerIds]),
+    [involvedPlayerIds, filterPlayerIds],
+  );
 
   if (loading) {
-    return <p className="text-xs text-gray-500 text-center py-4">Loading trades...</p>;
+    return <p className="text-xs text-gray-500 text-center py-4">Loading all trades...</p>;
   }
 
-  if (involvedPlayerIds.length === 0) {
-    return <p className="text-xs text-gray-500 text-center py-4">No players selected to search trades for</p>;
+  if (allTrades.length === 0) {
+    return <p className="text-xs text-gray-500 text-center py-4">No trades found</p>;
   }
 
-  if (trades.length === 0) {
-    return <p className="text-xs text-gray-500 text-center py-4">No trades involving these players in this league</p>;
-  }
-
-  const involvedSet = new Set(involvedPlayerIds);
-
-  const leagueCount = new Set(trades.map((t) => t.league_name)).size;
+  const leagueCount = new Set(filteredTrades.map((t) => t.league_name)).size;
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Player filter */}
+      <div className="flex items-center gap-2">
+        <PlayerCombobox
+          id="opponent-trade-filter"
+          playerIds={allPlayerIds}
+          allplayers={allplayers}
+          selected={filterPlayerIds}
+          onSelect={(pid) => setFilterPlayerIds((prev) => [...prev, pid])}
+          placeholder="Filter by player..."
+        />
+        {filterPlayerIds.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {filterPlayerIds.map((pid) => (
+              <span key={pid} className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] text-blue-400">
+                {allplayers[pid]?.full_name ?? pid}
+                <button onClick={() => setFilterPlayerIds((prev) => prev.filter((x) => x !== pid))} className="text-blue-500 hover:text-blue-300">&times;</button>
+              </span>
+            ))}
+            <button onClick={() => setFilterPlayerIds([])} className="text-[10px] text-gray-500 hover:text-gray-300 underline">Clear</button>
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-gray-400">
-          {trades.length} trade{trades.length !== 1 ? "s" : ""}
+          {filteredTrades.length} trade{filteredTrades.length !== 1 ? "s" : ""}
+          {filterPlayerIds.length > 0 && ` (of ${allTrades.length})`}
         </span>
         <span className="text-[10px] text-gray-500">
           across {leagueCount} league{leagueCount !== 1 ? "s" : ""}
         </span>
       </div>
-      {trades.map((tx) => {
+
+      {filteredTrades.map((tx) => {
         const rosterIds = tx.roster_ids;
         return (
           <div key={tx.transaction_id} className="rounded-lg bg-gray-900/40 border border-gray-700/30 overflow-hidden">
@@ -337,11 +375,17 @@ function RecentTradesSection({
               {rosterIds.map((rid) => {
                 const got = Object.entries(tx.adds ?? {})
                   .filter(([, r]) => r === rid)
-                  .map(([pid]) => ({ pid, name: allplayers[pid]?.full_name ?? pid, pos: allplayers[pid]?.position, involved: involvedSet.has(pid) }));
+                  .map(([pid]) => ({ pid, name: allplayers[pid]?.full_name ?? pid, pos: allplayers[pid]?.position, involved: highlightSet.has(pid) }));
                 const gave = Object.entries(tx.drops ?? {})
                   .filter(([, r]) => r === rid)
-                  .map(([pid]) => ({ pid, name: allplayers[pid]?.full_name ?? pid, pos: allplayers[pid]?.position, involved: involvedSet.has(pid) }));
-                if (got.length === 0 && gave.length === 0) return null;
+                  .map(([pid]) => ({ pid, name: allplayers[pid]?.full_name ?? pid, pos: allplayers[pid]?.position, involved: highlightSet.has(pid) }));
+                const parsedPicks = (tx.draft_picks ?? []).map((s) => {
+                  const [roster_id, season, round, owner_id, previous_owner_id] = s.split(",");
+                  return { roster_id: +roster_id, season, round: +round, owner_id: +owner_id, previous_owner_id: +previous_owner_id };
+                });
+                const picksGot = parsedPicks.filter((dp) => dp.owner_id === rid);
+                const picksGave = parsedPicks.filter((dp) => dp.previous_owner_id === rid);
+                if (got.length === 0 && gave.length === 0 && picksGot.length === 0 && picksGave.length === 0) return null;
                 const rosterName = tx.roster_names?.[rid]
                   ?? leagues[tx.league_id]?.rosters.find((r) => r.roster_id === rid)?.username
                   ?? `Roster ${rid}`;
@@ -363,6 +407,12 @@ function RecentTradesSection({
                           <span className="truncate">{p.name}</span>
                         </span>
                       ))}
+                      {picksGot.map((dp, i) => (
+                        <span key={`pg${i}`} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-blue-400/70">
+                          <span className="text-blue-500/70">+</span>
+                          <span>{dp.season} Round {dp.round}</span>
+                        </span>
+                      ))}
                       {gave.map((p, i) => (
                         <span
                           key={`s${i}`}
@@ -375,6 +425,12 @@ function RecentTradesSection({
                           <span className="text-red-500/70">-</span>
                           {p.pos && <span className="text-[10px] font-semibold opacity-60">{p.pos}</span>}
                           <span className="truncate">{p.name}</span>
+                        </span>
+                      ))}
+                      {picksGave.map((dp, i) => (
+                        <span key={`ps${i}`} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-orange-400/70">
+                          <span className="text-orange-500/70">-</span>
+                          <span>{dp.season} Round {dp.round}</span>
                         </span>
                       ))}
                     </div>

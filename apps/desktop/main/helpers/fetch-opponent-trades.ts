@@ -37,8 +37,6 @@ export async function fetchOpponentTrades({
   playerIds: string[]
   season?: string
 }): Promise<Array<Transaction & { league_name: string; roster_names: Record<number, string> }>> {
-  if (playerIds.length === 0) return []
-
   const yr = season ?? new Date().getFullYear().toString()
 
   // 1. Get all leagues the opponent is in this season
@@ -48,7 +46,7 @@ export async function fetchOpponentTrades({
 
   if (leagues.length === 0) return []
 
-  const involved = new Set(playerIds)
+  const involved = playerIds.length > 0 ? new Set(playerIds) : null
   const results: Array<Transaction & { league_name: string; roster_names: Record<number, string> }> = []
 
   // 2. Fetch completed trades + roster/user mappings from each league (batched)
@@ -81,7 +79,14 @@ export async function fetchOpponentTrades({
             }
           }
 
-          return { league: lg, txs: result.league_transactions, rosterNames }
+          // Only include trades the opponent was part of
+          const opponentRoster = rosters.find((r) => r.owner_id === opponentUserId)
+          const opponentRid = opponentRoster?.roster_id
+          const partnerTxs = opponentRid != null
+            ? result.league_transactions.filter((tx) => tx.roster_ids.includes(opponentRid))
+            : []
+
+          return { league: lg, txs: partnerTxs, rosterNames }
         } catch (err) {
           log.warn(`failed to fetch trades for league ${lg.league_id}:`, err instanceof Error ? err.message : err)
           return { league: lg, txs: [] as Transaction[], rosterNames: {} as Record<number, string> }
@@ -91,13 +96,14 @@ export async function fetchOpponentTrades({
 
     for (const { league: lg, txs, rosterNames } of responses) {
       for (const tx of txs) {
-        const playerIdsInTrade = [
-          ...Object.keys(tx.adds ?? {}),
-          ...Object.keys(tx.drops ?? {}),
-        ]
-        if (playerIdsInTrade.some((pid) => involved.has(pid))) {
-          results.push({ ...tx, league_name: lg.name, roster_names: rosterNames })
+        if (involved) {
+          const playerIdsInTrade = [
+            ...Object.keys(tx.adds ?? {}),
+            ...Object.keys(tx.drops ?? {}),
+          ]
+          if (!playerIdsInTrade.some((pid) => involved.has(pid))) continue
         }
+        results.push({ ...tx, league_name: lg.name, roster_names: rosterNames })
       }
     }
   }
