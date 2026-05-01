@@ -32,6 +32,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     headers: {
       'Content-Type': 'application/json',
       'x-user-id': session?.user_id || '',
+      'x-desktop-api-key': process.env.EXPO_PUBLIC_API_KEY || '',
       ...options?.headers,
     },
   })

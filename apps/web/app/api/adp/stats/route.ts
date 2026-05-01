@@ -10,6 +10,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const filters: AdpFilters = await req.json().catch(() => ({}));
+    if (filters.scoringFilters) filters.scoringFilters = filters.scoringFilters.slice(0, 20);
+    if (filters.settingsFilters) filters.settingsFilters = filters.settingsFilters.slice(0, 20);
+    if (filters.rosterSlotFilters) filters.rosterSlotFilters = filters.rosterSlotFilters.slice(0, 20);
+    if (filters.leagueTypes) filters.leagueTypes = filters.leagueTypes.slice(0, 20);
+    if (filters.bestBall) filters.bestBall = filters.bestBall.slice(0, 20);
+    filters.minDrafts = Math.min(100, Math.max(1, filters.minDrafts ?? 2));
     const data = await fetchAdpStats(getPool(), filters);
     return NextResponse.json(data);
   } catch (e) {

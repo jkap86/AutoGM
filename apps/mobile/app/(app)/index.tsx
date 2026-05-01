@@ -29,6 +29,8 @@ const RANK_CATEGORIES: { label: string; filter: PositionFilter }[] = [
   { label: 'Picks', filter: 'PICKS' },
 ]
 
+const TENOR_API_KEY = process.env.EXPO_PUBLIC_TENOR_API_KEY || 'AIzaSyC-P6RbEhWxUhtjTAANbYz4WB-YGlavnD0';
+
 const EMOJI_CATEGORIES = [
   { label: 'Smileys', emojis: ['😂', '🤣', '😭', '💀', '🔥', '❤️', '😤', '😈', '🥶', '🤡', '😎', '🤔', '😏', '🙄', '😬', '💯', '👀', '🤝', '👏', '🫠'] },
   { label: 'Sports', emojis: ['🏈', '🏆', '🥇', '📈', '📉', '💰', '🎯', '⚡', '🚀', '💪', '🧠', '👑', '🐐', '🗑️', '💩', '🤮', '🫡', '🍻', '🥳', '🎉'] },
@@ -427,7 +429,7 @@ function ChatCard({ league, userId, onLastMessage }: {
                 onChangeText={(q) => {
                   setGifQuery(q)
                   if (!q.trim()) { setGifResults([]); return }
-                  fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=AIzaSyC-P6RbEhWxUhtjTAANbYz4WB-YGlavnD0&limit=12&media_filter=tinygif,tinymp4`)
+                  fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=${TENOR_API_KEY}&limit=12&media_filter=tinygif,tinymp4`)
                     .then((r) => r.json())
                     .then((d) => setGifResults((d.results ?? []).map((g: Record<string, unknown>) => ({
                       id: g.id as string,

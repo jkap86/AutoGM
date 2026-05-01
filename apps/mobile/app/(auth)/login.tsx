@@ -17,11 +17,13 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#111827' }}>
       <WebViewLogin />
-      <View style={s.demoBar}>
-        <TouchableOpacity onPress={enterDemo} style={s.demoBtn}>
-          <Text style={s.demoText}>Try Demo Mode</Text>
-        </TouchableOpacity>
-      </View>
+      {__DEV__ && (
+        <View style={s.demoBar}>
+          <TouchableOpacity onPress={enterDemo} style={s.demoBtn}>
+            <Text style={s.demoText}>Try Demo Mode</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   )
 }

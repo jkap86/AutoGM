@@ -49,6 +49,7 @@ jobs:
         run: |
           echo "API_URL=${{ secrets.API_URL }}" >> .env
           echo "ALLOWLIST_URL=${{ secrets.ALLOWLIST_URL }}" >> .env
+          echo "DESKTOP_API_KEY=${{ secrets.DESKTOP_API_KEY }}" >> .env
 
       - name: Import macOS signing certificate
         if: matrix.platform == 'mac'

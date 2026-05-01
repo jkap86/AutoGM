@@ -85,9 +85,8 @@ export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, l
           if (match) {
             // Accept the pending DM invite
             try {
-              await window.ipc.invoke("graphql", {
-                name: "acceptRequest",
-                vars: { request_type: "dm_single", requester_id: partnerId, type_id: match.type_id },
+              await window.ipc.invoke("dm:accept-request", {
+                request_type: "dm_single", requester_id: partnerId, type_id: match.type_id,
               });
             } catch {
               // may already be accepted

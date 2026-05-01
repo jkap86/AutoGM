@@ -6,6 +6,8 @@ import { Avatar } from "../../components/avatar";
 import { formatTime } from "../../../lib/trade-utils";
 import { parseAttachment, AttachmentView, cleanText } from "./dm-panel";
 
+const TENOR_API_KEY = process.env.NEXT_PUBLIC_TENOR_API_KEY || 'AIzaSyC-P6RbEhWxUhtjTAANbYz4WB-YGlavnD0';
+
 type SortMode = "original" | "alpha" | "recent";
 
 // Module-level cache so previews survive tab switches (cleared after 10 min)
@@ -182,7 +184,7 @@ function GifPicker({ onSelect, onClose }: { onSelect: (gif: TenorGif) => void; o
     setSearching(true);
     try {
       // Use Tenor v2 API with the default Sleeper key or a free key
-      const url = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=AIzaSyC-P6RbEhWxUhtjTAANbYz4WB-YGlavnD0&limit=20&media_filter=tinygif,tinymp4`;
+      const url = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=${TENOR_API_KEY}&limit=20&media_filter=tinygif,tinymp4`;
       const res = await fetch(url);
       const data = await res.json();
       setResults(data.results ?? []);

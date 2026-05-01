@@ -8,9 +8,9 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const date = req.nextUrl.searchParams.get("date");
-  if (!date) {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json(
-      { error: "Missing ?date= parameter" },
+      { error: "Missing or invalid ?date= parameter (expected YYYY-MM-DD)" },
       { status: 400 },
     );
   }

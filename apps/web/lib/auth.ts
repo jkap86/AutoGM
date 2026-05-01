@@ -6,9 +6,9 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 
 let cache: { userIds: Set<string>; fetchedAt: number } | null = null;
 
-async function fetchAllowlist(): Promise<Set<string>> {
+async function fetchAllowlist(): Promise<Set<string> | null> {
   if (!ALLOWLIST_URL) {
-    throw new Error("ALLOWLIST_URL is not set");
+    return null; // No allowlist configured — all users allowed
   }
   const res = await fetch(ALLOWLIST_URL);
   if (!res.ok) throw new Error(`Allowlist fetch failed: ${res.status}`);
@@ -17,12 +17,15 @@ async function fetchAllowlist(): Promise<Set<string>> {
 }
 
 async function isAllowed(userId: string): Promise<boolean> {
+  if (!ALLOWLIST_URL) return true; // No allowlist configured — all users allowed
+
   const now = Date.now();
   if (cache && now - cache.fetchedAt < CACHE_TTL_MS) {
     return cache.userIds.has(userId);
   }
   try {
     const userIds = await fetchAllowlist();
+    if (!userIds) return true;
     cache = { userIds, fetchedAt: now };
     return userIds.has(userId);
   } catch {

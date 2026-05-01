@@ -12,6 +12,7 @@ import { DEMO_SESSION } from '../../src/demo-data'
 export default function AppLayout() {
   const { session, restoring, clearSession: clearAuthSession } = useAuth()
   const router = useRouter()
+  const { gatewayStatus } = useSocketContext()
   const [accessAllowed, setAccessAllowed] = useState<boolean | null>(null)
 
   useEffect(() => {
@@ -70,7 +71,6 @@ export default function AppLayout() {
     )
   }
 
-  const { gatewayStatus } = useSocketContext()
   const statusColor = gatewayStatus === 'connected' ? '#4ADE80' : gatewayStatus === 'connecting' ? '#FBBF24' : '#F87171'
 
   const headerRight = () => (

@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const days = parseInt(req.nextUrl.searchParams.get("days") ?? "90", 10);
-    const ids = playerIds.split(",").filter(Boolean);
+    const days = Math.min(365, Math.max(1, parseInt(req.nextUrl.searchParams.get("days") ?? "90", 10) || 90));
+    const ids = playerIds.split(",").filter(Boolean).slice(0, 50);
 
     const data = await fetchKtcHistory(getPool(), ids, days);
     return NextResponse.json(data);

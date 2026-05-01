@@ -9,6 +9,8 @@ import { useAuth } from '@autogm/shared/react'
 import { mobileDataClient } from '../../../src/data-client'
 import { colors } from '../../../src/theme'
 
+const TENOR_API_KEY = process.env.EXPO_PUBLIC_TENOR_API_KEY || 'AIzaSyC-P6RbEhWxUhtjTAANbYz4WB-YGlavnD0';
+
 const EMOJI_CATEGORIES = [
   { label: 'Smileys', emojis: ['😂', '🤣', '😭', '💀', '🔥', '❤️', '😤', '😈', '🥶', '🤡', '😎', '🤔', '😏', '🙄', '😬', '💯', '👀', '🤝', '👏', '🫠'] },
   { label: 'Sports', emojis: ['🏈', '🏆', '🥇', '📈', '📉', '💰', '🎯', '⚡', '🚀', '💪', '🧠', '👑', '🐐', '🗑️', '💩', '🤮', '🫡', '🍻', '🥳', '🎉'] },
@@ -191,7 +193,7 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
                   setGifQuery(q)
                   if (!q.trim()) { setGifResults([]); return }
                   setGifSearching(true)
-                  fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=AIzaSyC-P6RbEhWxUhtjTAANbYz4WB-YGlavnD0&limit=12&media_filter=tinygif,tinymp4`)
+                  fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=${TENOR_API_KEY}&limit=12&media_filter=tinygif,tinymp4`)
                     .then((r) => r.json())
                     .then((d) => setGifResults((d.results ?? []).map((g: Record<string, unknown>) => ({
                       id: g.id as string,

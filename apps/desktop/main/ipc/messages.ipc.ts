@@ -105,4 +105,15 @@ export function registerMessagesIpc() {
       }
     },
   );
+
+  ipcMain.handle(
+    "dm:accept-request",
+    async (_event, vars: QueryMap["acceptRequest"]["vars"]) => {
+      await requireAccess();
+      requireString(vars.request_type, "request_type");
+      requireString(vars.requester_id, "requester_id");
+      requireString(vars.type_id, "type_id");
+      return await runQuery("acceptRequest", vars);
+    },
+  );
 }

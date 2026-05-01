@@ -3,9 +3,8 @@ import { requireAccess } from "../lib/auth";
 import { runQuery } from "@autogm/shared";
 import type { QueryMap, QueryName } from "@autogm/shared";
 
-/** Read-only queries allowed through the generic GraphQL channel. */
-const READONLY_GRAPHQL_QUERIES = new Set<QueryName>([
-  "acceptRequest",
+/** Generic queries allowed through the generic GraphQL channel. */
+const GENERIC_GRAPHQL_QUERIES = new Set<QueryName>([
   "inboundRequests",
   "getDmByMembers",
   "leaguePlayers",
@@ -26,8 +25,8 @@ export function registerReadonlyGraphqlIpc() {
     ) => {
       await requireAccess();
 
-      if (!READONLY_GRAPHQL_QUERIES.has(args.name)) {
-        throw new Error(`"${args.name}" must use a dedicated IPC route`);
+      if (!GENERIC_GRAPHQL_QUERIES.has(args.name)) {
+        throw new Error(`"${args.name}" is not allowed on the generic GraphQL channel`);
       }
 
       try {
