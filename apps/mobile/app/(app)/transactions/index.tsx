@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import TradesScreen from '../trades/index'
 import DmsScreen from '../dms/index'
+import WaiversScreen from '../waivers/index'
 
 type SubTab = 'trades' | 'waivers' | 'dms'
 
@@ -31,11 +32,7 @@ export default function TransactionsTab() {
 
       {/* Content */}
       {subTab === 'trades' && <TradesScreen />}
-      {subTab === 'waivers' && (
-        <View className="flex-1 items-center justify-center p-6">
-          <Text className="text-gray-500 text-sm">Waivers coming soon</Text>
-        </View>
-      )}
+      {subTab === 'waivers' && <WaiversScreen />}
       {subTab === 'dms' && <DmsScreen />}
     </View>
   )

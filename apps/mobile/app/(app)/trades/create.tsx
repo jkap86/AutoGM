@@ -158,6 +158,9 @@ function TradeMatchCard({
   )
 }
 
+const SUBMIT_DELAY_MS = 2000
+const SUBMIT_JITTER_MS = 2000
+
 export default function CreateTradeScreen() {
   const { session } = useAuth()
   const { leagues, playerShares, pickShares, loading: leaguesLoading } = useLeagueCache()
@@ -316,7 +319,7 @@ export default function CreateTradeScreen() {
 
       Alert.alert('Sent', `Trade sent to ${partner.username} in ${league.name}`)
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : String(e))
+      Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong')
     } finally {
       setSendingKey(null)
     }
@@ -340,7 +343,7 @@ export default function CreateTradeScreen() {
     for (let i = 0; i < toSend.length; i++) {
       try { await sendTrade(toSend[i].league, toSend[i].partner) } catch {}
       setBatchProgress(i + 1)
-      if (i < toSend.length - 1) await new Promise((r) => setTimeout(r, 2000 + Math.random() * 2000))
+      if (i < toSend.length - 1) await new Promise((r) => setTimeout(r, SUBMIT_DELAY_MS + Math.random() * SUBMIT_JITTER_MS))
     }
     setBatchSending(false)
     setSelectedTrades(new Set())

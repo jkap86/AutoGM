@@ -12,7 +12,7 @@ export type OperationRecord = {
 }
 
 const STORAGE_KEY = 'autogm_operations'
-const TTL_MS = 5 * 60 * 1000 // 5 minutes
+const OPERATION_OPERATION_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 const BLOCKING_STATUSES = new Set<OperationStatus>(['pending', 'success', 'poll_created'])
 
@@ -21,7 +21,7 @@ async function load(): Promise<OperationRecord[]> {
   if (!raw) return []
   const ops: OperationRecord[] = JSON.parse(raw)
   const now = Date.now()
-  return ops.filter((o) => now - o.created_at < TTL_MS)
+  return ops.filter((o) => now - o.created_at < OPERATION_TTL_MS)
 }
 
 async function save(ops: OperationRecord[]) {

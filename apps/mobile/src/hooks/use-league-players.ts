@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { LeagueDetailed } from '@autogm/shared'
 import { mobileDataClient } from '../data-client'
 
@@ -29,6 +29,8 @@ export function useLeaguePlayers(
   const [tradeBlock, setTradeBlock] = useState<InterestByLeague>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const leagueKey = useMemo(() => leagues ? Object.keys(leagues).sort().join(',') : '', [leagues])
 
   useEffect(() => {
     if (!leagues) return
@@ -86,7 +88,7 @@ export function useLeaguePlayers(
     })()
 
     return () => { cancelled = true }
-  }, [leagues ? Object.keys(leagues).sort().join(',') : ''])
+  }, [leagueKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { interestByLeague: interest, tradeBlockByLeague: tradeBlock, loading, error }
 }

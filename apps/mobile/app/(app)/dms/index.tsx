@@ -87,7 +87,7 @@ function DmCard({ partner, userId }: { partner: DmPartner; userId: string }) {
             setLastPreview({ text: dm.last_message_text, time: dm.last_message_time })
           }
         }
-      } catch {}
+      } catch (e) { console.warn('[chats]', e instanceof Error ? e.message : e) }
     })()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -163,7 +163,7 @@ function DmCard({ partner, userId }: { partner: DmPartner; userId: string }) {
       </TouchableOpacity>
 
       {expanded && (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="border-t border-gray-700">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="border-t border-gray-700">
           <View style={{ maxHeight: 300 }}>
             {loading && messages.length === 0 ? (
               <View className="p-6 items-center">
@@ -209,6 +209,7 @@ function DmCard({ partner, userId }: { partner: DmPartner; userId: string }) {
               onPress={createDmAndSend}
               disabled={!draft.trim() || sending}
               className={`bg-blue-600 rounded-lg px-3 py-1.5 ${(!draft.trim() || sending) ? 'opacity-50' : ''}`}
+              accessibilityLabel="Send message"
             >
               <Text className="text-white text-[13px] font-semibold">{sending ? '...' : 'Send'}</Text>
             </TouchableOpacity>

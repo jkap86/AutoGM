@@ -138,11 +138,11 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
           </View>
           <View style={s.inputRow}>
             {/* Emoji */}
-            <TouchableOpacity onPress={() => { setShowEmoji((p) => !p); setShowGif(false) }} style={s.iconBtn}>
+            <TouchableOpacity onPress={() => { setShowEmoji((p) => !p); setShowGif(false) }} style={s.iconBtn} accessibilityLabel="Emoji picker">
               <Text style={{ fontSize: 18 }}>😊</Text>
             </TouchableOpacity>
             {/* GIF */}
-            <TouchableOpacity onPress={() => { setShowGif((p) => !p); setShowEmoji(false) }} style={s.gifBtn}>
+            <TouchableOpacity onPress={() => { setShowGif((p) => !p); setShowEmoji(false) }} style={s.gifBtn} accessibilityLabel="GIF picker">
               <Text style={s.gifBtnText}>GIF</Text>
             </TouchableOpacity>
             <TextInput
@@ -158,6 +158,7 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
               onPress={sendMessage}
               disabled={!draft.trim() || sending}
               style={[s.sendBtn, (!draft.trim() || sending) && { opacity: 0.5 }]}
+              accessibilityLabel="Send message"
             >
               <Text style={s.sendText}>{sending ? '...' : 'Send'}</Text>
             </TouchableOpacity>
@@ -218,7 +219,7 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
                           v_attachment_data: [g.url, g.preview, g.url, g.preview],
                         } as any)
                         await fetchMessages()
-                      } catch {} finally { setSending(false) }
+                      } catch (e) { console.warn('[chats]', e instanceof Error ? e.message : e) } finally { setSending(false) }
                     }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <View style={{ width: 80, height: 60, backgroundColor: colors.card, borderRadius: 6, overflow: 'hidden' }}>

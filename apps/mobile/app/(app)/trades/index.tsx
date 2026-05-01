@@ -120,9 +120,9 @@ function TradeCard({
   const [counterPicksReceive, setCounterPicksReceive] = useState<Set<string>>(new Set())
   const [counterSending, setCounterSending] = useState(false)
 
-  const partnerRid = trade.roster_ids.find((rid) => rid !== userRosterId)
-  const partnerRoster = league?.rosters?.find((r) => r.roster_id === partnerRid)
-  const userRoster = league?.user_roster
+  const partnerRid = trade.roster_ids?.find((rid) => rid !== userRosterId) ?? null
+  const partnerRoster = partnerRid != null ? league?.rosters?.find((r) => r.roster_id === partnerRid) ?? null : null
+  const userRoster = league?.user_roster ?? null
 
   const openCounter = useCallback((mode: 'counter' | 'modify') => {
     // Pre-populate from existing trade
@@ -653,6 +653,9 @@ function TradesContent() {
           ListEmptyComponent={
             <Text className="text-gray-400 text-[11px] text-center mt-10">No {tab} trades</Text>
           }
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
         />
       )}
     </View>

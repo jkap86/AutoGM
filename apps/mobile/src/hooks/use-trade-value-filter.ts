@@ -133,7 +133,7 @@ function computeRosterValues(
       values.push(val)
     }
   }
-  return values.sort((a, b) => b - a)
+  return values.slice().sort((a, b) => b - a)
 }
 
 function useKtcByDate(date: string | null) {
@@ -145,7 +145,7 @@ function useKtcByDate(date: string | null) {
     setLoading(true)
     mobileDataClient.fetchKtcByDate(date)
       .then((data) => setKtc(data.player_values))
-      .catch(() => {})
+      .catch((e) => console.warn('[trade-value]', e instanceof Error ? e.message : e))
       .finally(() => setLoading(false))
   }, [date])
 

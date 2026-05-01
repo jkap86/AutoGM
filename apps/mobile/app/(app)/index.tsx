@@ -274,6 +274,9 @@ function RanksView({ leagues, allplayers, ktc }: {
           <LeagueRankCard league={item} values={valueLookup} allplayers={allplayers} valueType={valueType} topN={topNByCategory} />
         )}
         contentContainerStyle={{ padding: 12 }}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
       />
     </View>
   )
@@ -307,7 +310,7 @@ function ChatCard({ league, userId, onLastMessage }: {
       const msgs = (r as MessagesResult).messages ?? []
       setMessages(msgs)
       if (msgs.length > 0 && onLastMessage) onLastMessage(league.league_id, Math.max(...msgs.map((m) => m.created)))
-    } catch {} finally { if (!silent) setLoading(false) }
+    } catch (e) { console.warn('[chats]', e instanceof Error ? e.message : e) } finally { if (!silent) setLoading(false) }
   }, [league.league_id, onLastMessage])
 
   useEffect(() => { fetchMsgs(true) }, [])
@@ -335,7 +338,7 @@ function ChatCard({ league, userId, onLastMessage }: {
     try {
       await mobileDataClient.graphql('createLeagueMessage' as any, { parent_id: league.league_id, text } as any)
       setDraft(''); await fetchMsgs()
-    } catch {} finally { setSending(false) }
+    } catch (e) { console.warn('[chats]', e instanceof Error ? e.message : e) } finally { setSending(false) }
   }, [league.league_id, sending, fetchMsgs])
 
   const sorted = useMemo(() => [...messages].sort((a, b) => a.created - b.created), [messages])
@@ -376,6 +379,9 @@ function ChatCard({ league, userId, onLastMessage }: {
                 }}
                 contentContainerStyle={{ padding: 8 }}
                 ListEmptyComponent={<Text className="text-gray-400 text-center p-5 text-xs">No messages</Text>}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={10}
+                windowSize={5}
               />
             )}
           </View>
@@ -439,7 +445,7 @@ function ChatCard({ league, userId, onLastMessage }: {
                           v_attachment_data: [g.url, g.preview, g.url, g.preview],
                         } as any)
                         await fetchMsgs()
-                      } catch {} finally { setSending(false) }
+                      } catch (e) { console.warn('[chats]', e instanceof Error ? e.message : e) } finally { setSending(false) }
                     }} className="w-20 h-[60px] bg-gray-800 rounded-md items-center justify-center">
                       <Text className="text-gray-500 text-[8px]">GIF</Text>
                     </TouchableOpacity>
@@ -484,7 +490,10 @@ function ChatsView({ leagues, userId }: { leagues: LeagueDetailed[]; userId: str
       </ScrollView>
       <FlatList data={sorted} keyExtractor={(l) => l.league_id}
         renderItem={({ item }) => <ChatCard league={item} userId={userId} onLastMessage={updateLast} />}
-        contentContainerStyle={{ padding: 12 }} />
+        contentContainerStyle={{ padding: 12 }}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5} />
     </View>
   )
 }
