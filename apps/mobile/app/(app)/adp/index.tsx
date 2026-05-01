@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, ScrollView } from 'react-native'
-import type { Allplayer } from '@autogm/shared'
+import type { Allplayer, AdpFilters } from '@autogm/shared'
 import { useAllPlayers } from '../../../src/hooks/use-allplayers'
 import { useAdp } from '../../../src/hooks/use-adp'
 
@@ -22,7 +22,7 @@ export default function AdpScreen() {
   const [search, setSearch] = useState('')
 
   const { data: adpRows, stats, loading: adpLoading } = useAdp(
-    { startDate, endDate, draftType: draftType || null, minDrafts } as any,
+    { startDate, endDate, draftType: (draftType || null) as AdpFilters['draftType'], minDrafts },
     true,
   )
 

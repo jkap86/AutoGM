@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native'
-import type { Message, MessagesResult, GetDmByMembersResult, CreateDmResult } from '@autogm/shared'
+import type { Message, MessagesResult, GetDmByMembersResult, CreateDmResult, MessageCreatedPayload } from '@autogm/shared'
 import { SleeperTopics, messageFromSocket } from '@autogm/shared'
 import { useAuth } from '@autogm/shared/react'
 import { useLeagueCache } from '../../../src/league-cache'
@@ -96,7 +96,7 @@ function DmCard({ partner, userId }: { partner: DmPartner; userId: string }) {
     expanded && userId ? SleeperTopics.user(userId) : null,
     useCallback((event: string, payload: unknown) => {
       if (event === 'message_created') {
-        const msg = messageFromSocket(payload as any)
+        const msg = messageFromSocket(payload as MessageCreatedPayload)
         if (msg.parent_id === dmId) {
           setMessages((prev) => {
             if (prev.some((m) => m.message_id === msg.message_id)) return prev
@@ -118,7 +118,7 @@ function DmCard({ partner, userId }: { partner: DmPartner; userId: string }) {
         const result = await mobileDataClient.graphql('createDm', {
           members: [userId, partner.user_id],
           dm_type: 'direct',
-        } as any)
+        })
         id = (result as CreateDmResult).create_dm?.dm_id
         if (!id) throw new Error('Failed to create DM')
         setDmId(id)
@@ -126,7 +126,9 @@ function DmCard({ partner, userId }: { partner: DmPartner; userId: string }) {
       await mobileDataClient.graphql('createMessage', {
         parent_id: id,
         text,
-      } as any)
+        k_attachment_data: [],
+        v_attachment_data: [],
+      })
       setDraft('')
       await fetchDmAndMessages()
     } catch (e) {

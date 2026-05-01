@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet, ScrollView } from 'react-native'
-import type { LeagueDetailed, Roster, Allplayer } from '@autogm/shared'
+import type { LeagueDetailed, Roster, Allplayer, AdpFilters } from '@autogm/shared'
 import { useLeagueCache } from '../../../src/league-cache'
 import { useKtc } from '../../../src/hooks/use-ktc'
 import { useAdp } from '../../../src/hooks/use-adp'
@@ -130,7 +130,7 @@ export default function RankingsScreen() {
   const [minDrafts, setMinDrafts] = useState(2)
 
   const { data: adpRows, stats: adpStats, loading: adpLoading } = useAdp(
-    { startDate: adpStart, endDate: adpEnd, draftType: draftType || null, minDrafts } as any,
+    { startDate: adpStart, endDate: adpEnd, draftType: (draftType || null) as AdpFilters['draftType'], minDrafts },
     isAdp,
   )
 

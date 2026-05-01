@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, TextInput, Alert,
   ActivityIndicator, ScrollView, Modal,
 } from 'react-native'
-import type { LeagueDetailed, Roster, Allplayer } from '@autogm/shared'
+import type { LeagueDetailed, Roster, Allplayer, GetDmByMembersResult, CreateDmResult } from '@autogm/shared'
 import { getPickId, buildPlayerAttachment, buildUserAttachment } from '@autogm/shared'
 import { useAuth } from '@autogm/shared/react'
 import { useLeagueCache } from '../../../src/league-cache'
@@ -265,7 +265,7 @@ export default function CreateTradeScreen() {
           }),
         ],
         waiver_budget: [],
-        expires_at: expiresAt,
+        expires_at: expiresAt ?? undefined,
       })
 
       // Send DM notification (non-blocking)
@@ -274,10 +274,10 @@ export default function CreateTradeScreen() {
         const userId = session?.user_id
         if (partnerId && userId) {
           const dmResult = await mobileDataClient.graphql('getDmByMembers', { members: [userId, partnerId] })
-          let dmId = (dmResult as any).get_dm_by_members?.dm_id
+          let dmId = (dmResult as GetDmByMembersResult).get_dm_by_members?.dm_id
           if (!dmId) {
             const newDm = await mobileDataClient.graphql('createDm', { members: [userId, partnerId], dm_type: 'direct' })
-            dmId = (newDm as any).create_dm?.dm_id
+            dmId = (newDm as CreateDmResult).create_dm?.dm_id
           }
           if (dmId) {
             const transactionsByRoster: Record<string, unknown> = {
@@ -312,7 +312,7 @@ export default function CreateTradeScreen() {
               attachment_type: 'trade_dm',
               k_attachment_data: ['status', 'transactions_by_roster', 'league_id'],
               v_attachment_data: ['proposed', JSON.stringify(transactionsByRoster), league.league_id],
-            } as any)
+            })
           }
         }
       } catch {} // DM failure shouldn't block trade

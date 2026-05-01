@@ -12,7 +12,7 @@ export type OperationRecord = {
 }
 
 const STORAGE_KEY = 'autogm_operations'
-const OPERATION_OPERATION_TTL_MS = 5 * 60 * 1000 // 5 minutes
+const OPERATION_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 const BLOCKING_STATUSES = new Set<OperationStatus>(['pending', 'success', 'poll_created'])
 

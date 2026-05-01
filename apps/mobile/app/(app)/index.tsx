@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { View, Text, FlatList, ActivityIndicator, Image, TouchableOpacity, TextInput, ScrollView } from 'react-native'
-import type { LeagueDetailed, Roster, Allplayer } from '@autogm/shared'
+import type { LeagueDetailed, Roster, Allplayer, AdpFilters } from '@autogm/shared'
 import { useLeagueCache } from '../../src/league-cache'
 import { useKtc } from '../../src/hooks/use-ktc'
 import { useAdp } from '../../src/hooks/use-adp'
@@ -8,7 +8,7 @@ import { useAllPlayers } from '../../src/hooks/use-allplayers'
 import { useAuth } from '@autogm/shared/react'
 import { type ValueType, buildValueLookup, formatValue, getPickKtcName } from '../../src/utils/value-lookup'
 import { mobileDataClient } from '../../src/data-client'
-import type { Message, MessagesResult, CreateMessageResult } from '@autogm/shared'
+import type { Message, MessagesResult, CreateMessageResult, MessageCreatedPayload } from '@autogm/shared'
 import { SleeperTopics, messageFromSocket } from '@autogm/shared'
 import { useCallback, useRef } from 'react'
 import { useLeagueFilter, LeagueFilterBar } from '../../src/components/league-filter'
@@ -175,7 +175,7 @@ function RanksView({ leagues, allplayers, ktc }: {
 
   const isAdp = valueType === 'adp' || valueType === 'auction'
   const { data: adpRows, stats, loading: adpLoading } = useAdp(
-    { startDate, endDate, draftType: draftType || null, minDrafts } as any, isAdp,
+    { startDate, endDate, draftType: (draftType || null) as AdpFilters['draftType'], minDrafts }, isAdp,
   )
   const valueLookup = useMemo(() => buildValueLookup(valueType, ktc, adpRows), [valueType, ktc, adpRows])
   const valueTypes: ValueType[] = ['ktc', 'adp', 'auction']
@@ -321,7 +321,7 @@ function ChatCard({ league, userId, onLastMessage }: {
     expanded ? SleeperTopics.league(league.league_id) : null,
     useCallback((event: string, payload: unknown) => {
       if (event === 'message_created') {
-        const msg = messageFromSocket(payload as any)
+        const msg = messageFromSocket(payload as MessageCreatedPayload)
         setMessages((prev) => {
           if (prev.some((m) => m.message_id === msg.message_id)) return prev
           return [...prev, msg]
@@ -336,7 +336,7 @@ function ChatCard({ league, userId, onLastMessage }: {
     if (!text || sending) return
     setSending(true)
     try {
-      await mobileDataClient.graphql('createLeagueMessage' as any, { parent_id: league.league_id, text } as any)
+      await mobileDataClient.graphql('createLeagueMessage', { parent_id: league.league_id, text })
       setDraft(''); await fetchMsgs()
     } catch (e) { console.warn('[chats]', e instanceof Error ? e.message : e) } finally { setSending(false) }
   }, [league.league_id, sending, fetchMsgs])
@@ -429,8 +429,10 @@ function ChatCard({ league, userId, onLastMessage }: {
                   if (!q.trim()) { setGifResults([]); return }
                   fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=AIzaSyC-P6RbEhWxUhtjTAANbYz4WB-YGlavnD0&limit=12&media_filter=tinygif,tinymp4`)
                     .then((r) => r.json())
-                    .then((d) => setGifResults((d.results ?? []).map((g: any) => ({
-                      id: g.id, url: g.media_formats?.tinymp4?.url ?? '', preview: g.media_formats?.tinygif?.url ?? '',
+                    .then((d) => setGifResults((d.results ?? []).map((g: Record<string, unknown>) => ({
+                      id: g.id as string,
+                      url: ((g.media_formats as Record<string, Record<string, string>> | undefined)?.tinymp4?.url) ?? '',
+                      preview: ((g.media_formats as Record<string, Record<string, string>> | undefined)?.tinygif?.url) ?? '',
                     }))))
                 }} />
               <ScrollView style={{ maxHeight: 120 }}>
@@ -439,11 +441,11 @@ function ChatCard({ league, userId, onLastMessage }: {
                     <TouchableOpacity key={g.id} onPress={async () => {
                       setShowGif(false); setSending(true)
                       try {
-                        await mobileDataClient.graphql('createLeagueMessage' as any, {
+                        await mobileDataClient.graphql('createLeagueMessage', {
                           parent_id: league.league_id, text: '', attachment_type: 'gif',
                           k_attachment_data: ['original_mp4', 'original_still', 'fixed_height_mp4', 'fixed_height_still'],
                           v_attachment_data: [g.url, g.preview, g.url, g.preview],
-                        } as any)
+                        })
                         await fetchMsgs()
                       } catch (e) { console.warn('[chats]', e instanceof Error ? e.message : e) } finally { setSending(false) }
                     }} className="w-20 h-[60px] bg-gray-800 rounded-md items-center justify-center">

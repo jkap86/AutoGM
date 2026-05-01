@@ -71,10 +71,10 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
     if (!text || sending) return
     setSending(true)
     try {
-      await mobileDataClient.graphql('createLeagueMessage' as any, {
+      await mobileDataClient.graphql('createLeagueMessage', {
         parent_id: league.league_id,
         text,
-      } as any)
+      })
       setDraft('')
       await fetchMessages()
     } catch (e) {
@@ -193,10 +193,10 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
                   setGifSearching(true)
                   fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=AIzaSyC-P6RbEhWxUhtjTAANbYz4WB-YGlavnD0&limit=12&media_filter=tinygif,tinymp4`)
                     .then((r) => r.json())
-                    .then((d) => setGifResults((d.results ?? []).map((g: any) => ({
-                      id: g.id,
-                      url: g.media_formats?.tinymp4?.url ?? g.media_formats?.tinygif?.url ?? '',
-                      preview: g.media_formats?.tinygif?.url ?? '',
+                    .then((d) => setGifResults((d.results ?? []).map((g: Record<string, unknown>) => ({
+                      id: g.id as string,
+                      url: ((g.media_formats as Record<string, Record<string, string>> | undefined)?.tinymp4?.url) ?? ((g.media_formats as Record<string, Record<string, string>> | undefined)?.tinygif?.url) ?? '',
+                      preview: ((g.media_formats as Record<string, Record<string, string>> | undefined)?.tinygif?.url) ?? '',
                     }))))
                     .finally(() => setGifSearching(false))
                 }}
@@ -211,13 +211,13 @@ function LeagueChatCard({ league, userId, onLastMessage }: { league: LeagueDetai
                       setShowGif(false)
                       setSending(true)
                       try {
-                        await mobileDataClient.graphql('createLeagueMessage' as any, {
+                        await mobileDataClient.graphql('createLeagueMessage', {
                           parent_id: league.league_id,
                           text: '',
                           attachment_type: 'gif',
                           k_attachment_data: ['original_mp4', 'original_still', 'fixed_height_mp4', 'fixed_height_still'],
                           v_attachment_data: [g.url, g.preview, g.url, g.preview],
-                        } as any)
+                        })
                         await fetchMessages()
                       } catch (e) { console.warn('[chats]', e instanceof Error ? e.message : e) } finally { setSending(false) }
                     }}>
