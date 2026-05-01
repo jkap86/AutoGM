@@ -60,6 +60,9 @@ export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, l
   const sendingRef = useRef(sending);
   sendingRef.current = sending;
 
+  const onNewMessageRef = useRef(onNewMessage);
+  onNewMessageRef.current = onNewMessage;
+
   const fetchMessages = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -110,22 +113,20 @@ export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, l
       // Update preview with the latest message
       if (msgs.length > 0) {
         const latest = msgs.reduce((a, b) => (a.created > b.created ? a : b));
-        onNewMessage?.(latest.text || "Attachment", latest.created, latest.author_display_name);
+        onNewMessageRef.current?.(latest.text || "Attachment", latest.created, latest.author_display_name);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [userId, partnerId, onNewMessage]);
+  }, [userId, partnerId]);
 
   useEffect(() => {
     fetchMessages();
   }, [fetchMessages]);
 
   // Real-time: append new messages from the WebSocket (subscribe to dm:{dmId} like league chat does with league:{id})
-  const onNewMessageRef = useRef(onNewMessage);
-  onNewMessageRef.current = onNewMessage;
   useGatewayTopic(
     dmId ? SleeperTopics.dm(dmId) : null,
     useCallback((event: string, payload: unknown) => {
@@ -365,10 +366,10 @@ export function AttachmentView({ attachment, leagues, messages, leagueId: propLe
       <div className="mt-1 rounded bg-gray-800 px-2 py-1.5">
         <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Poll</span>
         {prompt && <p className="text-xs text-gray-200 mt-0.5">{prompt}</p>}
-        {choices && (
+        {Array.isArray(choices) && (
           <div className="flex flex-col gap-0.5 mt-1">
             {choices.map((c, i) => (
-              <span key={i} className="text-xs text-gray-400">• {c}</span>
+              <span key={i} className="text-xs text-gray-400">• {String(c)}</span>
             ))}
           </div>
         )}

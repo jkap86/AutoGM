@@ -1,18 +1,65 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   Allplayer,
   LeagueDetailed,
+  LeagueTransactionsResult,
   PlayerShares,
+  Transaction,
 } from "@autogm/shared";
 import { PlayerCombobox } from "../../components/player-combobox";
 import { Avatar } from "../../components/avatar";
 import { useIpcMutation } from "../../../hooks/use-ipc-mutation";
+import { formatTime } from "../../../lib/trade-utils";
 
 type BidMode = "amount" | "percent";
 type LeagueTypeFilter = "all" | "dynasty" | "keeper" | "redraft";
+type WaiverSort = "name" | "clears";
+type WaiverTab = "claim" | "pending" | "completed" | "failed";
 type SubmitResult = { status: "success" } | { status: "error"; message: string };
+
+type WaiverWithLeague = Transaction & { league_name: string };
+
+/** Compute next waiver clear time for a league. Returns epoch ms or null. */
+function getNextWaiverClear(league: LeagueDetailed): number | null {
+  const s = league.settings;
+  const now = new Date();
+
+  if (s.daily_waivers === 1) {
+    // Daily waivers: clears every day at daily_waivers_hour UTC
+    const hour = s.daily_waivers_hour ?? 0;
+    const next = new Date(now);
+    next.setUTCHours(hour, 0, 0, 0);
+    if (next.getTime() <= now.getTime()) next.setUTCDate(next.getUTCDate() + 1);
+    return next.getTime();
+  }
+
+  // Weekly waivers: clears on waiver_day_of_week at midnight UTC (or daily_waivers_hour)
+  const dayOfWeek = s.waiver_day_of_week ?? 2; // default Tuesday
+  const hour = s.daily_waivers_hour ?? 0;
+  const next = new Date(now);
+  next.setUTCHours(hour, 0, 0, 0);
+  const currentDay = next.getUTCDay();
+  let daysUntil = (dayOfWeek - currentDay + 7) % 7;
+  if (daysUntil === 0 && next.getTime() <= now.getTime()) daysUntil = 7;
+  next.setUTCDate(next.getUTCDate() + daysUntil);
+  return next.getTime();
+}
+
+function formatClearTime(epochMs: number): string {
+  const now = Date.now();
+  const diff = epochMs - now;
+  if (diff <= 0) return "Now";
+  const hours = Math.floor(diff / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const remHours = hours % 24;
+    return `${days}d ${remHours}h`;
+  }
+  return `${hours}h ${mins}m`;
+}
 
 export default function WaiversView({
   leagues,
@@ -36,6 +83,8 @@ export default function WaiversView({
   const [submitProgress, setSubmitProgress] = useState(0);
   const [submitResults, setSubmitResults] = useState<Record<string, SubmitResult>>({});
   const [leagueTypeFilter, setLeagueTypeFilter] = useState<LeagueTypeFilter>("all");
+  const [waiverSort, setWaiverSort] = useState<WaiverSort>("name");
+  const [waiverTab, setWaiverTab] = useState<WaiverTab>("claim");
   // Roster filters
   const [mustHave, setMustHave] = useState<string[]>([]);
   const [mustNotHave, setMustNotHave] = useState<string[]>([]);
@@ -69,9 +118,25 @@ export default function WaiversView({
 
   const filteredLeagues = useMemo(() => {
     if (!playerToAdd) return [];
+    const isRookie = allplayers[playerToAdd]?.years_exp === 0;
     return Object.values(leagues).filter((league) => {
+      // Only show leagues where waivers are active
+      if (league.settings.disable_adds === 1) return false;
+      if (league.status === "complete") return false;
+      if (league.status === "drafting") return false;
+      // League must be full (all rosters have owners)
+      if (league.rosters.some((r) => !r.user_id)) return false;
+      // Pre-draft: only dynasty leagues with a previous season allow waivers (off-season)
+      // Redraft/keeper and brand new dynasty leagues can't do waivers until after draft
+      if (league.status === "pre_draft") {
+        if (league.settings.type !== 2 || !league.previous_league_id) return false;
+      }
+      // During pre-draft (dynasty off-season), block rookies
+      if (league.status === "pre_draft" && isRookie) return false;
       const userPlayers = league.user_roster.players;
       if (userPlayers.includes(playerToAdd)) return false;
+      // Exclude leagues where the player is rostered by anyone
+      if (league.rosters.some((r) => r.players.includes(playerToAdd))) return false;
       if (playerToDrop && !userPlayers.includes(playerToDrop)) return false;
       // League type filter
       if (leagueTypeFilter === "dynasty" && league.settings.type !== 2) return false;
@@ -81,8 +146,15 @@ export default function WaiversView({
       if (mustHave.length > 0 && !mustHave.every((pid) => userPlayers.includes(pid))) return false;
       if (mustNotHave.length > 0 && !mustNotHave.every((pid) => !userPlayers.includes(pid))) return false;
       return true;
+    }).sort((a, b) => {
+      if (waiverSort === "clears") {
+        const ta = getNextWaiverClear(a) ?? Infinity;
+        const tb = getNextWaiverClear(b) ?? Infinity;
+        if (ta !== tb) return ta - tb;
+      }
+      return a.name.localeCompare(b.name);
     });
-  }, [leagues, playerToAdd, playerToDrop, leagueTypeFilter, mustHave, mustNotHave]);
+  }, [leagues, playerToAdd, playerToDrop, leagueTypeFilter, mustHave, mustNotHave, allplayers, waiverSort]);
 
   const getLeagueType = (league: LeagueDetailed): string => {
     const t = league.settings.type;
@@ -136,8 +208,37 @@ export default function WaiversView({
 
   return (
     <div className="flex flex-col flex-1 items-center w-full gap-6 p-6">
+      {/* Waiver tabs */}
+      <div className="flex w-full max-w-3xl border-b border-gray-700 overflow-x-auto">
+        {(["claim", "pending", "completed", "failed"] as WaiverTab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setWaiverTab(t)}
+            className={`relative whitespace-nowrap px-4 py-2 text-xs font-semibold uppercase tracking-wider transition ${
+              waiverTab === t ? "text-gray-100" : "text-gray-500 hover:text-gray-300"
+            }`}
+          >
+            {t === "claim" ? "Make Claim" : t.charAt(0).toUpperCase() + t.slice(1)}
+            {waiverTab === t && (
+              <span className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500 rounded-t" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {waiverTab !== "claim" ? (
+        <WaiverTransactionsList
+          leagues={leagues}
+          allplayers={allplayers}
+          userId={userId}
+          status={waiverTab === "pending" ? "proposed" : waiverTab}
+          statusLabel={waiverTab === "pending" ? "Pending" : waiverTab === "completed" ? "Completed" : "Failed"}
+          ktc={ktc}
+        />
+      ) : (
+      <>
       {/* Player Selection */}
-      <div className="w-full max-w-3xl rounded-xl border border-gray-700/80 bg-gray-800 overflow-hidden">
+      <div className="w-full max-w-3xl rounded-xl border border-gray-700/80 bg-gray-800 overflow-visible">
         <div className="flex">
           {/* Pick Up side */}
           <div className="flex-1 p-4 border-r border-gray-700/40">
@@ -293,6 +394,26 @@ export default function WaiversView({
               />
             </div>
 
+            {/* Sort */}
+            <div className="flex items-center gap-0.5 rounded-lg bg-gray-800 p-0.5 border border-gray-700/60">
+              {([
+                { key: "name" as WaiverSort, label: "Name" },
+                { key: "clears" as WaiverSort, label: "Clears" },
+              ]).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setWaiverSort(key)}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+                    waiverSort === key
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             <span className="text-[10px] text-gray-500 ml-auto">
               {filteredLeagues.length} of {Object.keys(leagues).length} leagues
             </span>
@@ -365,7 +486,14 @@ export default function WaiversView({
                     <Avatar hash={league.avatar} alt={league.name} size={24} />
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="text-sm font-medium text-gray-200 truncate">{league.name}</span>
-                      <span className="text-[10px] text-gray-500">{getLeagueType(league)} · {league.rosters.length} teams</span>
+                      <span className="text-[10px] text-gray-500">
+                        {getLeagueType(league)} · {league.rosters.length} teams
+                        {(() => {
+                          const clearTime = getNextWaiverClear(league);
+                          if (!clearTime) return null;
+                          return <> · Clears in {formatClearTime(clearTime)}</>;
+                        })()}
+                      </span>
                     </div>
 
                     {/* Budget bar — shows remaining */}
@@ -412,6 +540,149 @@ export default function WaiversView({
           <p className="text-gray-500 text-sm">Select a player to pick up to see eligible leagues.</p>
         </div>
       )}
+      </>
+      )}
+    </div>
+  );
+}
+
+const MAX_CONCURRENT = 4;
+
+function WaiverTransactionsList({
+  leagues,
+  allplayers,
+  userId,
+  status,
+  statusLabel,
+  ktc,
+}: {
+  leagues: { [league_id: string]: LeagueDetailed };
+  allplayers: { [id: string]: Allplayer };
+  userId: string;
+  status: string;
+  statusLabel: string;
+  ktc: Record<string, number>;
+}) {
+  const [waivers, setWaivers] = useState<WaiverWithLeague[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hasFetched = useRef(false);
+
+  const fetchWaivers = useCallback(async () => {
+    const entries = Object.entries(leagues);
+    if (entries.length === 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const results: WaiverWithLeague[][] = [];
+      // Fetch in batches of MAX_CONCURRENT
+      for (let i = 0; i < entries.length; i += MAX_CONCURRENT) {
+        const batch = entries.slice(i, i + MAX_CONCURRENT);
+        const batchResults = await Promise.all(
+          batch.map(async ([league_id, league]) => {
+            try {
+              const result = await window.ipc.invoke<LeagueTransactionsResult>("graphql", {
+                name: "leagueTransactions",
+                vars: { league_id, status, type: "waiver" },
+              });
+              return result.league_transactions
+                .filter((tx) => tx.roster_ids.includes(league.user_roster.roster_id))
+                .map((tx) => ({ ...tx, league_name: league.name }));
+            } catch {
+              return [];
+            }
+          }),
+        );
+        results.push(...batchResults);
+      }
+      const all = results.flat().sort((a, b) => b.status_updated - a.status_updated);
+      setWaivers(all);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [leagues, status]);
+
+  useEffect(() => {
+    if (!hasFetched.current) {
+      hasFetched.current = true;
+      fetchWaivers();
+    }
+  }, [fetchWaivers]);
+
+  // Reset fetch flag when status changes
+  useEffect(() => {
+    hasFetched.current = false;
+  }, [status]);
+
+  if (loading) {
+    return <p className="text-gray-500 text-sm py-8 text-center">Loading {statusLabel.toLowerCase()} waivers...</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-8">
+        <p className="text-red-400 text-sm">{error}</p>
+        <button onClick={fetchWaivers} className="text-xs text-gray-400 hover:text-gray-200 underline">Retry</button>
+      </div>
+    );
+  }
+
+  if (waivers.length === 0) {
+    return <p className="text-gray-500 text-sm py-8 text-center">No {statusLabel.toLowerCase()} waiver claims.</p>;
+  }
+
+  return (
+    <div className="w-full max-w-3xl flex flex-col gap-2">
+      {waivers.map((tx) => {
+        const league = leagues[tx.league_id];
+        const adds = Object.keys(tx.adds ?? {});
+        const drops = Object.keys(tx.drops ?? {});
+        const bid = (tx.settings as Record<string, unknown>)?.waiver_bid as number | undefined;
+
+        return (
+          <div
+            key={tx.transaction_id}
+            className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
+              status === "completed" || status === "complete"
+                ? "border-green-700/40 bg-green-900/5"
+                : status === "failed"
+                ? "border-red-700/40 bg-red-900/5"
+                : "border-gray-700/80 bg-gray-800"
+            }`}
+          >
+            <Avatar hash={league?.avatar} alt={tx.league_name} size={24} />
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-sm font-medium text-gray-200 truncate">{tx.league_name}</span>
+              <div className="flex items-center gap-2 mt-0.5">
+                {adds.map((pid) => {
+                  const p = allplayers[pid];
+                  return (
+                    <span key={pid} className="text-xs text-green-400">
+                      +{p?.full_name ?? pid}
+                      {ktc[pid] > 0 && <span className="text-green-600 ml-1 text-[10px]">{ktc[pid].toLocaleString()}</span>}
+                    </span>
+                  );
+                })}
+                {drops.map((pid) => {
+                  const p = allplayers[pid];
+                  return (
+                    <span key={pid} className="text-xs text-red-400">
+                      -{p?.full_name ?? pid}
+                      {ktc[pid] > 0 && <span className="text-red-600 ml-1 text-[10px]">{ktc[pid].toLocaleString()}</span>}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+            {bid != null && bid > 0 && (
+              <span className="text-xs text-blue-400 font-semibold shrink-0">${bid}</span>
+            )}
+            <span className="text-[10px] text-gray-500 shrink-0">{formatTime(tx.status_updated)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

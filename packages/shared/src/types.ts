@@ -3,6 +3,7 @@ export type League = {
   name: string;
   avatar: string | null;
   season: string;
+  status: string;
   settings: LeagueSettings;
   scoring_settings: Record<string, number>;
   roster_positions: string[];
@@ -22,7 +23,12 @@ export type LeagueSettings = {
   playoff_week_start: number;
   trade_deadline: number;
   disable_trades: number;
+  disable_adds: number;
   daily_waivers: number;
+  daily_waivers_hour?: number;
+  waiver_day_of_week?: number;
+  waiver_clear_days?: number;
+  waiver_type?: number;
   waiver_budget?: number;
 };
 
