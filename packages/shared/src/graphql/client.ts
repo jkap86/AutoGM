@@ -32,8 +32,13 @@ export async function gqlRequest<TResult, TVars = Record<string, unknown>>(
   options?: GqlRequestOptions
 ): Promise<TResult> {
   const token = _getToken()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 30_000)
 
-  const res = await fetch(ENDPOINT, {
+  let res: Response
+  try {
+  res = await fetch(ENDPOINT, {
+    signal: controller.signal,
     method: 'POST',
     headers: {
       ...BROWSER_HEADERS,
@@ -50,6 +55,9 @@ export async function gqlRequest<TResult, TVars = Record<string, unknown>>(
         : {}),
     }),
   })
+  } finally {
+    clearTimeout(timeout)
+  }
 
   if (!res.ok) {
     throw new Error(`GraphQL HTTP ${res.status}`)

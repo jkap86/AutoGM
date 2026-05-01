@@ -16,7 +16,7 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (restoring || !session?.user_id) return
-    if (session.user_id === DEMO_SESSION.user_id) {
+    if (__DEV__ && session.user_id === DEMO_SESSION.user_id) {
       setAccessAllowed(true)
       return
     }
@@ -123,6 +123,7 @@ export default function AppLayout() {
         <Tabs.Screen name="adp/index" options={{ href: null }} />
         <Tabs.Screen name="polls/index" options={{ href: null }} />
         <Tabs.Screen name="dms/index" options={{ href: null }} />
+        <Tabs.Screen name="waivers/index" options={{ href: null }} />
       </Tabs>
     </LeagueCacheProvider>
   )

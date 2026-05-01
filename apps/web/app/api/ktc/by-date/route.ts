@@ -15,6 +15,11 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const data = await fetchKtcByDate(getPool(), date);
-  return NextResponse.json(data);
+  try {
+    const data = await fetchKtcByDate(getPool(), date);
+    return NextResponse.json(data);
+  } catch (e) {
+    console.error("GET /api/ktc/by-date error:", e);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

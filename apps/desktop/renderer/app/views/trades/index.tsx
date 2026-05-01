@@ -120,12 +120,23 @@ export default function TransactionsView(props: {
 
 type DmSortMode = "alpha" | "recent";
 
-// Module-level cache for DM previews (survives unmount/remount)
-const dmPreviewCache: Record<string, { text: string; time: number; author: string }> = {};
-const dmTimesCache: Record<string, number> = {};
+// Module-level cache for DM previews (survives unmount/remount, cleared after 10 min)
+const DM_CACHE_TTL = 10 * 60 * 1000;
+let dmPreviewCache: Record<string, { text: string; time: number; author: string }> = {};
+let dmTimesCache: Record<string, number> = {};
 const dmFetchedPartners = new Set<string>();
+let dmCacheCreatedAt = Date.now();
+function checkDmCacheTTL() {
+  if (Date.now() - dmCacheCreatedAt > DM_CACHE_TTL) {
+    dmPreviewCache = {};
+    dmTimesCache = {};
+    dmFetchedPartners.clear();
+    dmCacheCreatedAt = Date.now();
+  }
+}
 
 function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: string]: LeagueDetailed } }) {
+  checkDmCacheTTL();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<DmSortMode>("recent");
   const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, number>>(dmTimesCache);

@@ -12,6 +12,9 @@ export async function GET(req: NextRequest) {
   if (!username) {
     return NextResponse.json({ error: "username param required" }, { status: 400 });
   }
+  if (username.length > 50 || !/^[a-zA-Z0-9_]+$/.test(username)) {
+    return NextResponse.json({ error: "Invalid username: must be 1-50 alphanumeric/underscore characters" }, { status: 400 });
+  }
 
   try {
     const res = await fetch(`https://api.sleeper.app/v1/user/${username}`);

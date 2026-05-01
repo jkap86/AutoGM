@@ -9,7 +9,14 @@ import type {
 } from "../types";
 
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
     throw new Error(`GET ${url} failed: ${res.status}`);
   }
@@ -170,7 +177,7 @@ export function getLeagueDraftPicksObj(
             round: k,
             roster_id: roster.roster_id,
             original_user: {
-              avatar: user?.avatar || "",
+              avatar: user?.avatar ?? null,
               user_id: roster.owner_id,
               username: user?.display_name || "Orphan",
             },
@@ -270,13 +277,13 @@ export function getRostersUserInfo(
       losses: roster.settings.losses,
       ties: roster.settings.ties,
       fp: parseFloat(
-        `${roster.settings.fpts}.${roster.settings.fpts_decimal || 0}`,
-      ),
+        `${roster.settings.fpts ?? 0}.${roster.settings.fpts_decimal ?? 0}`,
+      ) || 0,
       fpa: parseFloat(
-        `${roster.settings.fpts_against || 0}.${
-          roster.settings.fpts_against_decimal || 0
+        `${roster.settings.fpts_against ?? 0}.${
+          roster.settings.fpts_against_decimal ?? 0
         }`,
-      ),
+      ) || 0,
       waiver_budget_used: roster.settings.waiver_budget_used ?? 0,
     };
   });

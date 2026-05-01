@@ -106,7 +106,7 @@ export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, l
       }
       const msgResult = await window.ipc.invoke<MessagesResult>("graphql", {
         name: "messages",
-        vars: { parent_id: id },
+        vars: { parent_id: id, order_by: "desc" },
       });
       const msgs = msgResult.messages ?? [];
       setMessages(msgs);

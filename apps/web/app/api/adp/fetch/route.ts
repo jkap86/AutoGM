@@ -8,7 +8,12 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  const filters: AdpFilters = await req.json().catch(() => ({}));
-  const data = await fetchAdp(getPool(), filters);
-  return NextResponse.json(data);
+  try {
+    const filters: AdpFilters = await req.json().catch(() => ({}));
+    const data = await fetchAdp(getPool(), filters);
+    return NextResponse.json(data);
+  } catch (e) {
+    console.error("POST /api/adp/fetch error:", e);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

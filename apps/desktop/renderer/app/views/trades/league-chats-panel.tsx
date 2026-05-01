@@ -8,22 +8,20 @@ import { parseAttachment, AttachmentView, cleanText } from "./dm-panel";
 
 type SortMode = "original" | "alpha" | "recent";
 
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, " ");
-}
-
-// Module-level cache so previews survive tab switches
-const previewCache: Record<string, Message> = {};
-const timeCache: Record<string, number> = {};
+// Module-level cache so previews survive tab switches (cleared after 10 min)
+const CHAT_CACHE_TTL = 10 * 60 * 1000;
+let previewCache: Record<string, Message> = {};
+let timeCache: Record<string, number> = {};
 const fetchedLeagues = new Set<string>();
+let chatCacheCreatedAt = Date.now();
+function checkChatCacheTTL() {
+  if (Date.now() - chatCacheCreatedAt > CHAT_CACHE_TTL) {
+    previewCache = {};
+    timeCache = {};
+    fetchedLeagues.clear();
+    chatCacheCreatedAt = Date.now();
+  }
+}
 
 export function LeagueChatsPanel({
   leagues,
@@ -32,6 +30,7 @@ export function LeagueChatsPanel({
   leagues: { [league_id: string]: LeagueDetailed };
   userId: string;
 }) {
+  checkChatCacheTTL();
   const [sortMode, setSortMode] = useState<SortMode>("original");
   const [lastMessageTimes, setLastMessageTimes] = useState<Record<string, number>>(timeCache);
   const [previews, setPreviews] = useState<Record<string, Message>>(previewCache);
@@ -436,7 +435,7 @@ function LeagueChatCard({
           <div className="hidden sm:flex items-center gap-2 max-w-[40%] min-w-0">
             <span className="text-xs text-gray-500 truncate">
               <span className="font-medium text-gray-400">{lastMsg.author_display_name}:</span>{" "}
-              {lastMsg.text ? decodeHtmlEntities(lastMsg.text).slice(0, 60) : "..."}
+              {lastMsg.text ? cleanText(lastMsg.text).slice(0, 60) : "..."}
             </span>
             <span className="text-[10px] text-gray-600 shrink-0">{formatTime(lastMsg.created)}</span>
           </div>

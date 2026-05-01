@@ -50,9 +50,7 @@ export default function DashboardPage() {
   // Subscribe to user-level events (mentions, notifications, trade updates)
   useGatewayTopic(
     session?.user_id ? SleeperTopics.user(session.user_id) : null,
-    (event, payload) => {
-      console.log('[sleeper:user]', event, payload);
-    },
+    () => {},
   );
 
   const views = ["leagues", "transactions", "research"];

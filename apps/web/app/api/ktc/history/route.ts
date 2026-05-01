@@ -15,9 +15,14 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const days = parseInt(req.nextUrl.searchParams.get("days") ?? "90", 10);
-  const ids = playerIds.split(",").filter(Boolean);
+  try {
+    const days = parseInt(req.nextUrl.searchParams.get("days") ?? "90", 10);
+    const ids = playerIds.split(",").filter(Boolean);
 
-  const data = await fetchKtcHistory(getPool(), ids, days);
-  return NextResponse.json(data);
+    const data = await fetchKtcHistory(getPool(), ids, days);
+    return NextResponse.json(data);
+  } catch (e) {
+    console.error("GET /api/ktc/history error:", e);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

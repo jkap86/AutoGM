@@ -12,9 +12,16 @@ import { formatRecord, formatTime } from "../../../lib/trade-utils";
 // ── Fetch all player shares for a user across all their leagues ──────
 
 type PartnerShares = Record<string, { count: number; leagueNames: string[] }>;
-const partnerSharesCache: Record<string, PartnerShares> = {};
+const OPPONENT_CACHE_TTL = 10 * 60 * 1000;
+let partnerSharesCache: Record<string, PartnerShares> = {};
+let partnerSharesCacheAt = Date.now();
 
 async function fetchPartnerShares(userId: string): Promise<PartnerShares> {
+  if (Date.now() - partnerSharesCacheAt > OPPONENT_CACHE_TTL) {
+    partnerSharesCache = {};
+    opponentTradesCache = {};
+    partnerSharesCacheAt = Date.now();
+  }
   if (partnerSharesCache[userId]) return partnerSharesCache[userId];
 
   const leagueList: { league_id: string; name: string }[] = await fetch(
@@ -257,7 +264,7 @@ type TradeTransaction = {
   roster_names: Record<number, string>;
 };
 
-const opponentTradesCache: Record<string, (TradeTransaction & { league_name: string })[]> = {};
+let opponentTradesCache: Record<string, (TradeTransaction & { league_name: string })[]> = {};
 
 function RecentTradesSection({
   partnerId,

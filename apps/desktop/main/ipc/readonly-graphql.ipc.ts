@@ -31,7 +31,7 @@ export function registerReadonlyGraphqlIpc() {
       }
 
       try {
-        return await runQuery(args.name, args.vars as never);
+        return await runQuery(args.name as QueryName, args.vars as QueryMap[typeof args.name]["vars"]);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
         if (!SILENT_ERRORS.some((s) => msg.includes(s))) {

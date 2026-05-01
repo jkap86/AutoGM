@@ -90,10 +90,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { action, user_id } = body as { action: string; user_id: string };
+    const { action, user_id } = body ?? {};
 
-    if (!action || !user_id) {
-      return NextResponse.json({ error: "action and user_id required" }, { status: 400 });
+    if (typeof action !== 'string' || (action !== 'add' && action !== 'remove')) {
+      return NextResponse.json({ error: "action must be 'add' or 'remove'" }, { status: 400 });
+    }
+    if (typeof user_id !== 'string' || user_id.trim() === '') {
+      return NextResponse.json({ error: "user_id must be a non-empty string" }, { status: 400 });
     }
 
     const data = await fetchGistContent();
@@ -103,14 +106,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "User already in allowlist" }, { status: 409 });
       }
       data.allowed_user_ids.push(user_id);
-    } else if (action === "remove") {
+    } else {
       const idx = data.allowed_user_ids.indexOf(user_id);
       if (idx === -1) {
         return NextResponse.json({ error: "User not in allowlist" }, { status: 404 });
       }
       data.allowed_user_ids.splice(idx, 1);
-    } else {
-      return NextResponse.json({ error: "action must be 'add' or 'remove'" }, { status: 400 });
     }
 
     await updateGistContent(data);
