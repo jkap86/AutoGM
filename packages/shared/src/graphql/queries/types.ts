@@ -271,6 +271,20 @@ export type InboundRequestsResult = {
   inbound_requests: InboundRequest[];
 };
 
+export type MyDmsVars = Record<string, never>;
+
+export type MyDmsResult = {
+  my_dms: Array<{
+    dm_id: string;
+    dm_type: string;
+    last_message_text: string | null;
+    last_message_time: number | null;
+    last_author_display_name: string | null;
+    last_author_id: string | null;
+    recent_users: unknown;
+  }>;
+};
+
 export type AcceptRequestVars = {
   request_type: string;
   requester_id: string;
@@ -314,6 +328,7 @@ export type QueryMap = {
   };
   acceptRequest: { vars: AcceptRequestVars; result: AcceptRequestResult };
   inboundRequests: { vars: InboundRequestsVars; result: InboundRequestsResult };
+  myDms: { vars: MyDmsVars; result: MyDmsResult };
 };
 
 export type QueryName = keyof QueryMap;

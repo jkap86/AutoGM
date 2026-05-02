@@ -11,6 +11,7 @@ const GENERIC_GRAPHQL_QUERIES = new Set<QueryName>([
   "leagueTransactions",
   "messages",
   "listPollVotes",
+  "myDms",
 ]);
 
 /** Errors that are expected and should not be logged to console. */

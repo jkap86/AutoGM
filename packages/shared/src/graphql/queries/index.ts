@@ -15,6 +15,7 @@ import { proposeTrade } from "./propose-trade";
 import { rejectTrade } from "./reject-trade";
 import { submitWaiverClaim } from "./submit-waiver-claim";
 import { cancelWaiverClaim } from "./cancel-waiver-claim";
+import { myDms } from "./my-dms";
 import type { QueryMap, QueryName } from "./types";
 
 type QueryRegistry = {
@@ -41,6 +42,7 @@ const queries: QueryRegistry = {
   messages,
   submitWaiverClaim,
   cancelWaiverClaim,
+  myDms,
 };
 
 export async function runQuery<N extends QueryName>(

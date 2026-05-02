@@ -143,6 +143,50 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
   const [previews, setPreviews] = useState<Record<string, { text: string; time: number; author: string }>>(dmPreviewCache);
   const [search, setSearch] = useState("");
   const [leagueFilter, setLeagueFilter] = useState<string>("");
+  const [dmOnlyPartners, setDmOnlyPartners] = useState<Map<string, { name: string; avatar: string | null }>>(new Map());
+
+  // Fetch all DM conversations to find non-leaguemate partners
+  useEffect(() => {
+    let cancelled = false;
+    window.ipc.invoke<{ my_dms: Array<{ dm_id: string; dm_type: string; last_message_text: string | null; last_message_time: number | null; last_author_display_name: string | null; last_author_id: string | null; recent_users: unknown }> }>("graphql", {
+      name: "myDms",
+      vars: {},
+    }).then((result) => {
+      if (cancelled) return;
+      const extra = new Map<string, { name: string; avatar: string | null }>();
+      for (const dm of result.my_dms ?? []) {
+        if (dm.dm_type !== "direct") continue;
+        const ru = dm.recent_users;
+        if (!Array.isArray(ru)) continue;
+        for (const u of ru) {
+          if (!u || typeof u !== "object" || !("user_id" in u)) continue;
+          const uid = (u as { user_id: string }).user_id;
+          if (uid === userId) continue;
+          const name = (u as { display_name?: string }).display_name ?? `User ${uid}`;
+          const avatar = (u as { avatar?: string | null }).avatar ?? null;
+          extra.set(uid, { name, avatar });
+        }
+        // Also set preview from my_dms data
+        if (dm.last_message_time && dm.last_message_text) {
+          for (const u of ru) {
+            if (!u || typeof u !== "object" || !("user_id" in u)) continue;
+            const uid = (u as { user_id: string }).user_id;
+            if (uid === userId) continue;
+            if (!dmPreviewCache[uid]) {
+              const preview = { text: dm.last_message_text!, time: dm.last_message_time!, author: dm.last_author_display_name ?? "" };
+              dmPreviewCache[uid] = preview;
+              dmTimesCache[uid] = dm.last_message_time!;
+              dmFetchedPartners.add(uid);
+            }
+          }
+        }
+      }
+      setDmOnlyPartners(extra);
+      setPreviews({ ...dmPreviewCache });
+      setLastMessageTimes({ ...dmTimesCache });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [userId]);
 
   const partners = useMemo(() => {
     const map = new Map<string, { name: string; avatar: string | null; leagueIds: Set<string> }>();
@@ -159,8 +203,14 @@ function DmsInbox({ userId, leagues }: { userId: string; leagues: { [league_id: 
         }
       }
     }
+    // Add DM-only partners (not in any league)
+    for (const [uid, { name, avatar }] of dmOnlyPartners) {
+      if (!map.has(uid)) {
+        map.set(uid, { name, avatar, leagueIds: new Set() });
+      }
+    }
     return [...map.entries()].map(([id, { name, avatar, leagueIds }]) => ({ id, name, avatar, leagueIds }));
-  }, [leagues, userId]);
+  }, [leagues, userId, dmOnlyPartners]);
 
   const leagueList = useMemo(() =>
     Object.values(leagues).sort((a, b) => a.name.localeCompare(b.name)),
