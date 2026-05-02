@@ -195,7 +195,7 @@ export function useTradesByStatus(
 
     const unsubs = leagueIds.map((lid) =>
       gateway.join(SleeperTopics.league(lid), (event: string) => {
-        if (event === 'transaction_updated' || event === 'transaction_created') {
+        if (event.startsWith('transaction')) {
           debouncedRefetch()
         }
       }),
