@@ -7,6 +7,7 @@ import type {
   SleeperRoster,
   Roster,
 } from "../types";
+import { mapWithConcurrency } from "../lib/map-with-concurrency";
 
 async function getJson<T>(url: string): Promise<T> {
   const controller = new AbortController();
@@ -102,8 +103,6 @@ async function getOneLeagueDetails(
     return null;
   }
 }
-
-import { mapWithConcurrency } from "../lib/map-with-concurrency";
 
 const MAX_CONCURRENT_LEAGUES = 6;
 
