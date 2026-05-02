@@ -103,28 +103,9 @@ async function getOneLeagueDetails(
   }
 }
 
-const MAX_CONCURRENT_LEAGUES = 6;
+import { mapWithConcurrency } from "../lib/map-with-concurrency";
 
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0;
-  const workers = Array.from(
-    { length: Math.min(limit, items.length) },
-    async () => {
-      while (true) {
-        const i = next++;
-        if (i >= items.length) return;
-        results[i] = await fn(items[i]);
-      }
-    },
-  );
-  await Promise.all(workers);
-  return results;
-}
+const MAX_CONCURRENT_LEAGUES = 6;
 
 export async function getLeagueDetails({
   leagues,

@@ -109,6 +109,13 @@ export default function AppLayout() {
           }}
         />
         <Tabs.Screen
+          name="drafts/index"
+          options={{
+            title: 'Drafts',
+            tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📋</Text>,
+          }}
+        />
+        <Tabs.Screen
           name="research/index"
           options={{
             title: 'Research',

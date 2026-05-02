@@ -6,7 +6,7 @@ import type {
   LeagueTransactionsResult,
   LeagueDetailed,
 } from '@autogm/shared'
-import { SleeperTopics } from '@autogm/shared'
+import { SleeperTopics, mapWithConcurrency } from '@autogm/shared'
 import { useGatewayTopic, useSocketContext } from '../contexts/socket-context'
 
 export type TradeWithLeague = Transaction & {
@@ -20,27 +20,6 @@ type State = {
 }
 
 const MAX_CONCURRENT = 4
-
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length)
-  let next = 0
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    async () => {
-      while (true) {
-        const i = next++
-        if (i >= items.length) return
-        results[i] = await fn(items[i])
-      }
-    },
-  )
-  await Promise.all(workers)
-  return results
-}
 
 async function fetchWithRetry<T>(
   fn: () => Promise<T>,

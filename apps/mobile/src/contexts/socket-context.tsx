@@ -76,3 +76,25 @@ export function useGatewayTopic(
     return unsub
   }, [gateway, topic])
 }
+
+export function useGatewayTopics(
+  topics: string[],
+  listener: (event: string, payload: unknown) => void,
+) {
+  const { gateway } = useSocketContext()
+  const listenerRef = useRef(listener)
+  listenerRef.current = listener
+
+  // Stable key so useEffect only re-runs when topics actually change
+  const topicsKey = topics.join('\0')
+
+  useEffect(() => {
+    if (!gateway || topics.length === 0) return
+    const unsubs = topics.map((topic) =>
+      gateway.join(topic, (event, payload) => {
+        listenerRef.current(event, payload)
+      }),
+    )
+    return () => unsubs.forEach((unsub) => unsub())
+  }, [gateway, topicsKey]) // eslint-disable-line react-hooks/exhaustive-deps
+}
