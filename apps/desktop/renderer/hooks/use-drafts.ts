@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Draft, LeagueDetailed } from '@autogm/shared'
 import { getJson, mapWithConcurrency } from '@autogm/shared'
@@ -29,11 +31,6 @@ export type DraftWithLeague = Draft & {
 
 const MAX_CONCURRENT = 4
 
-/**
- * Compute how many picks until a user is on the clock.
- * Returns 0 if OTC now, -1 if draft is not active or user has no slot.
- * Handles both snake and linear draft ordering.
- */
 export function picksTillOtc(draft: DraftWithLeague, userId: string): number {
   if (draft.status !== 'drafting') return -1
   const draftOrder = draft.draft_order ?? {}
@@ -160,7 +157,6 @@ export function useDrafts(leagues: { [id: string]: LeagueDetailed } | null) {
   }) => {
     setDrafts((prev) => prev.map((draft) => {
       if (draft.draft_id !== payload.draft_id) return draft
-      // Avoid duplicate if already applied
       if (draft.picks.some((p) => p.pick_no === payload.pick_no)) return draft
       const round = Math.ceil(payload.pick_no / draft.total_rosters)
       const draft_slot = ((payload.pick_no - 1) % draft.total_rosters) + 1

@@ -8,6 +8,7 @@ import TransactionsView from "../views/trades";
 import { useAllPlayers } from "../../hooks/use-allplayers";
 import ResearchView from "../views/research-view";
 import LeaguesView from "../views/leagues-view";
+import DraftsView from "../views/drafts-view";
 import { LeagueFilterBar, useLeagueFilter } from "../components/league-filter";
 import { useKtc } from "../../hooks/use-ktc";
 import { useLeaguePlayers } from "../../hooks/use-league-players";
@@ -17,7 +18,7 @@ import { useGatewayTopic, useSocketContext } from "../../contexts/socket-context
 
 const SEASON = CURRENT_SEASON;
 
-type View = "leagues" | "transactions" | "research";
+type View = "leagues" | "transactions" | "drafts" | "research";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -53,7 +54,7 @@ export default function DashboardPage() {
     () => {},
   );
 
-  const views = ["leagues", "transactions", "research"];
+  const views = ["leagues", "transactions", "drafts", "research"];
 
   useEffect(() => {
     if (restoring) return;
@@ -133,6 +134,12 @@ export default function DashboardPage() {
           ktc={ktc}
           interestByLeague={interestByLeague}
           tradeBlockByLeague={tradeBlockByLeague}
+        />
+      ) : view === "drafts" ? (
+        <DraftsView
+          leagues={filteredLeagues}
+          allplayers={allplayers ?? {}}
+          userId={session.user_id}
         />
       ) : (
         <ResearchView

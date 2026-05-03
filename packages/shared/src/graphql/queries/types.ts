@@ -295,6 +295,24 @@ export type AcceptRequestResult = {
   accept_request: unknown;
 };
 
+export type MakeDraftPickVars = {
+  draft_id: string;
+  player_id: string;
+};
+
+export type MakeDraftPickResult = {
+  make_pick: {
+    draft_id: string;
+    pick_no: number;
+    player_id: string;
+    picked_by: string;
+    round: number;
+    draft_slot: number;
+    is_keeper: boolean | null;
+    metadata: Record<string, unknown>;
+  };
+};
+
 export type QueryMap = {
   proposeTrade: { vars: ProposeTradeVars; result: ProposeTradeResult };
   acceptTrade: { vars: AcceptTradeVars; result: AcceptTradeResult };
@@ -329,6 +347,7 @@ export type QueryMap = {
   acceptRequest: { vars: AcceptRequestVars; result: AcceptRequestResult };
   inboundRequests: { vars: InboundRequestsVars; result: InboundRequestsResult };
   myDms: { vars: MyDmsVars; result: MyDmsResult };
+  makeDraftPick: { vars: MakeDraftPickVars; result: MakeDraftPickResult };
 };
 
 export type QueryName = keyof QueryMap;

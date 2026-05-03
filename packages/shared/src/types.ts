@@ -40,6 +40,7 @@ export type LeagueSettings = {
 
 export type Draft = {
   draft_id: string;
+  type: string;
   season: string;
   draft_order: {
     [key: string]: number;
