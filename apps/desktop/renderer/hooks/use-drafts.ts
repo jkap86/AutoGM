@@ -98,7 +98,7 @@ export function picksTillOtc(
   }
 
   // Apply draft-level traded picks to adjust ownership
-  if (draft.tradedPicks.length > 0 && userRosterId != null) {
+  if (draft.tradedPicks?.length > 0 && userRosterId != null) {
     for (const tp of draft.tradedPicks) {
       const slot = rosterIdToSlot.get(tp.roster_id)
       if (slot == null) continue
