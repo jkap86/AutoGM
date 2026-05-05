@@ -33,12 +33,15 @@ const MAX_CONCURRENT = 4
  * Compute how many picks until a user is on the clock.
  * Returns 0 if OTC now, -1 if draft is not active or user has no slot.
  * Handles both snake and linear draft ordering.
+ * Accounts for traded picks using league roster draftpick data.
  */
-export function picksTillOtc(draft: DraftWithLeague, userId: string): number {
+export function picksTillOtc(
+  draft: DraftWithLeague,
+  userId: string,
+  league: LeagueDetailed | undefined,
+): number {
   if (draft.status !== 'drafting') return -1
   const draftOrder = draft.draft_order ?? {}
-  const userSlot = draftOrder[userId]
-  if (userSlot == null) return -1
 
   const totalRosters = draft.total_rosters
   const totalSlots = draft.settings.rounds * totalRosters
@@ -47,6 +50,39 @@ export function picksTillOtc(draft: DraftWithLeague, userId: string): number {
 
   const isSnake = draft.type === 'snake'
 
+  // Build a set of (round, slot) pairs the user actually owns
+  // by checking league roster draftpick data for traded picks
+  const userRoster = league?.rosters.find((r) => r.user_id === userId)
+  const ownedPicks = new Set<string>() // "round:slot" keys
+
+  if (userRoster && league) {
+    // Invert draft_order: slot -> roster_id (via user_id -> roster)
+    const slotToRosterId = new Map<number, number>()
+    for (const [uid, slot] of Object.entries(draftOrder)) {
+      const r = league.rosters.find((ro) => ro.user_id === uid)
+      if (r) slotToRosterId.set(slot, r.roster_id)
+    }
+
+    for (const dp of userRoster.draftpicks) {
+      if (dp.season !== draft.season) continue
+      // Find which slot this pick corresponds to via roster_id
+      for (const [slot, rid] of slotToRosterId) {
+        if (rid === dp.roster_id && dp.round >= Math.ceil(nextPickNo / totalRosters)) {
+          ownedPicks.add(`${dp.round}:${slot}`)
+        }
+      }
+    }
+  } else {
+    // Fallback: no league data, assume user owns their original slot for all rounds
+    const userSlot = draftOrder[userId]
+    if (userSlot == null) return -1
+    for (let r = 1; r <= draft.settings.rounds; r++) {
+      ownedPicks.add(`${r}:${userSlot}`)
+    }
+  }
+
+  if (ownedPicks.size === 0) return -1
+
   for (let i = 0; i < totalSlots - draft.picks.length; i++) {
     const pickNo = nextPickNo + i
     const round = Math.ceil(pickNo / totalRosters)
@@ -54,7 +90,7 @@ export function picksTillOtc(draft: DraftWithLeague, userId: string): number {
     const slot = isSnake && round % 2 === 0
       ? totalRosters - posInRound + 1
       : posInRound
-    if (slot === userSlot) return i
+    if (ownedPicks.has(`${round}:${slot}`)) return i
   }
   return -1
 }

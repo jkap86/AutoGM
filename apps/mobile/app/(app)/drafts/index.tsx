@@ -475,8 +475,8 @@ function DraftsContent() {
   const sortedDrafts = useMemo(() => {
     const uid = session?.user_id ?? ''
     return [...drafts].sort((a, b) => {
-      const aOtc = picksTillOtc(a, uid)
-      const bOtc = picksTillOtc(b, uid)
+      const aOtc = picksTillOtc(a, uid, safeLeagues[a.league_id])
+      const bOtc = picksTillOtc(b, uid, safeLeagues[b.league_id])
       // OTC (0) first, then by distance, then non-live (-1) last
       if (aOtc >= 0 && bOtc >= 0) return aOtc - bOtc
       if (aOtc >= 0) return -1
@@ -544,7 +544,7 @@ function DraftsContent() {
               allplayers={allplayers}
               leagues={safeLeagues}
               userId={session?.user_id ?? null}
-              otcCount={picksTillOtc(item, session?.user_id ?? '')}
+              otcCount={picksTillOtc(item, session?.user_id ?? '', safeLeagues[item.league_id])}
             />
           )}
           contentContainerStyle={{ padding: 16 }}

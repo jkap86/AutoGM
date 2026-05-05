@@ -429,8 +429,8 @@ export default function DraftsView({
 
   const sortedDrafts = useMemo(() => {
     return [...drafts].sort((a, b) => {
-      const aOtc = picksTillOtc(a, userId)
-      const bOtc = picksTillOtc(b, userId)
+      const aOtc = picksTillOtc(a, userId, leagues[a.league_id])
+      const bOtc = picksTillOtc(b, userId, leagues[b.league_id])
       if (aOtc >= 0 && bOtc >= 0) return aOtc - bOtc
       if (aOtc >= 0) return -1
       if (bOtc >= 0) return 1
@@ -492,7 +492,7 @@ export default function DraftsView({
               allplayers={allplayers}
               leagues={leagues}
               userId={userId}
-              otcCount={picksTillOtc(draft, userId)}
+              otcCount={picksTillOtc(draft, userId, leagues[draft.league_id])}
             />
           ))}
         </div>
