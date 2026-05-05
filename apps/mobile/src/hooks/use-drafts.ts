@@ -81,7 +81,7 @@ export function picksTillOtc(
   const userSlot = draftOrder[userId]
   if (userSlot == null) return -1
 
-  // Map slot -> roster_id for traded pick lookups
+  // Map slot <-> roster_id
   const slotToRosterId = new Map<number, number>()
   const rosterIdToSlot = new Map<number, number>()
   if (league) {
@@ -96,30 +96,28 @@ export function picksTillOtc(
 
   const userRosterId = slotToRosterId.get(userSlot)
 
-  // Start with user's original slot for all regular rounds
-  for (let r = 1; r <= regularRounds; r++) {
-    ownedPicks.add(`${r}:${userSlot}`)
-  }
-
-  // Apply draft-level traded picks to adjust ownership
   if (draft.tradedPicks?.length > 0 && userRosterId != null) {
+    // Build ownership map from traded picks — owner_id is the current owner
+    const currentOwner = new Map<string, number>()
     for (const tp of draft.tradedPicks) {
       const slot = rosterIdToSlot.get(tp.roster_id)
-      if (slot == null) continue
-      const key = `${tp.round}:${slot}`
-      if (tp.owner_id === userRosterId && tp.previous_owner_id !== userRosterId) {
-        // User acquired this pick
-        ownedPicks.add(key)
-      } else if (tp.previous_owner_id === userRosterId && tp.owner_id !== userRosterId) {
-        // User traded this pick away
-        ownedPicks.delete(key)
+      if (slot != null) {
+        currentOwner.set(`${tp.round}:${slot}`, tp.owner_id)
+      }
+    }
+
+    for (let r = 1; r <= regularRounds; r++) {
+      for (const [slot, origRosterId] of slotToRosterId) {
+        const key = `${r}:${slot}`
+        const owner = currentOwner.get(key) ?? origRosterId
+        if (owner === userRosterId) {
+          ownedPicks.add(key)
+        }
       }
     }
   } else if (league) {
-    // Fall back to league roster draftpick data (dynasty leagues)
     const userRoster = league.rosters.find((r) => r.user_id === userId)
     if (userRoster && userRoster.draftpicks.length > 0) {
-      ownedPicks.clear()
       for (const dp of userRoster.draftpicks) {
         if (dp.season !== draft.season) continue
         for (const [slot, rid] of slotToRosterId) {
@@ -128,6 +126,14 @@ export function picksTillOtc(
           }
         }
       }
+    } else {
+      for (let r = 1; r <= regularRounds; r++) {
+        ownedPicks.add(`${r}:${userSlot}`)
+      }
+    }
+  } else {
+    for (let r = 1; r <= regularRounds; r++) {
+      ownedPicks.add(`${r}:${userSlot}`)
     }
   }
 
