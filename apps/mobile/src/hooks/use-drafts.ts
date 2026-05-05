@@ -32,8 +32,7 @@ const MAX_CONCURRENT = 4
 /**
  * Compute how many picks until a user is on the clock.
  * Returns 0 if OTC now, -1 if draft is not active or user has no slot.
- * Handles both snake and linear draft ordering.
- * Accounts for traded picks using league roster draftpick data.
+ * Handles snake/linear ordering, traded picks, and compensatory rounds.
  */
 export function picksTillOtc(
   draft: DraftWithLeague,
@@ -44,19 +43,54 @@ export function picksTillOtc(
   const draftOrder = draft.draft_order ?? {}
 
   const totalRosters = draft.total_rosters
-  const totalSlots = draft.settings.rounds * totalRosters
-  const nextPickNo = draft.picks.length + 1
-  if (nextPickNo > totalSlots) return -1
-
   const isSnake = draft.type === 'snake'
 
-  // Build a set of (round, slot) pairs the user actually owns
-  // by checking league roster draftpick data for traded picks
+  // Track which (round, slot) positions have already been picked
+  const pickedPositions = new Set<string>()
+  for (const p of draft.picks) pickedPositions.add(`${p.round}:${p.draft_slot}`)
+
+  // Detect comp rounds: rounds with some picks but fewer than totalRosters
+  const picksPerRound = new Map<number, number>()
+  for (const p of draft.picks) picksPerRound.set(p.round, (picksPerRound.get(p.round) || 0) + 1)
+
+  // Build ordered list of remaining (round, slot) positions
+  const remaining: { round: number; slot: number }[] = []
+
+  for (let round = 1; round <= draft.settings.rounds; round++) {
+    const roundPicks = picksPerRound.get(round) || 0
+
+    // A round is "comp" if it has some picks but fewer than totalRosters
+    // and a later round also has picks (meaning this round is done but incomplete)
+    const hasHigherRound = [...picksPerRound.keys()].some((r) => r > round)
+    const isCompRound = roundPicks > 0 && roundPicks < totalRosters && hasHigherRound
+
+    if (isCompRound) {
+      // Comp round already complete with fewer picks — skip remaining empty slots
+      continue
+    }
+
+    // For future rounds where we haven't seen any picks yet, check if this
+    // might be a comp round by seeing if the round BEFORE it is incomplete
+    // (i.e., we skipped it). If so, this round is the next regular round.
+
+    // List all slots in draft order for this round
+    for (let pos = 1; pos <= totalRosters; pos++) {
+      const slot = isSnake && round % 2 === 0
+        ? totalRosters - pos + 1
+        : pos
+      if (!pickedPositions.has(`${round}:${slot}`)) {
+        remaining.push({ round, slot })
+      }
+    }
+  }
+
+  if (remaining.length === 0) return -1
+
+  // Build set of (round, slot) pairs the user actually owns
   const userRoster = league?.rosters.find((r) => r.user_id === userId)
-  const ownedPicks = new Set<string>() // "round:slot" keys
+  const ownedPicks = new Set<string>()
 
   if (userRoster && league) {
-    // Invert draft_order: slot -> roster_id (via user_id -> roster)
     const slotToRosterId = new Map<number, number>()
     for (const [uid, slot] of Object.entries(draftOrder)) {
       const r = league.rosters.find((ro) => ro.user_id === uid)
@@ -65,15 +99,13 @@ export function picksTillOtc(
 
     for (const dp of userRoster.draftpicks) {
       if (dp.season !== draft.season) continue
-      // Find which slot this pick corresponds to via roster_id
       for (const [slot, rid] of slotToRosterId) {
-        if (rid === dp.roster_id && dp.round >= Math.ceil(nextPickNo / totalRosters)) {
+        if (rid === dp.roster_id) {
           ownedPicks.add(`${dp.round}:${slot}`)
         }
       }
     }
   } else {
-    // Fallback: no league data, assume user owns their original slot for all rounds
     const userSlot = draftOrder[userId]
     if (userSlot == null) return -1
     for (let r = 1; r <= draft.settings.rounds; r++) {
@@ -83,13 +115,9 @@ export function picksTillOtc(
 
   if (ownedPicks.size === 0) return -1
 
-  for (let i = 0; i < totalSlots - draft.picks.length; i++) {
-    const pickNo = nextPickNo + i
-    const round = Math.ceil(pickNo / totalRosters)
-    const posInRound = ((pickNo - 1) % totalRosters) + 1
-    const slot = isSnake && round % 2 === 0
-      ? totalRosters - posInRound + 1
-      : posInRound
+  // Count through remaining positions until we find one the user owns
+  for (let i = 0; i < remaining.length; i++) {
+    const { round, slot } = remaining[i]
     if (ownedPicks.has(`${round}:${slot}`)) return i
   }
   return -1

@@ -40,12 +40,39 @@ export function picksTillOtc(
   const draftOrder = draft.draft_order ?? {}
 
   const totalRosters = draft.total_rosters
-  const totalSlots = draft.settings.rounds * totalRosters
-  const nextPickNo = draft.picks.length + 1
-  if (nextPickNo > totalSlots) return -1
-
   const isSnake = draft.type === 'snake'
 
+  // Track which positions have already been picked
+  const pickedPositions = new Set<string>()
+  for (const p of draft.picks) pickedPositions.add(`${p.round}:${p.draft_slot}`)
+
+  // Detect comp rounds: rounds with some picks but fewer than totalRosters
+  const picksPerRound = new Map<number, number>()
+  for (const p of draft.picks) picksPerRound.set(p.round, (picksPerRound.get(p.round) || 0) + 1)
+
+  // Build ordered list of remaining positions
+  const remaining: { round: number; slot: number }[] = []
+
+  for (let round = 1; round <= draft.settings.rounds; round++) {
+    const roundPicks = picksPerRound.get(round) || 0
+    const hasHigherRound = [...picksPerRound.keys()].some((r) => r > round)
+    const isCompRound = roundPicks > 0 && roundPicks < totalRosters && hasHigherRound
+
+    if (isCompRound) continue
+
+    for (let pos = 1; pos <= totalRosters; pos++) {
+      const slot = isSnake && round % 2 === 0
+        ? totalRosters - pos + 1
+        : pos
+      if (!pickedPositions.has(`${round}:${slot}`)) {
+        remaining.push({ round, slot })
+      }
+    }
+  }
+
+  if (remaining.length === 0) return -1
+
+  // Build set of (round, slot) pairs the user actually owns
   const userRoster = league?.rosters.find((r) => r.user_id === userId)
   const ownedPicks = new Set<string>()
 
@@ -59,7 +86,7 @@ export function picksTillOtc(
     for (const dp of userRoster.draftpicks) {
       if (dp.season !== draft.season) continue
       for (const [slot, rid] of slotToRosterId) {
-        if (rid === dp.roster_id && dp.round >= Math.ceil(nextPickNo / totalRosters)) {
+        if (rid === dp.roster_id) {
           ownedPicks.add(`${dp.round}:${slot}`)
         }
       }
@@ -74,13 +101,8 @@ export function picksTillOtc(
 
   if (ownedPicks.size === 0) return -1
 
-  for (let i = 0; i < totalSlots - draft.picks.length; i++) {
-    const pickNo = nextPickNo + i
-    const round = Math.ceil(pickNo / totalRosters)
-    const posInRound = ((pickNo - 1) % totalRosters) + 1
-    const slot = isSnake && round % 2 === 0
-      ? totalRosters - posInRound + 1
-      : posInRound
+  for (let i = 0; i < remaining.length; i++) {
+    const { round, slot } = remaining[i]
     if (ownedPicks.has(`${round}:${slot}`)) return i
   }
   return -1
