@@ -77,8 +77,29 @@ export default function TransactionsView(props: {
   ktc: Record<string, number>;
   interestByLeague?: InterestByLeague;
   tradeBlockByLeague?: InterestByLeague;
+  hideSubTabs?: boolean;
+  initialTab?: TransactionType;
 }) {
-  const [txType, setTxType] = useState<TransactionType>("trades");
+  const [txType, setTxType] = useState<TransactionType>(props.initialTab ?? "trades");
+
+  // When hideSubTabs, render just the active content
+  if (props.hideSubTabs) {
+    return (
+      <div className="flex flex-col flex-1 items-center w-full gap-4">
+        {txType === "trades" && <TradesContent {...props} />}
+        {txType === "dms" && <DmsInbox userId={props.userId} leagues={props.leagues} />}
+        {txType === "waivers" && (
+          <WaiversView
+            leagues={props.leagues}
+            allplayers={props.allplayers}
+            userId={props.userId}
+            ktc={props.ktc}
+            playerShares={props.playerShares}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col flex-1 items-center w-full gap-4">

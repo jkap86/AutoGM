@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { LeagueDetailed } from "@autogm/shared";
 import { LeaguesPanel } from "./trades/leagues-panel";
 import { LeagueChatsPanel } from "./trades/league-chats-panel";
 import { VALUE_TYPES, type TradeValueFilter, type PositionFilter } from "../../hooks/use-trade-value-filter";
 import type { AdpFilters } from "../../hooks/use-adp";
 
-type LeaguesTab = "ranks" | "chats";
+type LeaguesTab = "ranks" | "trades" | "waivers" | "chats";
 
 const RANK_LABELS: Record<string, string> = {
   ALL: "Overall",
@@ -22,10 +22,14 @@ export default function LeaguesView({
   leagues,
   userId,
   filter,
+  tradesView,
+  waiversView,
 }: {
   leagues: { [league_id: string]: LeagueDetailed };
   userId: string;
   filter: TradeValueFilter;
+  tradesView?: ReactNode;
+  waiversView?: ReactNode;
 }) {
   const [tab, setTab] = useState<LeaguesTab>("ranks");
   const [topNByCategory, setTopNByCategory] = useState<Record<string, number>>({});
@@ -48,7 +52,7 @@ export default function LeaguesView({
     <div className="flex flex-col flex-1 items-center w-full gap-4">
       {/* Subtabs */}
       <div className="flex gap-1 rounded-lg bg-gray-900/60 p-0.5">
-        {(["ranks", "chats"] as LeaguesTab[]).map((t) => (
+        {(["ranks", "trades", "waivers", "chats"] as LeaguesTab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -63,8 +67,12 @@ export default function LeaguesView({
         ))}
       </div>
 
-      {/* Filter bar — shared between ranks and chats */}
-      <div className="w-full max-w-4xl space-y-0">
+      {/* Trades / Waivers — rendered without filter bar */}
+      {tab === "trades" && tradesView}
+      {tab === "waivers" && waiversView}
+
+      {/* Filter bar — shown for ranks and chats */}
+      {(tab === "ranks" || tab === "chats") && <div className="w-full max-w-4xl space-y-0">
         {/* Value type selector */}
         <div className="flex items-center justify-center gap-3 flex-wrap rounded-t-xl border border-gray-700/80 bg-gradient-to-b from-gray-800 to-gray-800/80 px-4 py-2.5">
           <div className="flex items-center gap-2 rounded-lg bg-gray-900/60 p-0.5">
@@ -214,16 +222,17 @@ export default function LeaguesView({
         {tab === "chats" && (
           <div className="h-0 rounded-b-xl border-x border-b border-gray-700/80" />
         )}
-      </div>
+      </div>}
 
-      {tab === "ranks" ? (
+      {tab === "ranks" && (
         <LeaguesPanel
           leagues={leagues}
           userId={userId}
           filter={filter}
           topNByCategory={topNByCategory}
         />
-      ) : (
+      )}
+      {tab === "chats" && (
         <LeagueChatsPanel
           leagues={leagues}
           userId={userId}

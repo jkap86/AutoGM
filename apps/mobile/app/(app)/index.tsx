@@ -14,8 +14,10 @@ import { useCallback, useRef } from 'react'
 import { useLeagueFilter, LeagueFilterBar } from '../../src/components/league-filter'
 import { useGatewayTopic } from '../../src/contexts/socket-context'
 import { LeagueSettingsPanel } from '../../src/components/league-settings-panel'
+import TradesScreen from './trades/index'
+import WaiversScreen from './waivers/index'
 
-type LeaguesTab = 'ranks' | 'chats'
+type LeaguesTab = 'ranks' | 'trades' | 'waivers' | 'chats'
 type PositionFilter = 'ALL' | 'PLAYERS' | 'PLAYERS+CUR' | 'QB' | 'RB' | 'WR' | 'TE' | 'PICKS'
 
 const RANK_CATEGORIES: { label: string; filter: PositionFilter }[] = [
@@ -530,20 +532,26 @@ export default function LeaguesScreen() {
   return (
     <View className="flex-1 bg-gray-900">
       <View className="flex-row justify-center gap-1 py-2 border-b border-gray-800">
-        {(['ranks', 'chats'] as LeaguesTab[]).map((t) => (
+        {(['ranks', 'trades', 'waivers', 'chats'] as LeaguesTab[]).map((t) => (
           <TouchableOpacity key={t} onPress={() => setTab(t)}
             className={`px-5 py-1.5 rounded-lg ${tab === t ? 'bg-blue-600' : ''}`}>
             <Text className={`text-[13px] font-semibold uppercase font-heading ${tab === t ? 'text-white' : 'text-gray-500'}`}>
-              {t === 'ranks' ? 'Ranks' : 'Chats'}
+              {t.charAt(0).toUpperCase() + t.slice(1)}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <LeagueFilterBar filters={filters} setFilters={setFilters} totalCount={leagueList.length} filteredCount={filteredLeagueList.length} />
+      {(tab === 'ranks' || tab === 'chats') && (
+        <LeagueFilterBar filters={filters} setFilters={setFilters} totalCount={leagueList.length} filteredCount={filteredLeagueList.length} />
+      )}
 
       {tab === 'ranks' ? (
         <RanksView leagues={filteredLeagueList} allplayers={allplayers} ktc={ktc} />
+      ) : tab === 'trades' ? (
+        <TradesScreen />
+      ) : tab === 'waivers' ? (
+        <WaiversScreen />
       ) : (
         <ChatsView leagues={filteredLeagueList} userId={session?.user_id ?? ''} />
       )}

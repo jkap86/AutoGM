@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/auth-context";
 import { useLeagues } from "../../hooks/use-leagues";
 import TransactionsView from "../views/trades";
+import WaiversDesktopView from "../views/trades/waivers-view";
 import { useAllPlayers } from "../../hooks/use-allplayers";
 import ResearchView from "../views/research-view";
 import LeaguesView from "../views/leagues-view";
@@ -18,7 +19,7 @@ import { useGatewayTopic, useSocketContext } from "../../contexts/socket-context
 
 const SEASON = CURRENT_SEASON;
 
-type View = "leagues" | "transactions" | "drafts" | "research";
+type View = "leagues" | "dms" | "drafts" | "research";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export default function DashboardPage() {
     () => {},
   );
 
-  const views = ["leagues", "transactions", "drafts", "research"];
+  const views = ["leagues", "dms", "drafts", "research"];
 
   useEffect(() => {
     if (restoring) return;
@@ -122,8 +123,31 @@ export default function DashboardPage() {
           leagues={filteredLeagues}
           userId={session.user_id}
           filter={valueFilter}
+          tradesView={
+            <TransactionsView
+              allplayers={allplayers ?? {}}
+              leagues={filteredLeagues}
+              playerShares={playerShares}
+              leaguemates={leaguemates}
+              pickShares={pickShares}
+              userId={session.user_id}
+              ktc={ktc}
+              interestByLeague={interestByLeague}
+              tradeBlockByLeague={tradeBlockByLeague}
+              hideSubTabs
+            />
+          }
+          waiversView={
+            <WaiversDesktopView
+              leagues={filteredLeagues}
+              allplayers={allplayers ?? {}}
+              userId={session.user_id}
+              ktc={ktc}
+              playerShares={playerShares}
+            />
+          }
         />
-      ) : view === "transactions" ? (
+      ) : view === "dms" ? (
         <TransactionsView
           allplayers={allplayers ?? {}}
           leagues={filteredLeagues}
@@ -134,6 +158,8 @@ export default function DashboardPage() {
           ktc={ktc}
           interestByLeague={interestByLeague}
           tradeBlockByLeague={tradeBlockByLeague}
+          initialTab="dms"
+          hideSubTabs
         />
       ) : view === "drafts" ? (
         <DraftsView

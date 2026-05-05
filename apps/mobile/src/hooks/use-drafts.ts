@@ -19,12 +19,20 @@ export type DraftPick = {
   }
 }
 
+export type DraftTradedPick = {
+  roster_id: number
+  owner_id: number
+  previous_owner_id: number
+  round: number
+}
+
 export type DraftWithLeague = Draft & {
   league_id: string
   league_name: string
   league_avatar: string | null
   total_rosters: number
   picks: DraftPick[]
+  tradedPicks: DraftTradedPick[]
 }
 
 const MAX_CONCURRENT = 4
@@ -44,36 +52,18 @@ export function picksTillOtc(
 
   const totalRosters = draft.total_rosters
   const isSnake = draft.type === 'snake'
+  // Regular rounds from league settings; rounds beyond are compensatory
+  const regularRounds = league?.settings.draft_rounds ?? draft.settings.rounds
 
-  // Track which (round, slot) positions have already been picked
+  // Track which positions have already been picked
   const pickedPositions = new Set<string>()
   for (const p of draft.picks) pickedPositions.add(`${p.round}:${p.draft_slot}`)
 
-  // Detect comp rounds: rounds with some picks but fewer than totalRosters
-  const picksPerRound = new Map<number, number>()
-  for (const p of draft.picks) picksPerRound.set(p.round, (picksPerRound.get(p.round) || 0) + 1)
-
-  // Build ordered list of remaining (round, slot) positions
+  // Build ordered list of remaining positions (regular rounds only)
+  // Comp rounds are unpredictable — we skip them entirely
   const remaining: { round: number; slot: number }[] = []
 
-  for (let round = 1; round <= draft.settings.rounds; round++) {
-    const roundPicks = picksPerRound.get(round) || 0
-
-    // A round is "comp" if it has some picks but fewer than totalRosters
-    // and a later round also has picks (meaning this round is done but incomplete)
-    const hasHigherRound = [...picksPerRound.keys()].some((r) => r > round)
-    const isCompRound = roundPicks > 0 && roundPicks < totalRosters && hasHigherRound
-
-    if (isCompRound) {
-      // Comp round already complete with fewer picks — skip remaining empty slots
-      continue
-    }
-
-    // For future rounds where we haven't seen any picks yet, check if this
-    // might be a comp round by seeing if the round BEFORE it is incomplete
-    // (i.e., we skipped it). If so, this round is the next regular round.
-
-    // List all slots in draft order for this round
+  for (let round = 1; round <= regularRounds; round++) {
     for (let pos = 1; pos <= totalRosters; pos++) {
       const slot = isSnake && round % 2 === 0
         ? totalRosters - pos + 1
@@ -87,35 +77,62 @@ export function picksTillOtc(
   if (remaining.length === 0) return -1
 
   // Build set of (round, slot) pairs the user actually owns
-  const userRoster = league?.rosters.find((r) => r.user_id === userId)
   const ownedPicks = new Set<string>()
+  const userSlot = draftOrder[userId]
+  if (userSlot == null) return -1
 
-  if (userRoster && league) {
-    const slotToRosterId = new Map<number, number>()
+  // Map slot -> roster_id for traded pick lookups
+  const slotToRosterId = new Map<number, number>()
+  const rosterIdToSlot = new Map<number, number>()
+  if (league) {
     for (const [uid, slot] of Object.entries(draftOrder)) {
       const r = league.rosters.find((ro) => ro.user_id === uid)
-      if (r) slotToRosterId.set(slot, r.roster_id)
-    }
-
-    for (const dp of userRoster.draftpicks) {
-      if (dp.season !== draft.season) continue
-      for (const [slot, rid] of slotToRosterId) {
-        if (rid === dp.roster_id) {
-          ownedPicks.add(`${dp.round}:${slot}`)
-        }
+      if (r) {
+        slotToRosterId.set(slot, r.roster_id)
+        rosterIdToSlot.set(r.roster_id, slot)
       }
     }
-  } else {
-    const userSlot = draftOrder[userId]
-    if (userSlot == null) return -1
-    for (let r = 1; r <= draft.settings.rounds; r++) {
-      ownedPicks.add(`${r}:${userSlot}`)
+  }
+
+  const userRosterId = slotToRosterId.get(userSlot)
+
+  // Start with user's original slot for all regular rounds
+  for (let r = 1; r <= regularRounds; r++) {
+    ownedPicks.add(`${r}:${userSlot}`)
+  }
+
+  // Apply draft-level traded picks to adjust ownership
+  if (draft.tradedPicks.length > 0 && userRosterId != null) {
+    for (const tp of draft.tradedPicks) {
+      const slot = rosterIdToSlot.get(tp.roster_id)
+      if (slot == null) continue
+      const key = `${tp.round}:${slot}`
+      if (tp.owner_id === userRosterId && tp.previous_owner_id !== userRosterId) {
+        // User acquired this pick
+        ownedPicks.add(key)
+      } else if (tp.previous_owner_id === userRosterId && tp.owner_id !== userRosterId) {
+        // User traded this pick away
+        ownedPicks.delete(key)
+      }
+    }
+  } else if (league) {
+    // Fall back to league roster draftpick data (dynasty leagues)
+    const userRoster = league.rosters.find((r) => r.user_id === userId)
+    if (userRoster && userRoster.draftpicks.length > 0) {
+      ownedPicks.clear()
+      for (const dp of userRoster.draftpicks) {
+        if (dp.season !== draft.season) continue
+        for (const [slot, rid] of slotToRosterId) {
+          if (rid === dp.roster_id) {
+            ownedPicks.add(`${dp.round}:${slot}`)
+          }
+        }
+      }
     }
   }
 
   if (ownedPicks.size === 0) return -1
 
-  // Count through remaining positions until we find one the user owns
   for (let i = 0; i < remaining.length; i++) {
     const { round, slot } = remaining[i]
     if (ownedPicks.has(`${round}:${slot}`)) return i
@@ -153,6 +170,7 @@ export function useDrafts(leagues: { [id: string]: LeagueDetailed } | null) {
               2,
               async (draft): Promise<DraftWithLeague> => {
                 let picks: DraftPick[] = []
+                let tradedPicks: DraftTradedPick[] = []
                 if (draft.status === 'complete') {
                   const cached = completedPicksCache.current.get(draft.draft_id)
                   if (cached) {
@@ -169,11 +187,18 @@ export function useDrafts(leagues: { [id: string]: LeagueDetailed } | null) {
                   }
                 } else if (draft.status === 'drafting') {
                   try {
-                    picks = await getJson<DraftPick[]>(
-                      `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`,
-                    )
+                    const [p, tp] = await Promise.all([
+                      getJson<DraftPick[]>(
+                        `https://api.sleeper.app/v1/draft/${draft.draft_id}/picks`,
+                      ),
+                      getJson<DraftTradedPick[]>(
+                        `https://api.sleeper.app/v1/draft/${draft.draft_id}/traded_picks`,
+                      ),
+                    ])
+                    picks = p
+                    tradedPicks = tp
                   } catch {
-                    // picks fetch failed, show draft without picks
+                    // fetch failed, show draft without picks
                   }
                 }
 
@@ -184,6 +209,7 @@ export function useDrafts(leagues: { [id: string]: LeagueDetailed } | null) {
                   league_avatar: league.avatar,
                   total_rosters: league.total_rosters,
                   picks,
+                  tradedPicks,
                 }
               },
             )

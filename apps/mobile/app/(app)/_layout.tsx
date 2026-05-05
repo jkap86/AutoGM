@@ -104,8 +104,8 @@ export default function AppLayout() {
         <Tabs.Screen
           name="transactions/index"
           options={{
-            title: 'Transactions',
-            tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🔄</Text>,
+            title: 'DMs',
+            tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>💬</Text>,
           }}
         />
         <Tabs.Screen
