@@ -74,15 +74,11 @@ function getPicksByRound(picks: DraftPick[]): Record<number, DraftPick[]> {
 function PickCell({
   pick,
   allplayers,
-  originalOwnerId,
-  pickerName,
-  originalOwnerName,
+  tradeInfo,
 }: {
   pick: DraftPick
   allplayers: Record<string, Allplayer>
-  originalOwnerId: string
-  pickerName: string
-  originalOwnerName: string
+  tradeInfo?: { ownerName: string; originalName: string }
 }) {
   const player = allplayers[pick.player_id]
   const lastName = player?.last_name
@@ -93,19 +89,18 @@ function PickCell({
   const posBg = POS_BG[pos] ?? 'bg-gray-700/30 border-gray-600/30'
   const posText = POS_TEXT[pos] ?? 'text-gray-300'
   const slot = String(pick.draft_slot).padStart(2, '0')
-  const isTraded = originalOwnerId !== '' && pick.picked_by !== '' && pick.picked_by !== originalOwnerId
 
   return (
-    <div className={`border rounded px-1.5 py-1 min-w-[72px] ${posBg} ${isTraded ? 'border-amber-500/30' : ''}`}>
+    <div className={`border rounded px-1.5 py-1 min-w-[72px] ${posBg} ${tradeInfo ? 'border-amber-500/30' : ''}`}>
       <div className="flex items-center justify-between gap-1">
         <span className="text-gray-500 text-[9px] font-mono">{pick.round}.{slot}</span>
         <span className={`text-[9px] font-bold ${posText}`}>{pos}</span>
       </div>
       <div className={`text-[11px] font-medium truncate ${posText}`}>{lastName}</div>
-      {isTraded ? (
+      {tradeInfo ? (
         <div>
-          <div className="text-amber-400 text-[8px] font-bold truncate">{pickerName}</div>
-          <div className="text-gray-600 text-[7px] truncate">via {originalOwnerName}</div>
+          <div className="text-amber-400 text-[8px] font-bold truncate">{tradeInfo.ownerName}</div>
+          <div className="text-gray-600 text-[7px] truncate">via {tradeInfo.originalName}</div>
         </div>
       ) : (
         team && <div className="text-gray-500 text-[9px]">{team}</div>
@@ -146,18 +141,16 @@ function RoundRow({
   allplayers,
   totalRosters,
   isCurrentRound,
-  slotOwners,
-  userIdToName,
   tradedSlots,
+  tradedRoundSlots,
 }: {
   round: number
   picks: DraftPick[]
   allplayers: Record<string, Allplayer>
   totalRosters: number
   isCurrentRound: boolean
-  slotOwners: SlotOwner[]
-  userIdToName: Record<string, string>
   tradedSlots: Record<number, string>
+  tradedRoundSlots: Map<string, { ownerName: string; originalName: string }>
 }) {
   const pickBySlot = new Map<number, DraftPick>()
   for (const pick of picks) pickBySlot.set(pick.draft_slot, pick)
@@ -172,16 +165,10 @@ function RoundRow({
       {Array.from({ length: totalRosters }, (_, i) => {
         const slot = i + 1
         const pick = pickBySlot.get(slot)
+        const tradeInfo = tradedRoundSlots.get(`${round}:${slot}`)
         return pick
-          ? <PickCell
-              key={slot}
-              pick={pick}
-              allplayers={allplayers}
-              originalOwnerId={slotOwners[slot - 1]?.userId ?? ''}
-              pickerName={userIdToName[pick.picked_by] ?? ''}
-              originalOwnerName={slotOwners[slot - 1]?.username ?? ''}
-            />
-          : <EmptyCell key={slot} round={round} slot={slot} tradedTo={tradedSlots[slot]} />
+          ? <PickCell key={slot} pick={pick} allplayers={allplayers} tradeInfo={tradeInfo} />
+          : <EmptyCell key={slot} round={round} slot={slot} tradedTo={tradeInfo?.ownerName} />
       })}
     </div>
   )
@@ -226,25 +213,37 @@ function DraftCard({
   const league = leagues[draft.league_id]
   const slotOwners = useMemo(() => buildSlotOwners(draft, league), [draft, league])
 
-  const userIdToName = useMemo(() => {
-    const map: Record<string, string> = {}
-    if (league) {
-      for (const r of league.rosters) map[r.user_id] = r.username
-    }
-    return map
-  }, [league])
+  // Build traded pick ownership from draft.tradedPicks API data
+  const { tradedSlotsMap, tradedRoundSlots } = useMemo(() => {
+    const map: Record<number, string> = {} // slot -> new owner name (for empty cells)
+    const roundSlots = new Map<string, { ownerName: string; originalName: string }>() // "round:slot" -> names
 
-  const tradedSlotsMap = useMemo(() => {
-    const map: Record<number, string> = {}
-    if (!draft.draft_order) return map
-    for (const pick of draft.picks) {
-      const origOwner = slotOwners[pick.draft_slot - 1]
-      if (origOwner && pick.picked_by !== origOwner.userId) {
-        map[pick.draft_slot] = userIdToName[pick.picked_by] ?? ''
+    if (!draft.tradedPicks?.length || !league) return { tradedSlotsMap: map, tradedRoundSlots: roundSlots }
+
+    // Map roster_id -> slot and roster_id -> username
+    const rosterIdToSlot = new Map<number, number>()
+    const rosterIdToName = new Map<number, string>()
+    for (const [uid, slot] of Object.entries(draft.draft_order ?? {})) {
+      const r = league.rosters.find((ro) => ro.user_id === uid)
+      if (r) {
+        rosterIdToSlot.set(r.roster_id, slot)
+        rosterIdToName.set(r.roster_id, r.username)
       }
     }
-    return map
-  }, [draft.picks, draft.draft_order, slotOwners, userIdToName])
+
+    for (const tp of draft.tradedPicks) {
+      const slot = rosterIdToSlot.get(tp.roster_id)
+      if (slot == null) continue
+      if (tp.owner_id !== tp.roster_id) {
+        const ownerName = rosterIdToName.get(tp.owner_id) ?? ''
+        const originalName = rosterIdToName.get(tp.roster_id) ?? ''
+        map[slot] = ownerName
+        roundSlots.set(`${tp.round}:${slot}`, { ownerName, originalName })
+      }
+    }
+
+    return { tradedSlotsMap: map, tradedRoundSlots: roundSlots }
+  }, [draft.tradedPicks, draft.draft_order, league])
 
   const draftedIds = useMemo(() => new Set(draft.picks.map((p) => p.player_id)), [draft.picks])
   const availablePlayerIds = useMemo(
@@ -337,9 +336,8 @@ function DraftCard({
                   allplayers={allplayers}
                   totalRosters={draft.total_rosters}
                   isCurrentRound={draft.status === 'drafting' && round === currentRound}
-                  slotOwners={slotOwners}
-                  userIdToName={userIdToName}
                   tradedSlots={tradedSlotsMap}
+                  tradedRoundSlots={tradedRoundSlots}
                 />
               ))
             ) : (
@@ -350,9 +348,8 @@ function DraftCard({
                   allplayers={allplayers}
                   totalRosters={draft.total_rosters}
                   isCurrentRound={draft.status === 'drafting' && lastRound === currentRound}
-                  slotOwners={slotOwners}
-                  userIdToName={userIdToName}
                   tradedSlots={tradedSlotsMap}
+                  tradedRoundSlots={tradedRoundSlots}
                 />
               )
             )}
