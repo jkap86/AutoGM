@@ -14,6 +14,7 @@ import { useCallback, useRef } from 'react'
 import { useLeagueFilter, LeagueFilterBar } from '../../src/components/league-filter'
 import { useGatewayTopic } from '../../src/contexts/socket-context'
 import { LeagueSettingsPanel } from '../../src/components/league-settings-panel'
+import { MessageBubble } from '../../src/components/message-bubble'
 import TradesScreen from './trades/index'
 import WaiversScreen from './waivers/index'
 
@@ -370,17 +371,14 @@ function ChatCard({ league, userId, onLastMessage }: {
             ) : (
               <FlatList ref={flatListRef} data={sorted} keyExtractor={(m) => m.message_id}
                 onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-                renderItem={({ item }) => {
-                  const isMe = item.author_id === userId
-                  return (
-                    <View className={`mb-1 ${isMe ? 'items-end' : 'items-start'}`}>
-                      <View className={`max-w-[75%] rounded-xl px-2.5 py-1.5 ${isMe ? 'bg-blue-600/20' : 'bg-gray-700'}`}>
-                        <Text className="text-gray-500 text-[10px] font-semibold">{item.author_display_name}</Text>
-                        {item.text ? <Text className="text-gray-100 text-[13px]">{item.text}</Text> : null}
-                      </View>
-                    </View>
-                  )
-                }}
+                renderItem={({ item }) => (
+                  <MessageBubble
+                    msg={item}
+                    isMe={item.author_id === userId}
+                    userId={userId}
+                    parentId={league.league_id}
+                  />
+                )}
                 contentContainerStyle={{ padding: 8 }}
                 ListEmptyComponent={<Text className="text-gray-400 text-center p-5 text-xs">No messages</Text>}
                 removeClippedSubviews={true}

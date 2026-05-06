@@ -9,6 +9,7 @@ import { useAuth } from '@autogm/shared/react'
 import { useLeagueCache } from '../../../src/league-cache'
 import { mobileDataClient } from '../../../src/data-client'
 import { useGatewayTopic } from '../../../src/contexts/socket-context'
+import { MessageBubble } from '../../../src/components/message-bubble'
 
 type DmPartner = {
   user_id: string
@@ -177,17 +178,14 @@ function DmCard({ partner, userId }: { partner: DmPartner; userId: string }) {
                 data={sorted}
                 keyExtractor={(m) => m.message_id}
                 onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-                renderItem={({ item }) => {
-                  const isMe = item.author_id === userId
-                  return (
-                    <View className={`mb-1 ${isMe ? 'items-end' : 'items-start'}`}>
-                      <View className={`max-w-[75%] rounded-xl px-2.5 py-1.5 ${isMe ? 'bg-blue-600/20' : 'bg-gray-700'}`}>
-                        <Text className="text-gray-500 text-[10px] font-semibold">{item.author_display_name}</Text>
-                        {item.text ? <Text className="text-gray-100 text-[13px]">{item.text}</Text> : null}
-                      </View>
-                    </View>
-                  )
-                }}
+                renderItem={({ item }) => (
+                  <MessageBubble
+                    msg={item}
+                    isMe={item.author_id === userId}
+                    userId={userId}
+                    parentId={dmId ?? ''}
+                  />
+                )}
                 contentContainerStyle={{ padding: 8 }}
                 ListEmptyComponent={
                   <Text className="text-gray-400 text-center p-5 text-xs">

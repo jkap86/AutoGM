@@ -3,6 +3,7 @@ import type { LeagueDetailed, Message, GetDmByMembersResult, MessagesResult, Mes
 import { SleeperTopics, messageFromSocket } from "@autogm/shared";
 import { useGatewayTopic } from "../../../contexts/socket-context";
 import { formatTime } from "../../../lib/trade-utils";
+import { MessageBubble } from "../../components/message-bubble";
 
 function decodeHtmlEntities(text: string): string {
   return text
@@ -187,18 +188,16 @@ export const DmPanel = memo(function DmPanel({ userId, partnerId, partnerName, l
           const isUser = msg.author_id === userId;
           const att = parseAttachment(msg.attachment);
           return (
-            <div key={msg.message_id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
-              <div className={`max-w-[75%] rounded-lg px-3 py-1.5 ${isUser ? "bg-blue-600/20" : "bg-gray-700/60"}`}>
-                <div className="flex items-baseline gap-2 mb-0.5">
-                  <span className={`text-xs font-semibold ${isUser ? "text-blue-400" : "text-gray-300"}`}>
-                    {msg.author_display_name}
-                  </span>
-                  <span className="text-xs text-gray-600">{formatTime(msg.created)}</span>
-                </div>
-                {msg.text && <p className="text-xs text-gray-200 whitespace-pre-wrap">{cleanText(msg.text)}</p>}
-                {att && <AttachmentView attachment={att} leagues={leagues} messages={sorted} />}
+            <MessageBubble key={msg.message_id} msg={msg} isUser={isUser} parentId={dmId ?? ''}>
+              <div className="flex items-baseline gap-2 mb-0.5">
+                <span className={`text-xs font-semibold ${isUser ? "text-blue-400" : "text-gray-300"}`}>
+                  {msg.author_display_name}
+                </span>
+                <span className="text-xs text-gray-600">{formatTime(msg.created)}</span>
               </div>
-            </div>
+              {msg.text && <p className="text-xs text-gray-200 whitespace-pre-wrap">{cleanText(msg.text)}</p>}
+              {att && <AttachmentView attachment={att} leagues={leagues} messages={sorted} />}
+            </MessageBubble>
           );
         })}
         </div>

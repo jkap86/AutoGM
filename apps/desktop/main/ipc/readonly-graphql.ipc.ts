@@ -13,6 +13,8 @@ const GENERIC_GRAPHQL_QUERIES = new Set<QueryName>([
   "listPollVotes",
   "myDms",
   "makeDraftPick",
+  "createReaction",
+  "deleteReaction",
 ]);
 
 /** Errors that are expected and should not be logged to console. */

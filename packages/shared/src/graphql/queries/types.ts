@@ -313,6 +313,28 @@ export type MakeDraftPickResult = {
   };
 };
 
+export type ReactionVars = {
+  message_id: string;
+  parent_id: string;
+  reaction: string;
+};
+
+export type ReactionResult = {
+  create_reaction: {
+    message_id: string;
+    reactor_id: string;
+    reaction: string;
+  };
+};
+
+export type DeleteReactionResult = {
+  delete_reaction: {
+    message_id: string;
+    reactor_id: string;
+    reaction: string;
+  };
+};
+
 export type QueryMap = {
   proposeTrade: { vars: ProposeTradeVars; result: ProposeTradeResult };
   acceptTrade: { vars: AcceptTradeVars; result: AcceptTradeResult };
@@ -348,6 +370,8 @@ export type QueryMap = {
   inboundRequests: { vars: InboundRequestsVars; result: InboundRequestsResult };
   myDms: { vars: MyDmsVars; result: MyDmsResult };
   makeDraftPick: { vars: MakeDraftPickVars; result: MakeDraftPickResult };
+  createReaction: { vars: ReactionVars; result: ReactionResult };
+  deleteReaction: { vars: ReactionVars; result: DeleteReactionResult };
 };
 
 export type QueryName = keyof QueryMap;

@@ -5,6 +5,7 @@ import { useGatewayTopic } from "../../../contexts/socket-context";
 import { Avatar } from "../../components/avatar";
 import { formatTime } from "../../../lib/trade-utils";
 import { parseAttachment, AttachmentView, cleanText } from "./dm-panel";
+import { MessageBubble } from "../../components/message-bubble";
 
 const TENOR_API_KEY = process.env.NEXT_PUBLIC_TENOR_API_KEY || 'AIzaSyC-P6RbEhWxUhtjTAANbYz4WB-YGlavnD0';
 
@@ -477,18 +478,16 @@ function LeagueChatCard({
                   const isUser = msg.author_id === userId;
                   const att = parseAttachment(msg.attachment);
                   return (
-                    <div key={msg.message_id} className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
-                      <div className={`max-w-[75%] rounded-lg px-3 py-1.5 ${isUser ? "bg-blue-600/20" : "bg-gray-700/60"}`}>
-                        <div className="flex items-baseline gap-2 mb-0.5">
-                          <span className={`text-xs font-semibold ${isUser ? "text-blue-400" : "text-gray-300"}`}>
-                            {msg.author_display_name}
-                          </span>
-                          <span className="text-xs text-gray-600">{formatTime(msg.created)}</span>
-                        </div>
-                        {msg.text && <p className="text-xs text-gray-200 whitespace-pre-wrap">{cleanText(msg.text)}</p>}
-                        {att && <AttachmentView attachment={att} leagues={leagues} messages={sorted} leagueId={league.league_id} />}
+                    <MessageBubble key={msg.message_id} msg={msg} isUser={isUser} parentId={league.league_id}>
+                      <div className="flex items-baseline gap-2 mb-0.5">
+                        <span className={`text-xs font-semibold ${isUser ? "text-blue-400" : "text-gray-300"}`}>
+                          {msg.author_display_name}
+                        </span>
+                        <span className="text-xs text-gray-600">{formatTime(msg.created)}</span>
                       </div>
-                    </div>
+                      {msg.text && <p className="text-xs text-gray-200 whitespace-pre-wrap">{cleanText(msg.text)}</p>}
+                      {att && <AttachmentView attachment={att} leagues={leagues} messages={sorted} leagueId={league.league_id} />}
+                    </MessageBubble>
                   );
                 })}
               </div>
